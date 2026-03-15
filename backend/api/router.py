@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from backend.api.artifacts import router as artifacts_router
 from backend.api.generation import router as generation_router
 from backend.api.jobs import router as jobs_router
 from backend.api.specs import router as specs_router
@@ -15,3 +16,4 @@ async def api_health() -> dict[str, str]:
 api_router.include_router(specs_router)
 api_router.include_router(jobs_router)
 api_router.include_router(generation_router)
+api_router.include_router(artifacts_router)
