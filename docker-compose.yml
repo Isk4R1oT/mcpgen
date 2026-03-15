@@ -9,16 +9,19 @@ services:
       - .env
     volumes:
       - ./backend:/app/backend
-      - /var/run/docker.sock:/var/run/docker.sock
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend/src:/app/src
+      - "3000:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
