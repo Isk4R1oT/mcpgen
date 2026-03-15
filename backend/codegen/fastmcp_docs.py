@@ -51,12 +51,12 @@ import httpx
 async def get_user(user_id: int) -> dict:
     \"\"\"Fetch user by ID from the API.\"\"\"
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/users/{user_id}")
+        response = await client.get(f"{BASE_URL}/users/{user_id}", timeout=30.0)
         response.raise_for_status()
         return response.json()
 ```
 
-### Tool with error handling
+### Tool with error handling (sanitized messages)
 
 ```python
 import httpx
@@ -74,9 +74,9 @@ async def get_item(item_id: int) -> dict:
             response.raise_for_status()
             return response.json()
     except httpx.HTTPStatusError as e:
-        return {"error": f"HTTP {e.response.status_code}", "detail": e.response.text[:500]}
-    except httpx.RequestError as e:
-        return {"error": "request_failed", "detail": str(e)}
+        return {"error": f"HTTP {e.response.status_code}", "detail": "Request failed. Check the resource ID and try again."}
+    except httpx.RequestError:
+        return {"error": "request_failed", "detail": "Could not reach the API. Please try again later."}
 ```
 
 ### Authentication pattern — API Key via env var
@@ -94,7 +94,7 @@ headers = {API_KEY_HEADER: API_KEY}
 async def list_items() -> list[dict]:
     \"\"\"List all items.\"\"\"
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/items", headers=headers)
+        response = await client.get(f"{BASE_URL}/items", headers=headers, timeout=30.0)
         response.raise_for_status()
         return response.json()
 ```
@@ -128,13 +128,16 @@ def health_check() -> dict:
     return {"status": "ok", "server": mcp.name}
 ```
 
-### Query parameters pattern
+### Input validation with Field constraints
 
 ```python
+from typing import Annotated
+from pydantic import Field
+
 @mcp.tool
 async def list_pets(
-    status: Annotated[str | None, "Filter by status (available, pending, sold)"] = None,
-    limit: Annotated[int | None, "Maximum number of results"] = None,
+    status: Annotated[str | None, Field(description="Filter by status", pattern="^(available|pending|sold)$")] = None,
+    limit: Annotated[int | None, Field(description="Maximum number of results", ge=1, le=100)] = None,
 ) -> list[dict]:
     \"\"\"Use when you need to list pets with optional filtering.\"\"\"
     params = {}
@@ -143,7 +146,7 @@ async def list_pets(
     if limit is not None:
         params["limit"] = limit
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/pets", params=params, headers=headers)
+        response = await client.get(f"{BASE_URL}/pets", params=params, headers=headers, timeout=30.0)
         response.raise_for_status()
         return response.json()
 ```
@@ -155,7 +158,7 @@ async def list_pets(
 async def get_pet_by_id(pet_id: Annotated[int, "The unique ID of the pet"]) -> dict:
     \"\"\"Use when you need to retrieve a specific pet by its ID.\"\"\"
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/pets/{pet_id}", headers=headers)
+        response = await client.get(f"{BASE_URL}/pets/{pet_id}", headers=headers, timeout=30.0)
         response.raise_for_status()
         return response.json()
 ```
@@ -171,19 +174,24 @@ async def create_pet(
     \"\"\"Use when you need to create a new pet.\"\"\"
     body = {"name": name, "status": status}
     async with httpx.AsyncClient() as client:
-        response = await client.post(f"{BASE_URL}/pets", json=body, headers=headers)
+        response = await client.post(f"{BASE_URL}/pets", json=body, headers=headers, timeout=30.0)
         response.raise_for_status()
         return response.json()
 ```
 
-### DELETE pattern
+### DELETE pattern (with confirmation safeguard)
 
 ```python
 @mcp.tool
-async def delete_pet(pet_id: Annotated[int, "ID of the pet to delete"]) -> dict:
-    \"\"\"Use when you need to delete a pet by ID.\"\"\"
+async def delete_pet(
+    pet_id: Annotated[int, Field(description="ID of the pet to delete", ge=1)],
+    confirm: Annotated[bool, "Set to true to confirm deletion"] = False,
+) -> dict:
+    \"\"\"Use when you need to delete a pet by ID. Requires confirm=true.\"\"\"
+    if not confirm:
+        return {"warning": "This will permanently delete pet {pet_id}. Call again with confirm=true to proceed."}
     async with httpx.AsyncClient() as client:
-        response = await client.delete(f"{BASE_URL}/pets/{pet_id}", headers=headers)
+        response = await client.delete(f"{BASE_URL}/pets/{pet_id}", headers=headers, timeout=30.0)
         response.raise_for_status()
         return {"deleted": True, "pet_id": pet_id}
 ```
@@ -213,7 +221,7 @@ async def list_pets(
     if status is not None:
         params["status"] = status
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/pet/findByStatus", params=params or {"status": "available"}, headers=headers)
+        response = await client.get(f"{BASE_URL}/pet/findByStatus", params=params or {"status": "available"}, headers=headers, timeout=30.0)
         response.raise_for_status()
         return response.json()
 
@@ -222,7 +230,7 @@ async def list_pets(
 async def get_pet_by_id(pet_id: Annotated[int, "The unique ID of the pet"]) -> dict:
     \"\"\"Use when you need to retrieve a specific pet by its ID.\"\"\"
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/pet/{pet_id}", headers=headers)
+        response = await client.get(f"{BASE_URL}/pet/{pet_id}", headers=headers, timeout=30.0)
         response.raise_for_status()
         return response.json()
 
@@ -247,4 +255,10 @@ if __name__ == "__main__":
 - NEVER use `os.environ["KEY"]` — always `os.environ.get("KEY", "")` to avoid KeyError
 - The server variable must be named `mcp` (for `fastmcp list server.py` to work)
 - Use `mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)` for production
+- All httpx calls MUST include `timeout=30.0`
+- Validate string inputs with `Field(pattern=...)` when values are from a known set
+- Use `Field(ge=, le=)` for numeric bounds on limits, offsets, IDs
+- DELETE tools MUST include a `confirm: bool = False` parameter and return a warning if not confirmed
+- Error messages MUST NOT expose internal paths, stack traces, raw exception details, or API keys
+- Catch `httpx.HTTPStatusError` and `httpx.RequestError` separately; return user-safe messages
 """

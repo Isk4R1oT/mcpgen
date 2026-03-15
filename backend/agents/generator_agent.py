@@ -29,6 +29,14 @@ Rules:
 - Always `response.raise_for_status()` after HTTP calls
 - End with `mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)`
 
+Security rules:
+- Validate all string inputs — use Field(pattern=) constraints for known value sets, or explicit checks
+- Validate numeric inputs — use Field(ge=, le=) for bounds on limits, offsets, and IDs
+- DELETE tools must include a `confirm: bool = False` parameter; return a warning dict if confirm is not true
+- Error messages must not expose internal paths, stack traces, or API keys — return user-safe messages only
+- All httpx calls must have explicit timeout=30.0
+- Catch httpx.HTTPStatusError and httpx.RequestError separately with sanitized error responses
+
 The output must contain at least:
 1. server.py — the main MCP server file
 2. List of pip requirements
