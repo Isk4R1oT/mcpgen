@@ -147,8 +147,16 @@ def _try_fastmcp_list(
 
         if result.returncode != 0:
             stderr = result.stderr.strip()
-            if stderr:
-                errors.append(f"fastmcp list failed: {stderr[:500]}")
+            # Filter out warnings (RequestsDependencyWarning etc.)
+            error_lines = [
+                line for line in stderr.splitlines()
+                if not line.strip().startswith("warnings.warn")
+                and "Warning:" not in line
+                and "warn(" not in line
+            ]
+            meaningful_stderr = "\n".join(error_lines).strip()
+            if meaningful_stderr:
+                errors.append(f"fastmcp list failed: {meaningful_stderr[:500]}")
             return False, []
 
         # Parse JSON output

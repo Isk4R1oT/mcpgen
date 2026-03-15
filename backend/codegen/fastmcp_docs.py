@@ -84,7 +84,7 @@ async def get_item(item_id: int) -> dict:
 ```python
 import os
 
-API_KEY = os.environ["API_KEY"]
+API_KEY = os.environ.get("API_KEY", "")
 API_KEY_HEADER = os.environ.get("API_KEY_HEADER", "Authorization")
 BASE_URL = os.environ.get("BASE_URL", "https://api.example.com")
 
@@ -104,7 +104,7 @@ async def list_items() -> list[dict]:
 ```python
 import os
 
-BEARER_TOKEN = os.environ["BEARER_TOKEN"]
+BEARER_TOKEN = os.environ.get("BEARER_TOKEN", "")
 BASE_URL = os.environ.get("BASE_URL", "https://api.example.com")
 
 headers = {"Authorization": f"Bearer {BEARER_TOKEN}"}
@@ -243,7 +243,8 @@ if __name__ == "__main__":
 - Use `async with httpx.AsyncClient()` — create a new client per call, don't reuse
 - Always call `response.raise_for_status()` after HTTP calls
 - Return dicts/lists, never raw Response objects
-- Read credentials from `os.environ`, never hardcode
+- Read credentials from `os.environ.get()` with empty string default, never hardcode
+- NEVER use `os.environ["KEY"]` — always `os.environ.get("KEY", "")` to avoid KeyError
 - The server variable must be named `mcp` (for `fastmcp list server.py` to work)
 - Use `mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)` for production
 """
