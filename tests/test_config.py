@@ -9,7 +9,7 @@ class TestSettings:
         assert settings.supabase_url == "https://test-project.supabase.co"
         assert settings.supabase_key == "test-supabase-key"
         assert settings.openrouter_api_key == "test-openrouter-key"
-        assert settings.openrouter_model == "anthropic/claude-sonnet-4-5"
+        assert settings.openrouter_model == "x-ai/grok-code-fast-1"
 
     def test_settings_docker_defaults(self) -> None:
         settings = Settings()
