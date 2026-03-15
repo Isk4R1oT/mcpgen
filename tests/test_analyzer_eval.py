@@ -1,10 +1,9 @@
-"""DeepEval tests for analyzer agent — real LLM calls.
+"""DeepEval tests for analyzer agent — real LLM calls with OpenRouter judge.
 
-Run with: pytest tests/test_analyzer_eval.py -v -k eval
-These tests make real API calls to OpenRouter and are slower.
+Run with: pytest tests/test_analyzer_eval.py -v
+These tests make real API calls to OpenRouter.
 """
 
-import os
 from pathlib import Path
 
 import pytest
@@ -14,13 +13,14 @@ from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 
 from backend.agents.analyzer_agent import create_analyzer_agent, build_analysis_prompt
 from backend.agents.models import AnalysisResult
+from backend.eval.openrouter_judge import OpenRouterJudge
 from backend.pipeline.parser import parse_openapi_from_file, extract_endpoints_from_spec
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 def get_openrouter_key() -> str:
-    """Read real API key from .env file, skipping if not available."""
+    """Read real API key from .env file."""
     env_path = Path(__file__).parent.parent / ".env"
     if env_path.exists():
         for line in env_path.read_text().splitlines():
@@ -30,6 +30,13 @@ def get_openrouter_key() -> str:
                     return key
     pytest.skip("Real OPENROUTER_API_KEY not found in .env")
     return ""
+
+
+def make_judge(api_key: str) -> OpenRouterJudge:
+    return OpenRouterJudge(
+        api_key=api_key,
+        model_name="x-ai/grok-code-fast-1",
+    )
 
 
 @pytest.mark.slow
@@ -50,20 +57,19 @@ class TestAnalyzerEval:
         result = await agent.run(prompt)
         analysis = result.output
 
-        # Structural validation
         assert isinstance(analysis, AnalysisResult)
         assert len(analysis.tools) > 0
         assert analysis.server_name != ""
         assert analysis.server_description != ""
 
-        # All tools should have snake_case names
         for tool in analysis.tools:
             assert tool.tool_name == tool.tool_name.lower()
             assert " " not in tool.tool_name
 
     async def test_analyzer_tool_descriptions_quality(self) -> None:
-        """Use deepeval GEval to judge the quality of generated tool descriptions."""
+        """Use deepeval GEval with OpenRouter judge to evaluate tool description quality."""
         api_key = get_openrouter_key()
+        judge = make_judge(api_key)
 
         spec = parse_openapi_from_file(FIXTURES_DIR / "petstore.yaml")
         endpoints = extract_endpoints_from_spec(spec)
@@ -77,7 +83,6 @@ class TestAnalyzerEval:
         result = await agent.run(prompt)
         analysis = result.output
 
-        # Build test case for deepeval
         tool_descriptions = "\n".join(
             f"- {t.tool_name}: {t.description}" for t in analysis.tools
         )
@@ -95,10 +100,11 @@ class TestAnalyzerEval:
                 LLMTestCaseParams.INPUT,
                 LLMTestCaseParams.ACTUAL_OUTPUT,
             ],
+            model=judge,
         )
 
         test_case = LLMTestCase(
-            input="Generate MCP server tool descriptions for a Petstore API with endpoints for managing pets, orders, and users.",
+            input="Generate MCP server tool descriptions for 4 pet-related endpoints of a Petstore API (list, add, get by ID, delete).",
             actual_output=tool_descriptions,
         )
 

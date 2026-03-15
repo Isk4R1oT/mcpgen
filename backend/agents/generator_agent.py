@@ -5,9 +5,10 @@ from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 
 from backend.agents.models import AnalysisResult, GeneratedServer
+from backend.codegen.fastmcp_docs import FASTMCP_REFERENCE
 
 
-GENERATOR_INSTRUCTIONS = """You are an expert Python developer specializing in MCP servers.
+GENERATOR_INSTRUCTIONS = f"""You are an expert Python developer specializing in MCP servers.
 Generate a complete, production-ready FastMCP server.
 
 Rules:
@@ -21,12 +22,20 @@ Rules:
 - Return structured data (dicts/lists), not raw HTTP response text
 - Use async/await for all HTTP calls
 - Include proper imports at the top of each file
+- The FastMCP server variable MUST be named `mcp`
+- Use `@mcp.tool` decorator (without parentheses)
+- Use `Annotated[type, "description"]` for parameter docs
+- Use `async with httpx.AsyncClient()` per call, do not reuse clients
+- Always `response.raise_for_status()` after HTTP calls
+- End with `mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)`
 
 The output must contain at least:
 1. server.py — the main MCP server file
 2. List of pip requirements
 3. List of required environment variables
-4. The startup command"""
+4. The startup command
+
+{FASTMCP_REFERENCE}"""
 
 
 def create_generator_agent(api_key: str, model_name: str) -> Agent:
@@ -94,7 +103,7 @@ def build_generation_prompt(
 - Use FastMCP v3.1
 - Use httpx for HTTP calls
 - Use streamable-http transport on port 8000
-- Each tool function must be decorated with @mcp.tool()
+- Each tool function must be decorated with @mcp.tool (no parentheses)
 - Include a health_check tool
 - All HTTP calls must be async
 - Environment variables for auth and base URL"""

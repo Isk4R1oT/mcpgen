@@ -14,7 +14,7 @@ with their parameters and schemas, produce optimized tool definitions for an MCP
 
 Rules:
 - Use snake_case for all tool names (e.g., list_pets, get_user_by_id)
-- Each tool description must start with "Use when" and be 1-3 sentences
+- Each tool description must start with "Use when" and include what data it returns. 1-3 sentences
 - Group related endpoints logically by their tag/resource
 - Write descriptions for an LLM audience, not humans
 - Include parameter types, constraints, and examples where helpful
