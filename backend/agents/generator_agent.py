@@ -123,10 +123,12 @@ def _get_auth_instructions(auth_type: str) -> str:
 - Read API key from environment variable API_KEY
 - Pass it as a header in all HTTP requests
 - Header name should be configurable via API_KEY_HEADER env var (default: "Authorization")"""
-    elif auth_type == "bearer":
-        return """Authentication: Bearer Token
-- Read token from environment variable BEARER_TOKEN
-- Pass it as "Authorization: Bearer {token}" header in all requests"""
+    elif auth_type in ("bearer", "bearer_jwt"):
+        return """Authentication: Bearer JWT Token
+- Read token from environment variable API_TOKEN
+- Create headers dict: headers = {"Authorization": f"Bearer {API_TOKEN}"} if API_TOKEN else {}
+- Pass headers in ALL HTTP requests
+- This is a JWT token, the server validates it server-side"""
     elif auth_type == "oauth2":
         return """Authentication: OAuth2
 - Read access token from environment variable ACCESS_TOKEN
