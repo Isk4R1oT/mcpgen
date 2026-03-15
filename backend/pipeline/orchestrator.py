@@ -1,8 +1,8 @@
 from backend.agents.analyzer_agent import create_analyzer_agent, build_analysis_prompt
 from backend.agents.generator_agent import create_generator_agent, build_generation_prompt
 from backend.agents.models import AnalysisResult, GeneratedServer
-from backend.api.specs import _jobs_store
 from backend.config import Settings
+from backend.db.store import get_job, update_job_status, save_analysis, save_generated_server
 from backend.pipeline.parser import ParsedSpec, extract_endpoints_from_spec
 from backend.pipeline.validator import validate_generated_code, ValidationResult
 
@@ -10,18 +10,18 @@ from backend.pipeline.validator import validate_generated_code, ValidationResult
 async def run_pipeline(job_id: str, settings: Settings) -> None:
     """Run the full generation pipeline for a job.
 
-    Stages: parse → analyze → generate → validate → (package — M5)
+    Stages: parse → analyze → generate → validate → (package)
     """
-    job = _jobs_store[job_id]
+    job = get_job(job_id)
 
     try:
         # Stage 1: PARSE (already done during upload)
-        _update_status(job, "parsing")
+        update_job_status(job_id, "parsing", None)
         parsed_spec: ParsedSpec = job["parsed_spec"]
         endpoints = job["endpoints"]
 
         # Stage 2: ANALYZE
-        _update_status(job, "analyzing")
+        update_job_status(job_id, "analyzing", None)
         config = job.get("config", {})
         selected_ids = config.get("selected_endpoints", [])
 
@@ -37,10 +37,10 @@ async def run_pipeline(job_id: str, settings: Settings) -> None:
         )
         analysis_result = await analyzer.run(prompt)
         analysis: AnalysisResult = analysis_result.output
-        job["analysis"] = analysis
+        save_analysis(job_id, analysis)
 
         # Stage 3: GENERATE
-        _update_status(job, "generating")
+        update_job_status(job_id, "generating", None)
         auth_type = config.get("auth_strategy", {}).get("type", analysis.auth_recommendation)
         base_url = parsed_spec.base_url or "https://api.example.com"
 
@@ -51,14 +51,15 @@ async def run_pipeline(job_id: str, settings: Settings) -> None:
         )
         gen_result = await generator.run(gen_prompt)
         generated: GeneratedServer = gen_result.output
-        job["generated_server"] = generated
 
         # Stage 4: VALIDATE
-        _update_status(job, "validating")
+        update_job_status(job_id, "validating", None)
         validation = validate_generated_code(generated)
-        job["validation"] = {
+        validation_dict = {
             "syntax_ok": validation.syntax_ok,
             "imports_ok": validation.imports_ok,
+            "runtime_ok": validation.runtime_ok,
+            "tools_discovered": validation.tools_discovered,
             "errors": validation.errors,
         }
 
@@ -72,28 +73,26 @@ async def run_pipeline(job_id: str, settings: Settings) -> None:
             )
             gen_result = await generator.run(fix_prompt)
             generated = gen_result.output
-            job["generated_server"] = generated
 
             validation = validate_generated_code(generated)
-            job["validation"] = {
+            validation_dict = {
                 "syntax_ok": validation.syntax_ok,
                 "imports_ok": validation.imports_ok,
+                "runtime_ok": validation.runtime_ok,
+                "tools_discovered": validation.tools_discovered,
                 "errors": validation.errors,
             }
 
             if not validation.syntax_ok:
-                _update_status(job, "failed")
-                job["error_message"] = f"Code generation failed after retry: {validation.errors}"
+                update_job_status(job_id, "failed",
+                                  f"Code generation failed after retry: {validation.errors}")
                 return
 
-        # Stage 5: PACKAGE (will be implemented in M5)
-        _update_status(job, "completed")
+        save_generated_server(job_id, generated, validation_dict)
+
+        # Stage 5: PACKAGE (source archive created on-demand at download)
+        update_job_status(job_id, "completed", None)
 
     except Exception as e:
-        _update_status(job, "failed")
-        job["error_message"] = str(e)
+        update_job_status(job_id, "failed", str(e))
         raise
-
-
-def _update_status(job: dict, status: str) -> None:
-    job["status"] = status

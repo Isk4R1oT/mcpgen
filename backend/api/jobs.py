@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
-from backend.api.specs import _jobs_store, get_job
 from backend.db.models import JobConfiguration
+from backend.db.store import get_job, save_job_config
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -9,10 +9,9 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 @router.post("/{job_id}/configure")
 async def configure_job(job_id: str, config: JobConfiguration) -> dict:
     """Save user configuration for MCP server generation."""
-    job = get_job(job_id)
-    job["config"] = config.model_dump()
-    job["status"] = "configured"
-    return {"job_id": job_id, "status": job["status"]}
+    get_job(job_id)  # Validate exists
+    save_job_config(job_id, config.model_dump())
+    return {"job_id": job_id, "status": "configured"}
 
 
 @router.get("/{job_id}")

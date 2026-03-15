@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     openrouter_api_key: str
     openrouter_model: str
 
+    # Database
+    database_url: str = ""
+
     # Docker
     docker_registry: str
     docker_registry_push_enabled: bool

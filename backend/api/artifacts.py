@@ -3,7 +3,7 @@ import io
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from backend.api.specs import get_job
+from backend.db.store import get_job
 from backend.pipeline.packager import create_source_archive
 
 router = APIRouter(prefix="/jobs", tags=["artifacts"])

@@ -13,6 +13,7 @@ from backend.agents.extractor_agent import (
     ExtractionResult,
 )
 from backend.config import Settings
+from backend.db.store import create_job, get_job
 from backend.pipeline.parser import (
     ParsedEndpoint,
     ParsedSpec,
@@ -31,32 +32,6 @@ from backend.services.spec_fetcher import (
 router = APIRouter(prefix="/specs", tags=["specs"])
 
 ALLOWED_EXTENSIONS = {".yaml", ".yml", ".json", ".pdf", ".md"}
-
-# In-memory storage for MVP (will be replaced with Supabase)
-_jobs_store: dict[str, dict] = {}
-
-
-def get_job(job_id: str) -> dict:
-    if job_id not in _jobs_store:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
-    return _jobs_store[job_id]
-
-
-def _store_job(
-    parsed_spec: ParsedSpec,
-    endpoints: list[ParsedEndpoint],
-    input_type: str,
-) -> str:
-    """Create a job in the store and return job_id."""
-    job_id = str(uuid.uuid4())
-    _jobs_store[job_id] = {
-        "id": job_id,
-        "status": "pending",
-        "input_type": input_type,
-        "parsed_spec": parsed_spec,
-        "endpoints": endpoints,
-    }
-    return job_id
 
 
 def _extraction_to_parsed_spec(extraction: ExtractionResult) -> ParsedSpec:
@@ -106,20 +81,16 @@ async def upload_spec(file: UploadFile) -> dict:
 
     content = await file.read()
 
-    # OpenAPI YAML
     if ext in (".yaml", ".yml"):
         return await _handle_openapi_file(content, ext)
 
-    # OpenAPI JSON
     if ext == ".json":
         return await _handle_openapi_file(content, ext)
 
-    # PDF — extract text, then LLM extraction
     if ext == ".pdf":
         text = extract_text_from_pdf(content)
         return await _handle_unstructured_text(text, "pdf")
 
-    # Markdown — LLM extraction
     if ext == ".md":
         text = extract_text_from_markdown(content.decode("utf-8"))
         return await _handle_unstructured_text(text, "markdown")
@@ -139,18 +110,16 @@ async def parse_from_url(payload: UrlInput) -> dict:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {e}")
 
-    # If we got an OpenAPI spec directly
     if content_type in ("openapi_json", "openapi_yaml"):
         parsed_spec = parse_content_to_spec(content, content_type)
         endpoints = extract_endpoints_from_spec(parsed_spec)
-        job_id = _store_job(parsed_spec, endpoints, content_type)
+        job_id = create_job(parsed_spec, endpoints, content_type)
         return {
             "job_id": job_id,
             "parsed_spec_id": str(uuid.uuid4()),
             "endpoints_count": len(endpoints),
         }
 
-    # HTML/text — use LLM extraction
     return await _handle_unstructured_text(content, "url")
 
 
@@ -158,7 +127,7 @@ async def parse_from_url(payload: UrlInput) -> dict:
 async def get_endpoints(job_id: str) -> list[dict]:
     """Get parsed endpoints for a job."""
     job = get_job(job_id)
-    endpoints = job["endpoints"]
+    endpoints = job.get("endpoints", [])
 
     return [
         {
@@ -186,7 +155,7 @@ async def _handle_openapi_file(content: bytes, ext: str) -> dict:
 
     endpoints = extract_endpoints_from_spec(parsed_spec)
     input_type = "openapi_yaml" if ext in (".yaml", ".yml") else "openapi_json"
-    job_id = _store_job(parsed_spec, endpoints, input_type)
+    job_id = create_job(parsed_spec, endpoints, input_type)
 
     return {
         "job_id": job_id,
@@ -196,7 +165,7 @@ async def _handle_openapi_file(content: bytes, ext: str) -> dict:
 
 
 async def _handle_unstructured_text(text: str, source_type: str) -> dict:
-    """Use LLM to extract endpoints from unstructured text (HTML, PDF, MD)."""
+    """Use LLM to extract endpoints from unstructured text."""
     settings = Settings()
     agent = create_extractor_agent(
         api_key=settings.openrouter_api_key,
@@ -209,7 +178,7 @@ async def _handle_unstructured_text(text: str, source_type: str) -> dict:
 
     parsed_spec = _extraction_to_parsed_spec(extraction)
     endpoints = extract_endpoints_from_spec(parsed_spec)
-    job_id = _store_job(parsed_spec, endpoints, f"file_upload")
+    job_id = create_job(parsed_spec, endpoints, "file_upload")
 
     return {
         "job_id": job_id,
