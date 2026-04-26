@@ -1,0 +1,90 @@
+# MCPGen pre-commit hook orchestration (D-05).
+#
+# Defends:
+# - T-1-01 (bypass via --no-verify) — same hooks re-run server-side in main-ci.yml
+# - T-1-02 (secrets in scaffold) — gitleaks v8 with .gitleaks.toml allowlist
+# - T-1-03 (AI-fix-by-lowering-threshold, Pitfall #29) — launch-criteria-guard
+# - T-1-04 (Drizzle migration filename collision, Pitfall #18) — ir-codegen-check (and Plan 04 wires drizzle-kit check)
+# - T-1-05 (CF dispatch namespace explosion, Pitfall #11) — cf-namespace-guard
+# - UI redesign (CONTEXT specifics) — ui-locked-guard
+# - D-20 (Conventional Commits 1.0.0) — conventional-pre-commit on commit-msg + commitlint in CI
+#
+# NEVER use --no-verify (per docs/mcpgen-git-workflow-rules.md). CI re-runs `pre-commit run --all-files`
+# server-side as the bypass guarantee.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        files: ^apps/generation-engine/
+        additional_dependencies:
+          - pydantic
+          - pydantic-ai
+          - fastapi
+          - pydantic-settings
+          - httpx
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v10.2.1
+    hooks:
+      - id: eslint
+        files: \.(ts|tsx)$
+        types: [file]
+        additional_dependencies:
+          - eslint@^10.2.1
+          - typescript@^6.0.3
+          - "@typescript-eslint/parser@^8"
+          - "@typescript-eslint/eslint-plugin@^8"
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: []
+
+  - repo: local
+    hooks:
+      # D-08: prevent 4th CF dispatch namespace (Pitfall #11 → T-1-05)
+      - id: cf-namespace-guard
+        name: CF dispatch namespaces ≤ 3
+        entry: bash .pre-commit-hooks/no-fourth-namespace.sh
+        language: system
+        files: ^infrastructure/cloudflare/
+        pass_filenames: false
+
+      # D-13: launch-criteria.ts changes require paired decision-log entry (Pitfall #29 → T-1-03)
+      - id: launch-criteria-guard
+        name: launch-criteria changes need decision log
+        entry: bash .pre-commit-hooks/launch-criteria-paired-decision.sh
+        language: system
+        files: ^packages/contracts/src/launch-criteria\.ts$
+        pass_filenames: false
+
+      # D-02 / FND-02: IR Pydantic codegen freshness check (script lands in Plan 03)
+      - id: ir-codegen-check
+        name: IR Pydantic codegen up-to-date
+        entry: pnpm --filter @mcpgen/ir codegen --check
+        language: system
+        files: ^packages/ir/(src|python)/
+        pass_filenames: false
+
+      # CONTEXT specifics: apps/web/src/styles + apps/web/src/components/ui locked after initial unzip commit
+      - id: ui-locked-guard
+        name: apps/web/src/styles + components/ui locked
+        entry: bash .pre-commit-hooks/check-ui-locked.sh
+        language: system
+        files: ^apps/web/src/(styles|components/ui)/
+        pass_filenames: false

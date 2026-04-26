@@ -1,0 +1,20 @@
+title = "MCPGen Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow known-safe placeholders for env-var name strings (NOT actual secret values)"
+paths = [
+  '''docs/.*''',
+  '''\.planning/.*''',
+  '''claude-design-ui/.*''',
+  '''README\.md''',
+]
+# Allow strings that are obviously placeholders, not real keys:
+regexes = [
+  '''<set-via-`wrangler.*''',
+  '''<your-.*-here>''',
+  '''sk_test_.*placeholder.*''',
+  '''ghp_PLACEHOLDER.*''',
+]
