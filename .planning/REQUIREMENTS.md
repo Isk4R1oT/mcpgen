@@ -11,7 +11,8 @@
 
 ### Foundation (FND) — Phase 1 contracts and scaffolding
 
-- [ ] **FND-01**: Monorepo scaffolded with Turborepo + pnpm 9 (`apps/web`, `apps/api`, `apps/dispatch`, `apps/generation-engine`, `apps/cli`, `apps/docs` directories with empty-but-deployable scaffolds)
+- [x] **FND-01
+**: Monorepo scaffolded with Turborepo + pnpm 9 (`apps/web`, `apps/api`, `apps/dispatch`, `apps/generation-engine`, `apps/cli`, `apps/docs` directories with empty-but-deployable scaffolds)
 - [ ] **FND-02**: `packages/ir/` defines IR schema with TS Zod as source of truth and Pydantic generated via codegen — covers `Tool`, `ToolDescription`, `ToolAnnotations`, `ResponseConfig`, `RoutingRule`, `WorkflowDef`, `SmartIdSchema`, `FinalTool` [P1: prevents drift between TS frontend/runtime and Python engine]
 - [ ] **FND-03**: `packages/contracts/src/generation-api.ts` specifies `POST /api/v1/generate` request shape, SSE event envelope, error code enum, callback POST shape, and `Idempotency-Key` header convention
 - [ ] **FND-04**: `packages/contracts/src/usage-event.ts` defines a single usage event schema consumed at the tenant Worker emit-site, the CF Queue payload, the TimescaleDB row, and the Stripe Meters dimension keys [P0: prevents silent billing drift]
@@ -90,8 +91,10 @@
 > OPS-* are cross-phase operational disciplines. They are anchored to Phase 1 for scaffolding (CI policy, plan-file conventions, Friday demo cadence ritual) but enforced continuously through every subsequent phase.
 
 - [ ] **OPS-01**: Friday demo cadence preserved through W10; pre-recorded clips throughout the week, Friday is editing only [P0: pitfall #23 — velocity death spiral]
-- [ ] **OPS-02**: Cross-workstream test ownership policy enforced — failing tests "owned" by the workstream that owns the file; cross-ws failures escalate to MAIN as contract-change PR [P1: pitfall #26]
-- [ ] **OPS-03**: Each engine phase starts a fresh Claude session; planning state lives in `.planning/workstreams/engine/STATE.md`; plan files include "MUST re-read these files first" header [P1: pitfall #28]
+- [x] **OPS-02
+**: Cross-workstream test ownership policy enforced — failing tests "owned" by the workstream that owns the file; cross-ws failures escalate to MAIN as contract-change PR [P1: pitfall #26]
+- [x] **OPS-03
+**: Each engine phase starts a fresh Claude session; planning state lives in `.planning/workstreams/engine/STATE.md`; plan files include "MUST re-read these files first" header [P1: pitfall #28]
 
 ---
 

@@ -42,7 +42,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   8. Idempotency keys specified at all 4 surfaces (`POST /api/v1/generate`, Inngest job triggers, Stripe Meters event creation, CF dispatch namespace deploys); Drizzle migrations use `YYYYMMDD_HHMMSS_` prefix; Logto Cloud free tier scaffolded with email + GitHub providers and the Pro-upgrade runbook documented and tested on staging
 **Plans**: 8 plans
 Plans:
-- [ ] 01-01-PLAN.md — Repo skeleton + tooling foundation (pnpm/Turborepo/tsconfig/shared-config) [Wave 1]
+- [x] 01-01-PLAN.md — Repo skeleton + tooling foundation (pnpm/Turborepo/tsconfig/shared-config) [Wave 1] ✓ 2026-04-26
 - [ ] 01-02-PLAN.md — Pre-commit hooks + GitHub Actions CI + 4 local guard scripts + decision-log scaffolding [Wave 2]
 - [ ] 01-03-PLAN.md — 4 frozen contracts: IR (Zod source + Pydantic codegen) + generation-api + usage-event + launch-criteria + idempotency + runtime-sdk interface stub [Wave 3]
 - [ ] 01-04-PLAN.md — DB schema migration (Drizzle) + Neon dev DB push [BLOCKING] [Wave 4]
@@ -181,7 +181,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 1/8 | In progress | - |
 | 2. Generation Engine — Architect (Pass 0+1) | 0/TBD | Not started | - |
 | 3. Generation Engine — Author (Pass 2+3+4) | 0/TBD | Not started | - |
 | 4. Generation Engine — Shape & Codegen (Pass 5 + Stage E) | 0/TBD | Not started | - |
