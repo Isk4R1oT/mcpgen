@@ -124,4 +124,12 @@ addopts = [
 ]
 filterwarnings = [
   "error",
+  # Upstream pydantic-ai 0.2.x imports `opentelemetry._events.*` which the
+  # opentelemetry-sdk 1.39+ now deprecates in favour of stable `Logger`/
+  # `LoggerProvider`/`ProxyLoggerProvider`/`NoOpLogger` APIs. The deprecation
+  # is raised through `typing_extensions.{__init_subclass__,__new__}` so the
+  # message-level pattern below is the only one that catches it consistently.
+  # Out of our scope - bumps with the next pydantic-ai release. See
+  # pydantic-ai #1815.
+  "ignore:You should use `.*` instead\\. Deprecated since version 1\\.39\\.0.*:DeprecationWarning",
 ]
