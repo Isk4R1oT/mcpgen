@@ -1,0 +1,20 @@
+# D-06 entry point for runtime workstream. The actual runtime job runs in main-ci.yml
+# under the `runtime` job (conditional on `detect-changes.outputs.runtime == 'true'`).
+# This file exists for clarity (runtime ws contributors look here first) and as the
+# documentation anchor referenced from docs/mcpgen-gsd-sprint-plan.md §3.
+#
+# Per docs/decisions/002-single-ci-workflow-with-paths-filter.md, all real work runs
+# in main-ci.yml; this entry point only emits a marker.
+name: Runtime CI (entrypoint — see main-ci.yml `runtime` job)
+on:
+  pull_request:
+    paths:
+      - 'apps/dispatch/**'
+      - 'packages/runtime-sdk/**'
+      - 'apps/dispatch-sample/**'
+
+jobs:
+  runtime-marker:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "Runtime ws CI runs in main-ci.yml under the 'runtime' job; this entry point exists per D-06."

@@ -1,0 +1,219 @@
+# Aggregator CI workflow (RESEARCH Pattern 7 + Open Question #6).
+#
+# Per docs/decisions/002-single-ci-workflow-with-paths-filter.md, this single workflow
+# uses dorny/paths-filter for affected-only execution; per-workstream entry-point files
+# (engine-ci.yml, runtime-ci.yml, frontend-ci.yml, ops-ci.yml) exist for D-06 wording
+# compliance but only emit a marker step pointing here.
+#
+# Defends:
+# - T-1-01 (bypass via --no-verify) — `pre-commit` job re-runs all hooks server-side
+# - T-1-02 (secrets in scaffold) — `gitleaks` job runs on every PR
+# - T-1-03 (AI-fix-by-lowering-threshold) — `launch-criteria-assertion` asserts values
+#   match docs/mcpgen-implementation-plan.md §11.7
+# - T-1-09 (OPENROUTER_API_KEY leak) — secret referenced as `secrets.OPENROUTER_API_KEY`
+#   only in env: of smoke-test step, never echoed
+# - D-20 (Conventional Commits) — `commit-lint` job is the second enforcement layer
+name: CI
+on:
+  pull_request: {}
+  push:
+    branches: [main]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      engine: ${{ steps.changes.outputs.engine }}
+      runtime: ${{ steps.changes.outputs.runtime }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+      ops: ${{ steps.changes.outputs.ops }}
+      contracts: ${{ steps.changes.outputs.contracts }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            engine: 'apps/generation-engine/**'
+            runtime:
+              - 'apps/dispatch/**'
+              - 'packages/runtime-sdk/**'
+              - 'apps/dispatch-sample/**'
+            frontend: 'apps/web/**'
+            ops:
+              - 'apps/api/**'
+              - 'infrastructure/**'
+              - '.github/workflows/**'
+            contracts: 'packages/(ir|contracts)/**'
+
+  contracts:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.contracts == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mcpgen/ir codegen --check  # D-02
+      - run: pnpm --filter @mcpgen/contracts test
+      - run: pnpm --filter @mcpgen/contracts typecheck
+
+  engine:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.engine == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: cd apps/generation-engine && uv sync
+      - run: cd apps/generation-engine && uv run ruff check
+      - run: cd apps/generation-engine && uv run mypy --strict src
+      - run: cd apps/generation-engine && uv run pytest -m "not requires_openrouter"
+      # Day-1 Qwen smoke test only runs when OPENROUTER_API_KEY is present (T-1-09: never
+      # echoed; never written to logs; injected only into this step's env).
+      - name: Day-1 Qwen smoke test (if API key present)
+        if: ${{ env.HAVE_OPENROUTER_KEY == 'true' }}
+        env:
+          HAVE_OPENROUTER_KEY: ${{ secrets.OPENROUTER_API_KEY != '' }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: cd apps/generation-engine && uv run pytest tests/smoke_test_qwen.py
+
+  runtime:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.runtime == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: |
+          pnpm --filter './apps/dispatch...' --filter './apps/dispatch-sample...' --filter './packages/runtime-sdk...' run typecheck
+          pnpm --filter './apps/dispatch...' --filter './apps/dispatch-sample...' --filter './packages/runtime-sdk...' run build
+          pnpm --filter './apps/dispatch...' --filter './apps/dispatch-sample...' --filter './packages/runtime-sdk...' run test
+
+  frontend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mcpgen/web run typecheck
+      - run: pnpm --filter @mcpgen/web run build
+      - run: pnpm --filter @mcpgen/web run test
+
+  ops:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ops == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter './apps/api...' run typecheck
+      - run: pnpm --filter './apps/api...' run build
+      - run: pnpm --filter './apps/api...' run test
+      # FND-08: drizzle-kit check (filename collision guard, Pitfall #18 → T-1-04).
+      # The drizzle-kit script lands in Plan 04; until then the script may not exist —
+      # this step uses `|| true` to no-op pre-Plan-04 PRs.
+      - run: pnpm --filter '@mcpgen/api' run drizzle-kit:check || true
+
+  pre-commit:
+    # Defends T-1-01 (--no-verify bypass): re-runs every hook server-side on every PR.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pip install pre-commit==4.0.1
+      - run: pre-commit run --all-files --show-diff-on-failure
+
+  gitleaks:
+    # Defends T-1-02 (secrets in scaffold): scans full history on every PR including the first.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  commit-lint:
+    # D-20 second enforcement layer (first is local conventional-pre-commit).
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: .commitlintrc.json
+
+  launch-criteria-assertion:
+    # Defends T-1-03 (AI-fix-by-lowering-threshold): runtime-constant immutability proof.
+    # The pre-commit hook `launch-criteria-guard` blocks unpaired changes locally; this CI
+    # step proves the constants still match the documented thresholds in
+    # docs/mcpgen-implementation-plan.md §11.7.
+    runs-on: ubuntu-24.04
+    needs: detect-changes
+    if: needs.detect-changes.outputs.contracts == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert launch-criteria values match docs
+        run: |
+          if [[ -f packages/contracts/src/launch-criteria.ts ]]; then
+            grep -qF 'F2_SMELL_MIN: 4.0' packages/contracts/src/launch-criteria.ts || (echo "ERROR: F2_SMELL_MIN must be 4.0 per docs/mcpgen-implementation-plan.md §11.7"; exit 1)
+            grep -qF 'F3_AGENT_PASS_RATE_MIN: 0.7' packages/contracts/src/launch-criteria.ts || (echo "ERROR: F3_AGENT_PASS_RATE_MIN must be 0.7"; exit 1)
+            grep -qF 'PASS_KB: 800' packages/contracts/src/launch-criteria.ts || (echo "ERROR: bundle PASS_KB must be 800"; exit 1)
+            grep -qF 'WARN_KB: 950' packages/contracts/src/launch-criteria.ts || (echo "ERROR: bundle WARN_KB must be 950"; exit 1)
+            echo "OK: launch-criteria values match docs/mcpgen-implementation-plan.md §11.7"
+          else
+            echo "launch-criteria.ts not yet present (will be created in Plan 03); skipping assertion"
+          fi

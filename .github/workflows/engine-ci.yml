@@ -1,0 +1,17 @@
+# D-06 entry point for engine workstream. The actual engine job runs in main-ci.yml
+# under the `engine` job (conditional on `detect-changes.outputs.engine == 'true'`).
+# This file exists for clarity (engine ws contributors look here first) and as the
+# documentation anchor referenced from docs/mcpgen-gsd-sprint-plan.md §3.
+#
+# Per docs/decisions/002-single-ci-workflow-with-paths-filter.md, all real work runs
+# in main-ci.yml; this entry point only emits a marker.
+name: Engine CI (entrypoint — see main-ci.yml `engine` job)
+on:
+  pull_request:
+    paths: ['apps/generation-engine/**']
+
+jobs:
+  engine-marker:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "Engine ws CI runs in main-ci.yml under the 'engine' job; this entry point exists per D-06."

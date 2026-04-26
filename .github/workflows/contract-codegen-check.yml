@@ -1,0 +1,32 @@
+# D-02: IR Pydantic codegen freshness gate.
+#
+# Runs only on PRs/pushes that touch packages/ir/. Fails if `pnpm --filter @mcpgen/ir
+# codegen --check` reports the committed Pydantic types are stale relative to the
+# Zod source. The codegen script lands in Plan 03; until then this workflow is a no-op
+# because no PR touches packages/ir/.
+name: Contract Codegen Check
+on:
+  pull_request:
+    paths: ['packages/ir/**']
+  push:
+    branches: [main]
+    paths: ['packages/ir/**']
+
+jobs:
+  codegen-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install datamodel-code-generator==0.26.4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mcpgen/ir codegen --check
