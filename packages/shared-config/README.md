@@ -4,12 +4,12 @@ Shared build/lint/test configuration consumed by every other package and app in 
 
 ## Sub-paths
 
-| Sub-path                              | Use                                                                                                |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `@mcpgen/shared-config/eslint`        | Flat ESLint 10 config enforcing CLAUDE.md global rules (no `any`, explicit return types, etc.)     |
-| `@mcpgen/shared-config/prettier`      | Prettier defaults (single quotes, trailing commas, 100-width, 2-space indent)                      |
-| `@mcpgen/shared-config/tsconfig`      | `tsconfig.base.json` shim that extends the root `tsconfig.base.json` (strict TS6 base)             |
-| `@mcpgen/shared-config/vitest`        | Vitest base config — extend with `mergeConfig(base, defineConfig({ /* overrides */ }))`            |
+| Sub-path                         | Use                                                                                            |
+| -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `@mcpgen/shared-config/eslint`   | Flat ESLint 10 config enforcing CLAUDE.md global rules (no `any`, explicit return types, etc.) |
+| `@mcpgen/shared-config/prettier` | Prettier defaults (single quotes, trailing commas, 100-width, 2-space indent)                  |
+| `@mcpgen/shared-config/tsconfig` | `tsconfig.base.json` shim that extends the root `tsconfig.base.json` (strict TS6 base)         |
+| `@mcpgen/shared-config/vitest`   | Vitest base config — extend with `mergeConfig(base, defineConfig({ /* overrides */ }))`        |
 
 ## Consumption examples
 
@@ -41,7 +41,7 @@ export { default } from '@mcpgen/shared-config/prettier';
 {
   "extends": "@mcpgen/shared-config/tsconfig",
   "compilerOptions": { "outDir": "dist" },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
 }
 ```
 

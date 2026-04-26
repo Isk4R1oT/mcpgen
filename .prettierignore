@@ -1,0 +1,27 @@
+# Auto-generated / vendored
+node_modules/
+dist/
+.turbo/
+.next/
+coverage/
+pnpm-lock.yaml
+*.tsbuildinfo
+
+# Locked design (CONTEXT specifics: NO visual / layout / typography changes)
+claude-design-ui/
+
+# Source-of-truth docs (curated upstream; not formatter-managed)
+docs/
+CLAUDE.md
+RULES.md
+
+# GSD planning artifacts (templated — not formatter-managed)
+.planning/
+
+# Python sources (handled by ruff in apps/generation-engine)
+**/*.py
+__pycache__/
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/

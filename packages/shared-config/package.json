@@ -12,8 +12,10 @@
     "./vitest": "./vitest.config.base.ts"
   },
   "scripts": {
+    "build": "echo \"no build step in shared-config (config-only package)\"",
     "test": "echo \"no tests in shared-config\"",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "echo \"no lint step in shared-config (config files only)\""
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
