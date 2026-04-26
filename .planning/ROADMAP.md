@@ -40,7 +40,16 @@ Decimal phases appear between their surrounding integers in numeric order.
   6. Pre-commit hooks (gitleaks, ruff, eslint, mypy, conventional-pre-commit) installed and CI-enforced; pre-commit hook FAILS any change to `packages/contracts/launch-criteria.ts` without a paired `docs/decisions/` entry
   7. Hono `streamSSE` 30-second sub-request limit on CF Workers verified via 30-min spike before contracts freeze; resume semantics (`last-event-id`, Postgres-as-source-of-truth fallback) are in the API contract
   8. Idempotency keys specified at all 4 surfaces (`POST /api/v1/generate`, Inngest job triggers, Stripe Meters event creation, CF dispatch namespace deploys); Drizzle migrations use `YYYYMMDD_HHMMSS_` prefix; Logto Cloud free tier scaffolded with email + GitHub providers and the Pro-upgrade runbook documented and tested on staging
-**Plans**: TBD
+**Plans**: 8 plans
+Plans:
+- [ ] 01-01-PLAN.md — Repo skeleton + tooling foundation (pnpm/Turborepo/tsconfig/shared-config) [Wave 1]
+- [ ] 01-02-PLAN.md — Pre-commit hooks + GitHub Actions CI + 4 local guard scripts + decision-log scaffolding [Wave 2]
+- [ ] 01-03-PLAN.md — 4 frozen contracts: IR (Zod source + Pydantic codegen) + generation-api + usage-event + launch-criteria + idempotency + runtime-sdk interface stub [Wave 3]
+- [ ] 01-04-PLAN.md — DB schema migration (Drizzle) + Neon dev DB push [BLOCKING] [Wave 4]
+- [ ] 01-05-PLAN.md — 6 empty-but-deployable apps: web (locked UI) + api (Hono BFF + SSE spike scaffold) + dispatch + dispatch-sample (canonical Stripe sample) + cli (Bun matrix) + docs [Wave 5]
+- [ ] 01-06-PLAN.md — Engine FastAPI + uv + Sentry + Langfuse OTel + Day-1 Qwen smoke test + Dockerfile + fly.toml [Wave 5]
+- [ ] 01-07-PLAN.md — 5 hand-crafted engine fixtures + CF dispatch namespace creation [BLOCKING] + Logto Cloud scaffolding [BLOCKING] + 3 operational runbooks [Wave 6]
+- [ ] 01-08-PLAN.md — Hono streamSSE 30s spike on mcpgen-sandbox [BLOCKING] + Hyperdrive provisioning [BLOCKING] + Phase-1 verification doc [Wave 7]
 
 ### Phase 2: Generation Engine — Architect (Pass 0+1)
 **Workstream**: `engine`
