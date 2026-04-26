@@ -26,7 +26,8 @@
 - [ ] **FND-07**: `packages/engine-fixtures/` ships realistic-but-static IR / FinalTool / QualityReport fixtures so frontend / runtime / ops can integrate end-to-end before the engine produces real output [P1: unblocks parallel workstreams]
 - [ ] **FND-08**: Drizzle migrations create `0001_init.sql` covering all tables in `docs/mcpgen-architecture.md` §7.1 plus the `pending_callbacks` table for SSE callback retry; migration filename uses `YYYYMMDD_HHMMSS_` prefix [P1: prevents collisions]
 - [ ] **FND-09**: Cloudflare account scaffolded with single dispatch namespace per environment (`mcpgen-prod`, `mcpgen-staging`, `mcpgen-sandbox`) — never a namespace per tenant [P0: pitfall #11]
-- [ ] **FND-10**: Empty-DSN Sentry SDK initialized in `apps/web`, `apps/api`, `apps/dispatch`, `apps/generation-engine`; CI step uploads source maps for each runtime
+- [x] **FND-10
+**: Empty-DSN Sentry SDK initialized in `apps/web`, `apps/api`, `apps/dispatch`, `apps/generation-engine`; CI step uploads source maps for each runtime
 - [ ] **FND-11**: Langfuse v4 OTel exporter wired into the engine FastAPI bootstrap (`logfire.configure(send_to_logfire=False, otlp_endpoint=...)`) so traces appear from Phase 2 day 1
 - [x] **FND-12**: Pre-commit hooks installed and enforced (gitleaks, ruff, eslint, mypy, conventional-pre-commit); never bypassed
 - [ ] **FND-13**: Logto Cloud free-tier scaffolded with email + GitHub providers; runbook for self-host migration documented and tested on staging by W7

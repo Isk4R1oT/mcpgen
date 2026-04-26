@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Plan 01-04 in_progress: Tasks 1–3 committed; Task 4 [BLOCKING] schema-push awaiting DATABASE_URL"
-last_updated: "2026-04-26T18:35:00.000Z"
+stopped_at: "Completed 01-05: 6 apps scaffolded (web/api/dispatch/dispatch-sample/cli/docs); Plan 01-04 Task 4 [BLOCKING] still deferred to Wave 6 cloud-batch"
+last_updated: "2026-04-26T14:02:11.889Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 8
-  completed_plans: 3
-  percent: 38
+  completed_plans: 5
+  percent: 63
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 1 (Foundation) — EXECUTING
-Plan: 4 of 8
-Status: In progress (Tasks 1–3 committed; Task 4 [BLOCKING] schema-push checkpoint pending)
+Plan: 5 of 8
+Status: Ready to execute
 Last activity: 2026-04-26
 
-Progress: [████░░░░░░] 38%
+Progress: [██████░░░░] 63%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [████░░░░░░] 38%
 | Phase 01 P02 | 13min | 3 tasks | 17 files |
 | Phase 01 P03 | 26min | 3 tasks tasks | 32 files files |
 | Phase 01 P04 (Tasks 1–3, in_progress) | 22min | 3 of 4 tasks | 13 files |
+| Phase 01 P01-05 | 15min | 3 tasks | 39 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,11 @@ Recent decisions affecting current work:
 - Plan 01-04: Manual SQL augmentation inside the Phase-1 migration (CREATE EXTENSION at top, create_hypertable at bottom) with explicit comment markers warning future readers NOT to regenerate the file in place — documented schema-change workflow in `infrastructure/neon/README.md`
 - Plan 01-04: pgvector `vector(1536)` dimension chosen (matches OpenAI text-embedding-3-small) instead of architecture §7.1's `VECTOR(1024)`; architecture.md to be reconciled in a future doc-only commit
 - Plan 01-04: `DATABASE_URL ?? ''` fallback in drizzle.config.ts so `drizzle-kit generate` and `drizzle-kit check` work without env (they only read schema source); `push` and `migrate` fail naturally on bad URL — keeps CI-stage `check` runnable without a live DB
+- Plan 01-05: @sentry/cloudflare 10.x exports withSentry(envCallback, handler) instead of Sentry.init() — apps/api/src/instrumentation.ts adapted to expose sentryOptionsFor(env) helper + re-export withSentry; PATTERNS.md aspirational shape was wrong
+- Plan 01-05: McpServer has no built-in fetch method; canonical CF Workers pattern (Phase 4 codegen target) is per-request WebStandardStreamableHTTPServerTransport instantiation + server.connect(transport) + transport.handleRequest(req)
+- Plan 01-05: apps/web Phase-1 build/lint/typecheck/test scripts are no-ops because locked UI ships as raw JSX without app/ or pages/ dir; Phase 7 wires the JSX into Next.js app/ structure and re-enables real scripts
+- Plan 01-05: test ULIDs use predictable repeating-A pattern (01HXAAAAAAAAAAAAAAAAAAAAA0/2/3) instead of high-entropy random ULIDs to avoid gitleaks generic-api-key false positives
+- Plan 01-05: apps/dispatch + apps/dispatch-sample use vitest --run --passWithNoTests so workspace pnpm -r test passes for stub apps; apps/api owns the CTRL-01 contract tests (4 passing)
 
 ### Pending Todos
 
@@ -115,8 +121,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-26T18:35:00.000Z
-Stopped at: "Plan 01-04 in_progress: Tasks 1–3 committed (Drizzle TS schema + migration SQL + Neon SCALING.md + db:test-migrate script); Task 4 [BLOCKING] schema-push to Neon dev DB awaiting user-provided DATABASE_URL"
-Resume file: .planning/phases/01-foundation/01-04-SUMMARY.md (Pending Checkpoint section documents the exact commands)
+Last session: 2026-04-26T14:02:11.878Z
+Stopped at: Completed 01-05: 6 apps scaffolded (web/api/dispatch/dispatch-sample/cli/docs); Plan 01-04 Task 4 [BLOCKING] still deferred to Wave 6 cloud-batch
+Resume file: Plan 01-04 Task 4 schema-push still pending; Plan 01-07 CF + Logto provisioning still pending; Plan 01-08 D-15 spike + Hyperdrive still pending — all bundled in Wave 6 cloud-batch
 
 **Planned Phase:** 1 (Foundation) — 8 plans — 2026-04-26T12:01:12.473Z
