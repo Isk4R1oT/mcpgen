@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 01-04 Task 4 [BLOCKING]: pushed Drizzle migration to Neon dev branch via direct connection (no Hyperdrive — CF deferral per 01-PHASE-DEVIATIONS.md); 9 tables + pgvector 0.8.0 + TimescaleDB 2.17.1 hypertable confirmed live; FND-08 + FND-14 complete; evidence in 01-04-SCHEMA-PUSH-EVIDENCE.md"
-last_updated: "2026-04-26T14:30:19Z"
+stopped_at: "Completed 01-07-PLAN.md (modified scope per PHASE-DEVIATIONS.md rev 2: CF deferred + Logto manual). 5 hand-crafted fixtures + Logto README+scaffold + 4 ops runbooks + CF deferral-guard script. 25/25 shape tests pass; pnpm -r build/typecheck/test all green."
+last_updated: "2026-04-26T15:20:42.813Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 1 (Foundation) — EXECUTING
-Plan: 7 of 8 (next: 01-07 — engine fixtures + Logto Cloud + ops runbooks; CF dispatch namespace creation deferred to Phase 10 per 01-PHASE-DEVIATIONS.md)
+Plan: 8 of 8 (next: 01-07 — engine fixtures + Logto Cloud + ops runbooks; CF dispatch namespace creation deferred to Phase 10 per 01-PHASE-DEVIATIONS.md)
 Status: Ready to execute
 Last activity: 2026-04-26
 
-Progress: [████████░░] 75%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [████████░░] 75%
 | Phase 01 P04 | 22min + ~5min Task 4 | 4 tasks | 13 files + 1 evidence |
 | Phase 01 P01-05 | 15min | 3 tasks | 39 files |
 | Phase 01 P06 | 13min | 3 tasks | 19 files |
+| Phase 01 P07 | 16min | 3 tasks | 36 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,7 @@ Recent decisions affecting current work:
 - Plan 01-06: conftest _sandbox_env autouse fixture sets OPENROUTER_API_KEY=sk-or-test-PLACEHOLDER (NOT None fallback); fail-fast contract verified by delenv after importlib.reload inside the relevant test
 - Plan 01-06: Dockerfile build context is REPO ROOT (not apps/generation-engine/) because mcpgen-ir workspace dep lives at packages/ir/; sed-rewrites [tool.uv.sources] path-source URI before uv sync
 - Plan 01-06: removed .python-version from .gitignore so apps/generation-engine/.python-version=3.12 carries on fresh clones (uv reads it; pyenv-compatible tools too)
+- Plan 01-07: deferred CF dispatch namespace creation to Phase 10 via in-script exit-78 deferral guard (canonical procedure shipped in Phase 1, blocked from accidental execution); Logto scaffold.ts shipped REFERENCE ONLY (user manually configured prod tenant); fixture QualityReport shape follows actual @mcpgen/ir Zod schema (f1_static/f2_smell.overall_average/f3_agent_eval.pass_rate), NOT the prose interface sketch in plan-frontmatter
 
 ### Pending Todos
 
@@ -127,8 +129,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-26T14:30:19Z
-Stopped at: Completed 01-04 Task 4 [BLOCKING]: pushed Drizzle migration to Neon dev branch via direct connection (no Hyperdrive — CF deferral per 01-PHASE-DEVIATIONS.md); 9 tables + pgvector 0.8.0 + TimescaleDB 2.17.1 hypertable confirmed live; FND-08 + FND-14 complete; evidence in 01-04-SCHEMA-PUSH-EVIDENCE.md
-Resume file: None — Phase 1 ready to advance to Plan 01-07 (engine fixtures + Logto Cloud + ops runbooks; CF dispatch namespace creation deferred to Phase 10)
+Last session: 2026-04-26T15:20:42.801Z
+Stopped at: Completed 01-07-PLAN.md (modified scope per PHASE-DEVIATIONS.md rev 2: CF deferred + Logto manual). 5 hand-crafted fixtures + Logto README+scaffold + 4 ops runbooks + CF deferral-guard script. 25/25 shape tests pass; pnpm -r build/typecheck/test all green.
+Resume file: FND-09 deferred to Phase 10 per PHASE-DEVIATIONS.md (revision 2)
 
 **Planned Phase:** 1 (Foundation) — 8 plans — 2026-04-26T12:01:12.473Z
