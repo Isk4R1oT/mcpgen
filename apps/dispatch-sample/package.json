@@ -8,7 +8,7 @@
     "build": "tsc --noEmit",
     "deploy": "wrangler deploy --upload-source-maps --dispatch-namespace mcpgen-sandbox",
     "typecheck": "tsc --noEmit",
-    "test": "vitest --run",
+    "test": "vitest --run --passWithNoTests",
     "lint": "echo \"no lint step in @mcpgen/dispatch-sample (covered by workspace eslint via pnpm -r lint)\""
   },
   "dependencies": {

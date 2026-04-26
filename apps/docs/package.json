@@ -1,0 +1,15 @@
+{
+  "name": "@mcpgen/docs",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "mintlify dev",
+    "build": "echo \"Phase 1: docs build deferred to Phase 10 (GTM-01)\"",
+    "lint": "echo \"Phase 1: docs lint deferred to Phase 10 (GTM-01)\"",
+    "typecheck": "echo \"docs has no TS — typecheck is a no-op\"",
+    "test": "echo \"docs has no tests\""
+  },
+  "devDependencies": {
+    "mintlify": "^4.0.0"
+  }
+}
