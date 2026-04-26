@@ -203,7 +203,7 @@ None — Plan 08 is acceptance + verification + doc authoring. No external servi
 Verified after writing this SUMMARY:
 
 - All 5 created files exist on disk: `test -f` for each entry above (4 markdown docs + this file).
-- All 4 task commits present in `git log`: `b050b91` (Task 1 spike), `1de0589` (Rule-1 docs fix), `d285955` (verification + phase summary), and the upcoming Task 4 commit (this file + STATE/ROADMAP/REQ updates).
+- All 4 task commits present in `git log`: `b050b91` (Task 1 spike), `1de0589` (Rule-1 docs fix), `d285955` (verification + phase summary), `2185721` (Task 4: this file + STATE/ROADMAP/REQ updates).
 - Fresh-clone E2E re-confirmed: `pnpm install/build/typecheck/test`, `uv sync`, `uv run pytest -q -k 'not smoke'`, `pre-commit run --all-files` — all 7 commands exit 0 against a temporary `git clone --no-local`.
 - Local-Bun SSE spike timing recorded: 9 events received, last event (id=8) at t=80s, stream closes at t=90s.
 - All 8 ROADMAP success criteria mapped to a verifying artifact in `01-PHASE-VERIFICATION.md`; 19 REQ-IDs + 9 T-1-XX threats + 8 pitfalls all covered.
