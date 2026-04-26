@@ -37,7 +37,8 @@
 **: Logto Cloud free-tier scaffolded with email + GitHub providers; runbook for self-host migration documented and tested on staging by W7
 - [x] **FND-14
 **: Idempotency keys specified at all four surfaces (`POST /api/v1/generate`, Inngest job triggers, Stripe Meters event creation, CF dispatch namespace deploys)
-- [ ] **FND-15**: Hono `streamSSE` 30-second sub-request limit verified on CF Workers via 30-min spike before contract freeze
+- [x] **FND-15
+**: Hono `streamSSE` 30-second sub-request limit verified — Phase 1 acceptance via local Bun spike (`wrangler dev --local --port 8787`); 9 events received over 90s with last event id=8 at t=80s; stream closes cleanly at t=90s — see `.planning/phases/01-foundation/01-08-SPIKE-RESULT.md` + `docs/decisions/004-local-bun-sse-spike.md`. **Real-CF re-spike DEFERRED to Phase 10 per `.planning/phases/01-foundation/01-PHASE-DEVIATIONS.md` revision 2** (Phase-10 release gate; without it, the production CF Workers 30s sub-request limit is NOT empirically validated)
 
 ### Generation Engine (GEN) — Phases 2–5
 
@@ -188,7 +189,7 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | FND-12 | Phase 1 | Complete (01-02) |
 | FND-13 | Phase 1 | Complete (01-07) |
 | FND-14 | Phase 1 | Complete (01-03 contract + 01-04 backing table) |
-| FND-15 | Phase 1 | Pending |
+| FND-15 | Phase 1 | Complete (01-05 spike route + 01-08 local-Bun acceptance; real-CF re-spike DEFERRED to Phase 10 per PHASE-DEVIATIONS.md rev 2) |
 | GEN-01 | Phase 2 | Pending |
 | GEN-02 | Phase 2 | Pending |
 | GEN-03 | Phase 2 | Pending |

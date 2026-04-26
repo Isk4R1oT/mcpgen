@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: "Completed 01-07-PLAN.md (modified scope per PHASE-DEVIATIONS.md rev 2: CF deferred + Logto manual). 5 hand-crafted fixtures + Logto README+scaffold + 4 ops runbooks + CF deferral-guard script. 25/25 shape tests pass; pnpm -r build/typecheck/test all green."
-last_updated: "2026-04-26T15:20:42.813Z"
+status: verifying
+stopped_at: "Completed 01-08-PLAN.md (modified scope: local Bun SSE spike PASS + fresh-clone E2E green + Phase-1 verification + phase-level SUMMARY). FND-15 complete; phase awaits verifier-agent run before marking complete."
+last_updated: "2026-04-26T15:45:53.791Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 10
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 8
-  completed_plans: 7
-  percent: 88
+  completed_plans: 9
+  percent: 100
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 
 Phase: 1 (Foundation) — EXECUTING
 Plan: 8 of 8 (next: 01-07 — engine fixtures + Logto Cloud + ops runbooks; CF dispatch namespace creation deferred to Phase 10 per 01-PHASE-DEVIATIONS.md)
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-26
 
-Progress: [█████████░] 88%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Progress: [█████████░] 88%
 | Phase 01 P01-05 | 15min | 3 tasks | 39 files |
 | Phase 01 P06 | 13min | 3 tasks | 19 files |
 | Phase 01 P07 | 16min | 3 tasks | 36 files |
+| Phase 01-foundation P08 | 25 | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,10 @@ Recent decisions affecting current work:
 - Plan 01-06: Dockerfile build context is REPO ROOT (not apps/generation-engine/) because mcpgen-ir workspace dep lives at packages/ir/; sed-rewrites [tool.uv.sources] path-source URI before uv sync
 - Plan 01-06: removed .python-version from .gitignore so apps/generation-engine/.python-version=3.12 carries on fresh clones (uv reads it; pyenv-compatible tools too)
 - Plan 01-07: deferred CF dispatch namespace creation to Phase 10 via in-script exit-78 deferral guard (canonical procedure shipped in Phase 1, blocked from accidental execution); Logto scaffold.ts shipped REFERENCE ONLY (user manually configured prod tenant); fixture QualityReport shape follows actual @mcpgen/ir Zod schema (f1_static/f2_smell.overall_average/f3_agent_eval.pass_rate), NOT the prose interface sketch in plan-frontmatter
+- Plan 01-08: local-Bun SSE spike via wrangler dev --local on port 8787 PASSED — 9 events received, last id=8 at t=80s, stream closes at t=90s; real-CF re-spike is a Phase-10 release gate
+- Plan 01-08: Phase-10 launch-criteria gate constants (real-CF SSE spike + Fly cold-start) NOT added to launch-criteria.ts in Phase 1 — adding them now would create false-valued constants gating every Phase 2-9 build; Phase 10 owns the addition + verification together (paired decision per T-1-03)
+- Plan 01-08: Rule-1 fix committed CLAUDE.md + RULES.md + 11× docs/mcpgen-*.md + claude-design-ui/ to git (commit 1de0589) — these were authored before any phase started but never landed in git, so packages/contracts/tests/launch-criteria.test.ts ENOENT'd on fresh clone breaking Phase-1 success criterion #1
+- Plan 01-08: phase-level 01-SUMMARY.md introduced as a distinct artifact from per-plan 01-NN-SUMMARY.md — phase-level holds scope rationale string + per-plan completion table + local port map + Phase-10 carry-forward; per-plan holds task commits + deviations
 
 ### Pending Todos
 
@@ -129,8 +134,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-26T15:20:42.801Z
-Stopped at: Completed 01-07-PLAN.md (modified scope per PHASE-DEVIATIONS.md rev 2: CF deferred + Logto manual). 5 hand-crafted fixtures + Logto README+scaffold + 4 ops runbooks + CF deferral-guard script. 25/25 shape tests pass; pnpm -r build/typecheck/test all green.
-Resume file: FND-09 deferred to Phase 10 per PHASE-DEVIATIONS.md (revision 2)
+Last session: 2026-04-26T15:45:39.579Z
+Stopped at: Completed 01-08-PLAN.md (modified scope: local Bun SSE spike PASS + fresh-clone E2E green + Phase-1 verification + phase-level SUMMARY). FND-15 complete; phase awaits verifier-agent run before marking complete.
+Resume file: None
 
 **Planned Phase:** 1 (Foundation) — 8 plans — 2026-04-26T12:01:12.473Z

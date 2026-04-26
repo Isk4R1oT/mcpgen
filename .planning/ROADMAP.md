@@ -49,7 +49,7 @@ Plans:
 - [x] 01-05-PLAN.md — 6 empty-but-deployable apps: web (locked UI) + api (Hono BFF + SSE spike scaffold) + dispatch + dispatch-sample (canonical Stripe sample) + cli (Bun matrix) + docs [Wave 5] ✓ 2026-04-26
 - [x] 01-06-PLAN.md — Engine FastAPI + uv + Sentry + Langfuse OTel + Day-1 Qwen smoke test + Dockerfile + fly.toml [Wave 5] ✓ 2026-04-26
 - [x] 01-07-PLAN.md — 5 hand-crafted engine fixtures + Logto README/scaffold (reference-only — user manually configured) + 4 operational runbooks (Friday demo cadence, fresh-session header, Logto Pro upgrade, Drizzle migration conflicts) + CF namespace creation script with Phase-10 deferral guard [Wave 6] ✓ 2026-04-26 — complete (modified scope per `.planning/phases/01-foundation/01-PHASE-DEVIATIONS.md` revision 2): CF dispatch namespace creation + Pro-tier staging dry-run deferred to Phase 10; Logto manual setup credentialed via `.env.local`; 25/25 fixture shape tests pass
-- [ ] 01-08-PLAN.md — Hono streamSSE 30s spike on mcpgen-sandbox [BLOCKING] + Hyperdrive provisioning [BLOCKING] + Phase-1 verification doc [Wave 7]
+- [x] 01-08-PLAN.md — Local Bun SSE spike (replaces real-CF spike, deferred to Phase 10 per `.planning/phases/01-foundation/01-PHASE-DEVIATIONS.md` rev 2) + fresh-clone E2E smoke + Phase-1 verification doc + phase-level SUMMARY [Wave 7] ✓ 2026-04-26 — complete (modified scope): 9 SSE events received over 90s with last id=8 at t=80s; fresh-clone E2E green across 7 commands (after Rule-1 fix `1de0589` committing CLAUDE.md + RULES.md + docs/mcpgen-*.md + claude-design-ui/ to git); 01-PHASE-VERIFICATION.md cross-references all 8 SC + 19 REQ-IDs + 9 threats + 8 pitfalls + Phase-10 7-item carry-forward; 01-SUMMARY.md (phase-level) authored with locked rationale string + per-plan completion table + local port map. Hyperdrive provisioning + real-CF SSE re-spike + Logto Pro-tier staging dry-run all DEFERRED to Phase 10. Phase-1 awaits verifier-agent run before phase row toggles.
 
 ### Phase 2: Generation Engine — Architect (Pass 0+1)
 **Workstream**: `engine`
@@ -181,7 +181,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 5/8 | In progress | - |
+| 1. Foundation | 8/8 | In progress (awaits verifier) | - |
 | 2. Generation Engine — Architect (Pass 0+1) | 0/TBD | Not started | - |
 | 3. Generation Engine — Author (Pass 2+3+4) | 0/TBD | Not started | - |
 | 4. Generation Engine — Shape & Codegen (Pass 5 + Stage E) | 0/TBD | Not started | - |
