@@ -1,0 +1,127 @@
+[project]
+name = "mcpgen-generation-engine"
+version = "0.0.0"
+description = "MCPGen LLM orchestration engine — 6 LLM passes + 3 deterministic stages."
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.128,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "pydantic>=2.9,<3.0",
+  "pydantic-ai>=0.0.40",
+  "pydantic-settings>=2.5,<3.0",
+  "httpx>=0.27,<1.0",
+  "tenacity>=9.0,<10.0",
+  "structlog>=24.4,<25.0",
+  "sentry-sdk[fastapi]>=2.16,<3.0",
+  "logfire>=1.0,<2.0",
+  "opentelemetry-sdk>=1.27,<2.0",
+  "opentelemetry-exporter-otlp-proto-http>=1.27,<2.0",
+  "prance[osv]>=23.6.21",
+  "openapi-spec-validator>=0.7,<1.0",
+  "jinja2>=3.1,<4.0",
+  "psycopg[binary,pool]>=3.2,<4.0",
+  "aioboto3>=13.2,<14.0",
+  "mcpgen-ir",
+]
+
+[dependency-groups]
+dev = [
+  "ruff>=0.7,<1.0",
+  "mypy>=1.13,<2.0",
+  "pytest>=8.3,<9.0",
+  "pytest-asyncio>=0.24,<1.0",
+  "pytest-httpx>=0.32,<1.0",
+  "datamodel-code-generator>=0.26.4,<1.0",
+  "ipython>=8.28",
+]
+
+[tool.uv.sources]
+mcpgen-ir = { path = "../../packages/ir", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcpgen_engine"]
+
+# ─── Ruff ─────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# CLAUDE.md global rules: no Any (handled by mypy), strict typing, imports at top, no default params
+select = [
+  "E",
+  "F",
+  "I",
+  "B",
+  "UP",
+  "RUF",
+  "ANN",
+  "SIM",
+  "PT",
+  "S",
+  "ASYNC",
+  "TRY",
+  "RET",
+  "ARG",
+  "RSE",
+]
+ignore = [
+  "S101",   # asserts in tests are fine
+  "ANN401", # `Any` already forbidden via mypy strict; this rule duplicates
+  "TRY003", # long error messages are fine for engine
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "ANN201", "ANN001"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ─── mypy ─────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+extra_checks = true
+
+[[tool.mypy.overrides]]
+module = ["prance.*", "openapi_spec_validator.*", "tenacity.*", "logfire.*", "aioboto3.*"]
+ignore_missing_imports = true
+
+# ─── pytest ────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+  "requires_openrouter: tests that need OPENROUTER_API_KEY (Day-1 smoke test)",
+  "slow: tests that take > 5s",
+]
+addopts = [
+  "-q",
+  "--strict-markers",
+  "--strict-config",
+]
+filterwarnings = [
+  "error",
+]

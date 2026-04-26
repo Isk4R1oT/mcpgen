@@ -16,7 +16,8 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 *.egg-info/
-.python-version
+# Note: apps/generation-engine/.python-version is intentionally tracked so uv +
+# pyenv-compatible tools pick up the pinned Python version (3.12) on fresh clones.
 
 # Build artifacts
 .wrangler/
