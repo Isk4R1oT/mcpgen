@@ -1,0 +1,28 @@
+{
+  "name": "mcpgen",
+  "private": true,
+  "packageManager": "pnpm@10.30.2",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "format": "prettier --write .",
+    "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "prepare": "if [ -d .git ] && command -v pre-commit >/dev/null 2>&1; then pre-commit install --hook-type pre-commit --hook-type commit-msg || true; fi"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@vitest/coverage-v8": "^1.6.0",
+    "eslint": "^10.2.1",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.2",
+    "turbo": "^2.9.6",
+    "typescript": "^6.0.3",
+    "vitest": "^1.6.0"
+  }
+}

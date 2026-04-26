@@ -1,0 +1,46 @@
+# Node.js
+node_modules/
+dist/
+.turbo/
+.next/
+coverage/
+*.log
+*.tsbuildinfo
+
+# Python (apps/generation-engine)
+__pycache__/
+.venv/
+*.pyc
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+.python-version
+
+# Build artifacts
+.wrangler/
+packages/ir/build/
+# Note: packages/ir/python/ is intentionally NOT ignored — it is committed
+# (Pydantic codegen output per CONTEXT specifics + D-02).
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test output
+test-results/
+playwright-report/
