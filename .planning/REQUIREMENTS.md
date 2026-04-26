@@ -24,7 +24,8 @@
 - [x] **FND-06
 **: `packages/runtime-sdk/` ships interface stub for the Tenant Worker SDK API (route helpers, upstream call, usage event emit, auth context shape)
 - [ ] **FND-07**: `packages/engine-fixtures/` ships realistic-but-static IR / FinalTool / QualityReport fixtures so frontend / runtime / ops can integrate end-to-end before the engine produces real output [P1: unblocks parallel workstreams]
-- [ ] **FND-08**: Drizzle migrations create `0001_init.sql` covering all tables in `docs/mcpgen-architecture.md` §7.1 plus the `pending_callbacks` table for SSE callback retry; migration filename uses `YYYYMMDD_HHMMSS_` prefix [P1: prevents collisions]
+- [x] **FND-08
+**: Drizzle migrations create `20260427000000_init_schema.sql` (Drizzle native YYYYMMDDHHMMSS prefix per `docs/decisions/001`) covering all tables in `docs/mcpgen-architecture.md` §7.1 + §7.2 plus the `pending_callbacks` table for SSE callback retry; pushed to Neon dev branch 2026-04-26 (9 tables + pgvector 0.8.0 + TimescaleDB 2.17.1 hypertable verified — see `.planning/phases/01-foundation/01-04-SCHEMA-PUSH-EVIDENCE.md`) [P1: prevents collisions]
 - [ ] **FND-09**: Cloudflare account scaffolded with single dispatch namespace per environment (`mcpgen-prod`, `mcpgen-staging`, `mcpgen-sandbox`) — never a namespace per tenant [P0: pitfall #11]
 - [x] **FND-10
 **: Empty-DSN Sentry SDK initialized in `apps/web`, `apps/api`, `apps/dispatch`, `apps/generation-engine`; CI step uploads source maps for each runtime
@@ -177,13 +178,13 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | FND-05 | Phase 1 | Complete (01-03) |
 | FND-06 | Phase 1 | Complete (01-03) |
 | FND-07 | Phase 1 | Pending |
-| FND-08 | Phase 1 | Pending |
+| FND-08 | Phase 1 | Complete (01-04) |
 | FND-09 | Phase 1 | Pending |
 | FND-10 | Phase 1 | Pending |
 | FND-11 | Phase 1 | Pending |
 | FND-12 | Phase 1 | Complete (01-02) |
 | FND-13 | Phase 1 | Pending |
-| FND-14 | Phase 1 | Complete (01-03) |
+| FND-14 | Phase 1 | Complete (01-03 contract + 01-04 backing table) |
 | FND-15 | Phase 1 | Pending |
 | GEN-01 | Phase 2 | Pending |
 | GEN-02 | Phase 2 | Pending |

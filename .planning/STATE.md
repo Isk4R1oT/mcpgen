@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 01-06: engine scaffold (FastAPI + uv + PydanticAI + OpenRouter through MODEL singleton); 9 tests pass without OPENROUTER_API_KEY; Day-1 Qwen smoke test gated on real key (skipped under conftest placeholder); Sentry + Langfuse OTel wired; LiteLLM is DELETED"
-last_updated: "2026-04-26T14:24:36.867Z"
+stopped_at: "Completed 01-04 Task 4 [BLOCKING]: pushed Drizzle migration to Neon dev branch via direct connection (no Hyperdrive — CF deferral per 01-PHASE-DEVIATIONS.md); 9 tables + pgvector 0.8.0 + TimescaleDB 2.17.1 hypertable confirmed live; FND-08 + FND-14 complete; evidence in 01-04-SCHEMA-PUSH-EVIDENCE.md"
+last_updated: "2026-04-26T14:30:19Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 10
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 1 (Foundation) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8 (next: 01-07 — engine fixtures + Logto Cloud + ops runbooks; CF dispatch namespace creation deferred to Phase 10 per 01-PHASE-DEVIATIONS.md)
 Status: Ready to execute
 Last activity: 2026-04-26
 
@@ -55,7 +55,7 @@ Progress: [████████░░] 75%
 | Phase 01 P01 | 10min | 3 tasks | 19 files |
 | Phase 01 P02 | 13min | 3 tasks | 17 files |
 | Phase 01 P03 | 26min | 3 tasks tasks | 32 files files |
-| Phase 01 P04 (Tasks 1–3, in_progress) | 22min | 3 of 4 tasks | 13 files |
+| Phase 01 P04 | 22min + ~5min Task 4 | 4 tasks | 13 files + 1 evidence |
 | Phase 01 P01-05 | 15min | 3 tasks | 39 files |
 | Phase 01 P06 | 13min | 3 tasks | 19 files |
 
@@ -115,7 +115,7 @@ None yet.
 - `@modelcontextprotocol/sdk` v1 vs v2 final pick — decide end of Phase 1 via Key Decision in PROJECT.md (per `.planning/research/STACK.md` §6.1)
 - IR cross-language source-of-truth direction — recommend TS Zod → Pydantic codegen; lock at Phase 1 (per `.planning/research/ARCHITECTURE.md` R-A6)
 - Hono `streamSSE` 30-second sub-request limit on CF Workers — 30-min spike before contract freeze (per `.planning/research/STACK.md` §6.6)
-- **Plan 01-04 Task 4 [BLOCKING] — schema push to Neon dev DB pending DATABASE_URL.** Tasks 1–3 (db-schema.ts + migration SQL + drizzle.config.ts + SCALING.md + db:test-migrate script) are committed and verified locally (`pnpm -r typecheck`, `drizzle-kit check`, all 124 tests green). To unblock: (1) Neon Console → create project `mcpgen` + branch `dev` per `infrastructure/neon/README.md`; (2) enable `vector` + `timescaledb` extensions; (3) put pooled connection URL in repo-root `.env.local` (gitignored) as `DATABASE_URL=postgresql://...?sslmode=require`; (4) run `pnpm --filter @mcpgen/contracts drizzle-kit:push` followed by `pnpm --filter @mcpgen/contracts db:test-migrate` (expect "OK: migration applied; all 9 tables present; usage_events is a hypertable; pgvector enabled."); (5) capture evidence in `.planning/phases/01-foundation/01-04-SCHEMA-PUSH-EVIDENCE.md`; (6) re-run `/gsd-execute-phase 1` (or `/gsd-execute-plan 01-04`) to mark plan complete and advance to plan 01-05.
+- ~~**Plan 01-04 Task 4 [BLOCKING] — schema push to Neon dev DB pending DATABASE_URL.**~~ RESOLVED 2026-04-26: pushed via direct connection (no Hyperdrive — CF deferral per 01-PHASE-DEVIATIONS.md); 9 tables + pgvector 0.8.0 + TimescaleDB 2.17.1 hypertable confirmed live; evidence in `.planning/phases/01-foundation/01-04-SCHEMA-PUSH-EVIDENCE.md`.
 
 ## Deferred Items
 
@@ -127,8 +127,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-26T14:24:36.859Z
-Stopped at: Completed 01-06: engine scaffold (FastAPI + uv + PydanticAI + OpenRouter through MODEL singleton); 9 tests pass without OPENROUTER_API_KEY; Day-1 Qwen smoke test gated on real key (skipped under conftest placeholder); Sentry + Langfuse OTel wired; LiteLLM is DELETED
-Resume file: None — engine is ready for Phase 2 (Pass 0–1)
+Last session: 2026-04-26T14:30:19Z
+Stopped at: Completed 01-04 Task 4 [BLOCKING]: pushed Drizzle migration to Neon dev branch via direct connection (no Hyperdrive — CF deferral per 01-PHASE-DEVIATIONS.md); 9 tables + pgvector 0.8.0 + TimescaleDB 2.17.1 hypertable confirmed live; FND-08 + FND-14 complete; evidence in 01-04-SCHEMA-PUSH-EVIDENCE.md
+Resume file: None — Phase 1 ready to advance to Plan 01-07 (engine fixtures + Logto Cloud + ops runbooks; CF dispatch namespace creation deferred to Phase 10)
 
 **Planned Phase:** 1 (Foundation) — 8 plans — 2026-04-26T12:01:12.473Z

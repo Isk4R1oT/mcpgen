@@ -75,9 +75,7 @@ patterns-established:
 
 requirements-completed:
   - FND-08
-  # FND-14 (pending_callbacks composite PK) — table is defined, but the requirement
-  # is only fully satisfied once Task 4 [BLOCKING] pushes the schema to the live
-  # Neon dev branch. Tracked as in_progress until the schema-push evidence is committed.
+  - FND-14  # backing table (pending_callbacks composite PK on (job_id, event_id)) live on Neon dev branch as of Task 4 (2026-04-26T14:30:19Z); the contract itself was completed in Plan 03
 
 # Metrics
 duration: ~22min
@@ -86,7 +84,7 @@ completed: 2026-04-26
 
 # Phase 1 Plan 04: DB Schema + Drizzle Migration Summary
 
-**FND-08 (5th frozen contract) shipped: Drizzle TS schema in @mcpgen/contracts + first migration `20260427000000_init_schema.sql` covering all 9 tables (architecture §7.1 + §7.2 + D-09 pending_callbacks) with pgvector + TimescaleDB hypertable DDL. Live schema push to Neon dev branch (Task 4) blocked pending DATABASE_URL.**
+**FND-08 (5th frozen contract) shipped: Drizzle TS schema in @mcpgen/contracts + first migration `20260427000000_init_schema.sql` covering all 9 tables (architecture §7.1 + §7.2 + D-09 pending_callbacks) with pgvector + TimescaleDB hypertable DDL. Live schema push to Neon dev branch (Task 4) COMPLETE 2026-04-26T14:30:19Z via direct connection (no Hyperdrive — CF deferral per 01-PHASE-DEVIATIONS.md); FND-08 + FND-14 closed; evidence in `01-04-SCHEMA-PUSH-EVIDENCE.md`.**
 
 ## Performance
 
@@ -97,15 +95,13 @@ completed: 2026-04-26
 - **Files created:** 8 (db-schema.ts + db-types.ts + drizzle.config.ts + migration SQL + journal + snapshot + README.md + SCALING.md + test-migrate.ts)
 - **Files modified:** 4 (packages/contracts/package.json + src/index.ts + tsconfig.json + pnpm-lock.yaml)
 
-## Status: IN PROGRESS
+## Status: COMPLETE
 
-Plan 04 is **not yet complete**. Tasks 1, 2, 3 are committed and verified locally; Task 4 (`[BLOCKING]` schema push) requires:
+All 4 tasks done. Tasks 1–3 (TS schema + migration SQL + Drizzle config + SCALING.md + smoke script) committed 2026-04-26 in commits `c3b9184`, `06c3e8f`, `77cf97e`. Task 4 (`[BLOCKING]` schema push) closed 2026-04-26T14:30:19Z — see "Task 4 Completion" section below and the evidence file [`01-04-SCHEMA-PUSH-EVIDENCE.md`](./01-04-SCHEMA-PUSH-EVIDENCE.md).
 
-1. A real Neon dev DB project + branch (one-time setup per `infrastructure/neon/README.md`)
-2. `DATABASE_URL` exported in shell or `.env.local` (gitignored)
-3. User authorization to run `pnpm --filter @mcpgen/contracts drizzle-kit:push` against that DB
-
-Until Task 4 evidence (`01-04-SCHEMA-PUSH-EVIDENCE.md`) is committed, the plan stays `in_progress` in STATE.md and ROADMAP.md. The frozen contract files (db-schema.ts, migration SQL, drizzle.config.ts, db-types.ts) ARE final and downstream plans (01-05 apps, 01-06 engine) MAY consume them.
+Downstream plans (01-05 apps, 01-06 engine — both already complete; 01-07, 01-08) can rely on:
+- The frozen contract files (`db-schema.ts`, migration SQL, `drizzle.config.ts`, `db-types.ts`)
+- The live schema on the Neon dev branch (9 tables + pgvector 0.8.0 + TimescaleDB 2.17.1 hypertable verified)
 
 ## Accomplishments (Tasks 1–3)
 
@@ -328,6 +324,63 @@ Per user direction, all three are bundled into a single cloud-credentials sessio
 6. Mark plan 04 complete: `gsd-sdk query roadmap.update-plan-progress 01 01-04 complete` + STATE.md + REQUIREMENTS.md (FND-08, FND-14).
 
 ---
+
+## Task 4 Completion (2026-04-26T14:30:19Z)
+
+**Status flip:** `in_progress` → **`complete`**.
+
+The [BLOCKING] checkpoint is closed. The Drizzle migration `20260427000000_init_schema.sql`
+was pushed to the Neon dev branch (project `mcpgen`, branch `dev`, region Frankfurt /
+`eu-central-1`) via **direct `pg` connection (no Hyperdrive)**, in alignment with the
+CF-deferral deviation recorded in
+[`.planning/phases/01-foundation/01-PHASE-DEVIATIONS.md`](./01-PHASE-DEVIATIONS.md).
+
+### Push mechanism
+
+`pnpm --filter @mcpgen/contracts db:test-migrate` (exit code 0). The script applies the
+migration SQL via node-postgres and runs the FND-08 acceptance assertions in one pass —
+chosen over `drizzle-kit push --force` because:
+- `drizzle-kit push` requires a TTY for diff confirmation (no-TTY error confirmed).
+- The `--force` flag was rejected by the executor's failure-handling guard ("Do NOT retry destructively") and is unnecessary — `db:test-migrate` reaches the same end state non-interactively.
+- Pre-flight verified the dev branch was empty (`information_schema.tables` returned 0 public tables) before applying.
+
+### Verified live state on Neon dev branch
+
+- **9 public tables:** `deployments`, `generations`, `organizations`, `pending_callbacks`, `projects`, `specs`, `tools`, `usage_events`, `users`
+- **3 extensions:** `plpgsql 1.0`, `timescaledb 2.17.1`, `vector 0.8.0`
+- **TimescaleDB hypertable:** `usage_events` (num_chunks=0 — no usage rows yet)
+- **`pending_callbacks` PK:** composite on `(job_id, event_id)` (D-09 / FND-14 backing-table satisfied)
+- **`tools.embedding`:** USER-DEFINED type with `udt_name=vector` (pgvector 1536-dim)
+
+### Files changed (Task 4 commit)
+
+- **Created:** [`.planning/phases/01-foundation/01-04-SCHEMA-PUSH-EVIDENCE.md`](./01-04-SCHEMA-PUSH-EVIDENCE.md) — full evidence with verbatim `db:test-migrate` output, table list, extension list, hypertable + PK + embedding column verification, migration SHA, redacted DB host
+- **Modified:** `.planning/STATE.md` (status, current position, blocker resolved, session continuity, metrics)
+- **Modified:** `.planning/ROADMAP.md` (Plan 01-04 `[~]` → `[x]`; Phase 1 progress 1/8 → 5/8 — reflects committed plans)
+- **Modified:** `.planning/REQUIREMENTS.md` (FND-08 `[ ]` → `[x]` with Plan 04 reference; FND-14 row updated to acknowledge 01-04 backing table)
+- **This file:** `.planning/phases/01-foundation/01-04-SUMMARY.md` (this section + frontmatter status flip)
+
+### Deviations during Task 4
+
+1. **[Rule 3 — Blocking] No `psql` binary on the user's macOS host.** Switched to direct `pg` (node-postgres) queries for both extension enablement and schema verification — the same client the `db:test-migrate` script already uses. No functional impact; evidence file documents the swap. Mitigation for future operators: `infrastructure/neon/README.md` could optionally note "psql is convenient but not required — `db:test-migrate` and `pg` cover all verification needs."
+
+2. **[Rule 3 — Blocking] `.env.local` line containing unquoted `&` triggered zsh parse error in `set -a && source .env.local`.** The connection string contains `&channel_binding=require` which zsh interpreted as a job-control operator. Worked around by extracting the `DATABASE_URL=` line via `grep | sed` and exporting the value verbatim into the environment without going through shell tokenization. No file edits needed — this is purely a shell-quoting consideration. Future runbook update could note "ensure DATABASE_URL value is single-quoted in .env.local if it contains `&`" but the current file is fine for the documented `set -a && source` pattern as long as the consumer doesn't fail on the parse.
+
+### Why these deviations are auto-fix (Rule 3) and not Rule 4 (architectural)
+
+Both are tooling-level workarounds for the executor's environment. Neither changes the schema, the migration, the contract, or any committed file under `infrastructure/`, `packages/`, or `apps/`. The intended end state — pushed schema verified live — was achieved exactly as the plan specified.
+
+### Requirements completed by Task 4
+
+- **FND-08 (Drizzle migration covers all tables in architecture §7.1 + §7.2 + `pending_callbacks`):** ✓ schema is now live on the dev branch with all 9 tables
+- **FND-14 (idempotency keys at all 4 surfaces, backed by `pending_callbacks` row PK on `(job_id, event_id)`):** ✓ contract was completed in Plan 03; the backing table now exists in the live DB
+
+### Pointer for Plan 01-07 (next)
+
+Plan 01-07 is now unblocked (it doesn't strictly depend on the live DB, but having Plan 04 closed simplifies the Wave-6 sequencing in `mcpgen-gsd-sprint-plan.md`). Per `.planning/phases/01-foundation/01-PHASE-DEVIATIONS.md`, Plan 01-07's CF-namespace creation step is deferred to Phase 10; Plan 01-07 in Phase 1 = engine fixtures (5 APIs) + Logto Cloud free-tier scaffolding + 3 ops runbooks. The `wrangler.toml` env blocks committed in Plan 01-05 already reference all three namespace names (`mcpgen-prod` / `mcpgen-staging` / `mcpgen-sandbox`); namespace creation on the CF API itself happens in Phase 10.
+
+---
 *Phase: 01-foundation*
-*Status: in_progress (Task 4 [BLOCKING] deferred to Wave 6 cloud-batch per 2026-04-26 user direction)*
+*Status: **complete***
 *Tasks 1–3 completed: 2026-04-26*
+*Task 4 completed: 2026-04-26T14:30:19Z (direct Neon connection, no Hyperdrive — see `01-PHASE-DEVIATIONS.md`)*

@@ -45,7 +45,7 @@ Plans:
 - [x] 01-01-PLAN.md — Repo skeleton + tooling foundation (pnpm/Turborepo/tsconfig/shared-config) [Wave 1] ✓ 2026-04-26
 - [x] 01-02-PLAN.md — Pre-commit hooks + GitHub Actions CI + 4 local guard scripts + decision-log scaffolding [Wave 2] ✓ 2026-04-26
 - [x] 01-03-PLAN.md — 4 frozen contracts: IR (Zod source + Pydantic codegen) + generation-api + usage-event + launch-criteria + idempotency + runtime-sdk interface stub [Wave 3] ✓ 2026-04-26
-- [~] 01-04-PLAN.md — DB schema migration (Drizzle) + Neon dev DB push [BLOCKING] [Wave 4] · **in_progress** Tasks 1–3 committed 2026-04-26 (db-schema.ts + migration SQL + drizzle.config.ts + SCALING.md + db:test-migrate script); Task 4 [BLOCKING] schema-push to Neon dev DB awaiting user-provided DATABASE_URL — see `.planning/phases/01-foundation/01-04-SUMMARY.md` Pending Checkpoint section
+- [x] 01-04-PLAN.md — DB schema migration (Drizzle) + Neon dev DB push [BLOCKING] [Wave 4] ✓ 2026-04-26 — Tasks 1–3 committed (db-schema.ts + migration SQL + drizzle.config.ts + SCALING.md + db:test-migrate script); Task 4 [BLOCKING] schema-push to Neon dev branch via direct connection (no Hyperdrive — CF migration deferred to Phase 10 per `.planning/phases/01-foundation/01-PHASE-DEVIATIONS.md`); 9 tables + pgvector 0.8.0 + TimescaleDB 2.17.1 hypertable confirmed live — see `.planning/phases/01-foundation/01-04-SCHEMA-PUSH-EVIDENCE.md`
 - [x] 01-05-PLAN.md — 6 empty-but-deployable apps: web (locked UI) + api (Hono BFF + SSE spike scaffold) + dispatch + dispatch-sample (canonical Stripe sample) + cli (Bun matrix) + docs [Wave 5] ✓ 2026-04-26
 - [x] 01-06-PLAN.md — Engine FastAPI + uv + Sentry + Langfuse OTel + Day-1 Qwen smoke test + Dockerfile + fly.toml [Wave 5] ✓ 2026-04-26
 - [ ] 01-07-PLAN.md — 5 hand-crafted engine fixtures + CF dispatch namespace creation [BLOCKING] + Logto Cloud scaffolding [BLOCKING] + 3 operational runbooks [Wave 6]
@@ -181,7 +181,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/8 | In progress | - |
+| 1. Foundation | 5/8 | In progress | - |
 | 2. Generation Engine — Architect (Pass 0+1) | 0/TBD | Not started | - |
 | 3. Generation Engine — Author (Pass 2+3+4) | 0/TBD | Not started | - |
 | 4. Generation Engine — Shape & Codegen (Pass 5 + Stage E) | 0/TBD | Not started | - |
