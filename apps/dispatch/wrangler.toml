@@ -1,0 +1,45 @@
+# apps/dispatch/wrangler.toml
+# CF Workers for Platforms dispatch worker (D-08).
+# References:
+#   - docs/mcpgen-architecture.md §6.1 (Dispatch Worker)
+#   - .planning/phases/01-foundation/01-CONTEXT.md D-08 (3 namespaces, NEVER per-tenant)
+#   - .pre-commit-hooks/no-fourth-namespace.sh (guard against 4th namespace)
+
+name = "mcpgen-dispatch"
+main = "src/index.ts"
+compatibility_date = "2026-04-24"
+compatibility_flags = ["nodejs_compat"]
+upload_source_maps = true   # T-1-07 mitigation: Sentry source map upload
+
+# Production dispatch namespace (D-08)
+[[dispatch_namespaces]]
+binding = "DISPATCH_NAMESPACE"
+namespace = "mcpgen-prod"
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "REPLACE_WITH_HYPERDRIVE_ID"
+
+[vars]
+ENVIRONMENT = "development"
+
+# Per-env overrides — uses corresponding namespace per D-08 (NEVER per-tenant)
+[env.staging]
+name = "mcpgen-dispatch-staging"
+
+[[env.staging.dispatch_namespaces]]
+binding = "DISPATCH_NAMESPACE"
+namespace = "mcpgen-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+
+[env.sandbox]
+name = "mcpgen-dispatch-sandbox"
+
+[[env.sandbox.dispatch_namespaces]]
+binding = "DISPATCH_NAMESPACE"
+namespace = "mcpgen-sandbox"
+
+[env.sandbox.vars]
+ENVIRONMENT = "sandbox"

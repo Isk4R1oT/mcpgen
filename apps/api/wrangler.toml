@@ -1,0 +1,38 @@
+# apps/api/wrangler.toml
+# Hono BFF on CF Workers (CTRL-01 surface).
+# References:
+#   - docs/mcpgen-architecture.md §5.8 (HTTP API contract)
+#   - .planning/phases/01-foundation/01-CONTEXT.md D-17 (Hyperdrive in front of Neon)
+#   - .planning/phases/01-foundation/01-CONTEXT.md D-19 (Sentry source-map upload per app)
+#   - T-1-07 mitigation: source maps uploaded to private Sentry, NEVER bundled in deploy artifact
+
+name = "mcpgen-api"
+main = "src/index.ts"
+compatibility_date = "2026-04-24"
+compatibility_flags = ["nodejs_compat"]
+
+# FND-10 / D-19 / T-1-07: source maps uploaded to private Sentry, not in deploy artifact
+upload_source_maps = true
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+# Set during Plan 08 via: wrangler hyperdrive create mcpgen-pg --connection-string $DATABASE_URL
+id = "REPLACE_WITH_HYPERDRIVE_ID"
+
+[vars]
+ENVIRONMENT = "development"
+
+# Source map handling (D-19): wrangler uploads .map files to Sentry via SENTRY_AUTH_TOKEN env at deploy time;
+# NEVER includes .map files in the bundled .js script.
+
+[env.staging]
+name = "mcpgen-api-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+
+[env.sandbox]
+name = "mcpgen-api-sandbox"
+
+[env.sandbox.vars]
+ENVIRONMENT = "sandbox"

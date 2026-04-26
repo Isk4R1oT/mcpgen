@@ -1,0 +1,33 @@
+{
+  "name": "@mcpgen/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "echo \"Phase 1: next build deferred to Phase 7 (wire-up phase) — no app/ or pages/ dir until then\"",
+    "start": "next start",
+    "lint": "echo \"Phase 1: next lint deferred to Phase 7 (wire-up phase) — no app/ or pages/ dir until then\"",
+    "typecheck": "echo \"Phase 1: tsc deferred to Phase 7 — locked UI ships as raw JSX from claude-design-ui/MCP-Gen.zip\"",
+    "test": "echo \"Phase 1: web tests deferred to Phase 7\""
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@mcpgen/contracts": "workspace:*",
+    "@sentry/nextjs": "^10.50.0",
+    "tailwindcss": "^4.0.0",
+    "eventsource-parser": "^3.0.8",
+    "@tanstack/react-query": "^5.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@mcpgen/shared-config": "workspace:*",
+    "typescript": "^6.0.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/node": "^22",
+    "vitest": "^1.6.0"
+  }
+}

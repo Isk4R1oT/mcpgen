@@ -1,0 +1,34 @@
+{
+  "name": "@mcpgen/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc --noEmit",
+    "deploy": "wrangler deploy --upload-source-maps",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run",
+    "lint": "echo \"no lint step in @mcpgen/api (covered by workspace eslint via pnpm -r lint)\""
+  },
+  "dependencies": {
+    "hono": "^4.12.15",
+    "@hono/zod-validator": "^0.4.0",
+    "zod": "^4.3.6",
+    "@mcpgen/contracts": "workspace:*",
+    "@mcpgen/ir": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "@neondatabase/serverless": "^1.1.0",
+    "inngest": "^4.2.4",
+    "@logto/node": "^3.1.10",
+    "@sentry/cloudflare": "^10.50.0",
+    "ulid": "^2.4.0"
+  },
+  "devDependencies": {
+    "@mcpgen/shared-config": "workspace:*",
+    "wrangler": "^4.85.0",
+    "@cloudflare/workers-types": "^4.20240605.0",
+    "typescript": "^6.0.3",
+    "vitest": "^1.6.0"
+  }
+}
