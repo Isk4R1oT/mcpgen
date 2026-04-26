@@ -1,0 +1,9 @@
+{
+  "extends": "@mcpgen/shared-config/tsconfig",
+  "include": ["src/**/*", "tests/**/*", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"],
+  "compilerOptions": {
+    "outDir": "./dist",
+    "noEmit": true
+  }
+}

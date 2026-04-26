@@ -1,0 +1,31 @@
+{
+  "name": "@mcpgen/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./generation-api": "./src/generation-api.ts",
+    "./usage-event": "./src/usage-event.ts",
+    "./launch-criteria": "./src/launch-criteria.ts",
+    "./idempotency": "./src/idempotency.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest --run",
+    "lint": "echo \"no lint step in @mcpgen/contracts (covered by workspace eslint via pnpm -r lint)\""
+  },
+  "dependencies": {
+    "@mcpgen/ir": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@mcpgen/shared-config": "workspace:*",
+    "@types/node": "^22.10.5",
+    "typescript": "^6.0.3",
+    "vitest": "^1.6.0"
+  }
+}
