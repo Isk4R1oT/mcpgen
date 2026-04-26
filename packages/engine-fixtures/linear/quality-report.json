@@ -1,0 +1,135 @@
+{
+  "spec_hash": "c3d4e5f60718293a4b5c6d7e8f9012345678901234567890abcdef123456789a",
+  "f1_static": {
+    "passed": true,
+    "ts_compile_errors": [],
+    "json_schema_errors": [],
+    "mcp_compliance_errors": [],
+    "secret_scan_findings": [],
+    "bundle_bytes": 412672
+  },
+  "f2_smell": {
+    "tool_scores": [
+      {
+        "tool_name": "search",
+        "components": [
+          { "component": "purpose", "score": 4.4 },
+          { "component": "guidelines", "score": 4.5 },
+          { "component": "limitations", "score": 4.3 },
+          { "component": "parameter_doc", "score": 4.3 },
+          { "component": "length_completeness", "score": 4.4 }
+        ],
+        "average": 4.38
+      },
+      {
+        "tool_name": "fetch",
+        "components": [
+          { "component": "purpose", "score": 4.3 },
+          { "component": "guidelines", "score": 4.2 },
+          { "component": "limitations", "score": 4.0 },
+          { "component": "parameter_doc", "score": 4.4 },
+          { "component": "length_completeness", "score": 4.3 }
+        ],
+        "average": 4.24
+      },
+      {
+        "tool_name": "list_collections",
+        "components": [
+          { "component": "purpose", "score": 4.1 },
+          { "component": "guidelines", "score": 4.0 },
+          { "component": "limitations", "score": 4.0 },
+          { "component": "parameter_doc", "score": 4.0 },
+          { "component": "length_completeness", "score": 4.0 }
+        ],
+        "average": 4.02
+      },
+      {
+        "tool_name": "list_objects",
+        "components": [
+          { "component": "purpose", "score": 4.5 },
+          { "component": "guidelines", "score": 4.6 },
+          { "component": "limitations", "score": 4.4 },
+          { "component": "parameter_doc", "score": 4.5 },
+          { "component": "length_completeness", "score": 4.5 }
+        ],
+        "average": 4.50
+      },
+      {
+        "tool_name": "upsert",
+        "components": [
+          { "component": "purpose", "score": 4.3 },
+          { "component": "guidelines", "score": 4.2 },
+          { "component": "limitations", "score": 4.5 },
+          { "component": "parameter_doc", "score": 4.2 },
+          { "component": "length_completeness", "score": 4.2 }
+        ],
+        "average": 4.28
+      },
+      {
+        "tool_name": "delete",
+        "components": [
+          { "component": "purpose", "score": 4.4 },
+          { "component": "guidelines", "score": 4.5 },
+          { "component": "limitations", "score": 4.6 },
+          { "component": "parameter_doc", "score": 4.3 },
+          { "component": "length_completeness", "score": 4.3 }
+        ],
+        "average": 4.42
+      },
+      {
+        "tool_name": "issues_create_with_relations",
+        "components": [
+          { "component": "purpose", "score": 4.4 },
+          { "component": "guidelines", "score": 4.4 },
+          { "component": "limitations", "score": 4.5 },
+          { "component": "parameter_doc", "score": 4.3 },
+          { "component": "length_completeness", "score": 4.4 }
+        ],
+        "average": 4.40
+      },
+      {
+        "tool_name": "issues_archive",
+        "components": [
+          { "component": "purpose", "score": 4.5 },
+          { "component": "guidelines", "score": 4.4 },
+          { "component": "limitations", "score": 4.5 },
+          { "component": "parameter_doc", "score": 4.4 },
+          { "component": "length_completeness", "score": 4.3 }
+        ],
+        "average": 4.42
+      },
+      {
+        "tool_name": "cycles_advance",
+        "components": [
+          { "component": "purpose", "score": 4.3 },
+          { "component": "guidelines", "score": 4.4 },
+          { "component": "limitations", "score": 4.4 },
+          { "component": "parameter_doc", "score": 4.2 },
+          { "component": "length_completeness", "score": 4.3 }
+        ],
+        "average": 4.32
+      }
+    ],
+    "overall_average": 4.33,
+    "passed": true
+  },
+  "f3_agent_eval": {
+    "results": [
+      { "task_id": "linear-find-issue-by-identifier", "passed": true, "judge_task_completion": 9, "judge_grounding": 9, "turns_used": 2 },
+      { "task_id": "linear-list-open-issues-in-cycle", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 4 },
+      { "task_id": "linear-create-issue-with-parent-link", "passed": true, "judge_task_completion": 9, "judge_grounding": 8, "turns_used": 4 },
+      { "task_id": "linear-archive-stale-issues-batch", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 5 },
+      { "task_id": "linear-advance-cycle-with-issue-rollover", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 4 },
+      { "task_id": "linear-search-then-update-priority", "passed": true, "judge_task_completion": 9, "judge_grounding": 9, "turns_used": 3 },
+      { "task_id": "linear-list-by-assignee-and-state", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 4 },
+      { "task_id": "linear-update-issue-state-to-done", "passed": true, "judge_task_completion": 9, "judge_grounding": 9, "turns_used": 3 },
+      { "task_id": "linear-archive-vs-delete-confusion", "passed": false, "judge_task_completion": 6, "judge_grounding": 7, "turns_used": 7 },
+      { "task_id": "linear-cross-team-issue-listing", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 4 },
+      { "task_id": "linear-create-without-required-team", "passed": false, "judge_task_completion": 5, "judge_grounding": 7, "turns_used": 6 }
+    ],
+    "pass_rate": 0.79,
+    "passed": true
+  },
+  "overall_score": 4.15,
+  "quality_badge": "verified"
+}

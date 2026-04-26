@@ -1,0 +1,184 @@
+{
+  "spec_format": "openapi-3.1",
+  "spec_hash": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678901234567890abcdef123456",
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/repos/{owner}/{repo}/issues",
+      "operation_id": "issues/list-for-repo",
+      "summary": "List repository issues",
+      "description": "List issues in a repository.",
+      "parameters": [
+        { "name": "owner", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "repo", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "state", "in": "query", "schema": { "type": "string", "enum": ["open", "closed", "all"] } },
+        { "name": "page", "in": "query", "schema": { "type": "integer" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "Array of Issue" } },
+      "tags": ["issues"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/repos/{owner}/{repo}/issues",
+      "operation_id": "issues/create",
+      "summary": "Create an issue",
+      "description": "Create an issue in a repository.",
+      "parameters": [
+        { "name": "owner", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "repo", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "request_body": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IssueCreate" } } } },
+      "responses": { "201": { "description": "Created Issue" } },
+      "tags": ["issues"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/repos/{owner}/{repo}/issues/{issue_number}",
+      "operation_id": "issues/get",
+      "summary": "Get an issue",
+      "description": "Retrieve an issue by number.",
+      "parameters": [
+        { "name": "owner", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "repo", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "issue_number", "in": "path", "required": true, "schema": { "type": "integer" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "Issue object" } },
+      "tags": ["issues"],
+      "deprecated": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/repos/{owner}/{repo}/issues/{issue_number}",
+      "operation_id": "issues/update",
+      "summary": "Update an issue",
+      "description": "Update title/body/state of an issue.",
+      "parameters": [
+        { "name": "owner", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "repo", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "issue_number", "in": "path", "required": true, "schema": { "type": "integer" } }
+      ],
+      "request_body": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IssueUpdate" } } } },
+      "responses": { "200": { "description": "Updated Issue" } },
+      "tags": ["issues"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/repos/{owner}/{repo}/pulls",
+      "operation_id": "pulls/list",
+      "summary": "List pull requests",
+      "description": "List pull requests in a repository.",
+      "parameters": [
+        { "name": "owner", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "repo", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "state", "in": "query", "schema": { "type": "string", "enum": ["open", "closed", "all"] } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "Array of PullRequest" } },
+      "tags": ["pulls"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/repos/{owner}/{repo}/pulls",
+      "operation_id": "pulls/create",
+      "summary": "Create a pull request",
+      "description": "Open a new pull request.",
+      "parameters": [
+        { "name": "owner", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "repo", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "request_body": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PullRequestCreate" } } } },
+      "responses": { "201": { "description": "Created PullRequest" } },
+      "tags": ["pulls"],
+      "deprecated": false
+    },
+    {
+      "method": "PUT",
+      "path": "/repos/{owner}/{repo}/pulls/{pull_number}/merge",
+      "operation_id": "pulls/merge",
+      "summary": "Merge a pull request",
+      "description": "Merge an open pull request.",
+      "parameters": [
+        { "name": "owner", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "repo", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "pull_number", "in": "path", "required": true, "schema": { "type": "integer" } }
+      ],
+      "request_body": { "content": { "application/json": { "schema": { "type": "object", "properties": { "commit_title": { "type": "string" }, "merge_method": { "type": "string" } } } } } },
+      "responses": { "200": { "description": "Merge result" } },
+      "tags": ["pulls"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/repos/{owner}/{repo}/releases",
+      "operation_id": "repos/create-release",
+      "summary": "Create a release",
+      "description": "Create a release.",
+      "parameters": [
+        { "name": "owner", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "repo", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "request_body": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReleaseCreate" } } } },
+      "responses": { "201": { "description": "Created Release" } },
+      "tags": ["repos"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/search/issues",
+      "operation_id": "search/issues-and-pull-requests",
+      "summary": "Search issues and pull requests",
+      "description": "Find issues by query.",
+      "parameters": [
+        { "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "Search result" } },
+      "tags": ["search"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/repos/{owner}/{repo}/git/refs/heads/{branch}",
+      "operation_id": "git/get-ref",
+      "summary": "Get a branch ref",
+      "description": "Get the SHA of a branch ref (used by create_pr_from_branch workflow).",
+      "parameters": [
+        { "name": "owner", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "repo", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branch", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "Ref object" } },
+      "tags": ["git"],
+      "deprecated": false
+    }
+  ],
+  "schemas": {
+    "Issue": { "type": "object", "properties": { "number": { "type": "integer" }, "title": { "type": "string" }, "body": { "type": "string" }, "state": { "type": "string" }, "user": { "type": "object" } } },
+    "PullRequest": { "type": "object", "properties": { "number": { "type": "integer" }, "title": { "type": "string" }, "body": { "type": "string" }, "state": { "type": "string" }, "head": { "type": "object" }, "base": { "type": "object" }, "merged": { "type": "boolean" } } },
+    "Release": { "type": "object", "properties": { "id": { "type": "integer" }, "tag_name": { "type": "string" }, "name": { "type": "string" }, "body": { "type": "string" }, "draft": { "type": "boolean" }, "prerelease": { "type": "boolean" } } },
+    "IssueCreate": { "type": "object", "properties": { "title": { "type": "string" }, "body": { "type": "string" }, "labels": { "type": "array" } } },
+    "IssueUpdate": { "type": "object", "properties": { "title": { "type": "string" }, "body": { "type": "string" }, "state": { "type": "string" } } },
+    "PullRequestCreate": { "type": "object", "properties": { "title": { "type": "string" }, "head": { "type": "string" }, "base": { "type": "string" }, "body": { "type": "string" } } },
+    "ReleaseCreate": { "type": "object", "properties": { "tag_name": { "type": "string" }, "name": { "type": "string" }, "body": { "type": "string" }, "draft": { "type": "boolean" }, "prerelease": { "type": "boolean" } } }
+  },
+  "security_schemes": {
+    "bearerAuth": {
+      "type": "http",
+      "scheme": "bearer",
+      "in": null,
+      "name": null,
+      "flows": null
+    }
+  },
+  "dependency_graph": {
+    "PullRequest": ["Issue"],
+    "Release": []
+  }
+}

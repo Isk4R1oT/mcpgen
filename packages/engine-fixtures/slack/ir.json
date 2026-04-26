@@ -1,0 +1,180 @@
+{
+  "spec_format": "openapi-3.1",
+  "spec_hash": "d4e5f60718293a4b5c6d7e8f9012345678901234567890abcdef123456789abc",
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/conversations.list",
+      "operation_id": "conversations.list",
+      "summary": "List public/private channels in the workspace",
+      "description": "Lists all channels in a Slack team (public, private, dm, mpim) with pagination.",
+      "parameters": [
+        { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+        { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+        { "name": "types", "in": "query", "schema": { "type": "string" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "A page of channels with `response_metadata.next_cursor`." } },
+      "tags": ["conversations"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations.info",
+      "operation_id": "conversations.info",
+      "summary": "Retrieve channel metadata",
+      "description": "Returns information about a workspace channel.",
+      "parameters": [
+        { "name": "channel", "in": "query", "required": true, "schema": { "type": "string" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "Channel object" } },
+      "tags": ["conversations"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations.history",
+      "operation_id": "conversations.history",
+      "summary": "Fetch a channel's message history",
+      "description": "Returns a portion of message events from the specified public/private channel.",
+      "parameters": [
+        { "name": "channel", "in": "query", "required": true, "schema": { "type": "string" } },
+        { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+        { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+        { "name": "oldest", "in": "query", "schema": { "type": "string" } },
+        { "name": "latest", "in": "query", "schema": { "type": "string" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "Messages page with `response_metadata.next_cursor`." } },
+      "tags": ["conversations"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "operation_id": "chat.postMessage",
+      "summary": "Post a message to a channel",
+      "description": "Sends a message to a Slack channel or DM.",
+      "parameters": [],
+      "request_body": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PostMessageRequest" } } } },
+      "responses": { "200": { "description": "Posted message envelope (channel + ts)" } },
+      "tags": ["chat"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat.update",
+      "operation_id": "chat.update",
+      "summary": "Edit a previously posted message",
+      "description": "Updates a message identified by channel+ts.",
+      "parameters": [],
+      "request_body": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateMessageRequest" } } } },
+      "responses": { "200": { "description": "Updated message envelope" } },
+      "tags": ["chat"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat.delete",
+      "operation_id": "chat.delete",
+      "summary": "Delete a message",
+      "description": "Deletes a message identified by channel+ts.",
+      "parameters": [],
+      "request_body": { "content": { "application/json": { "schema": { "type": "object", "properties": { "channel": { "type": "string" }, "ts": { "type": "string" } }, "required": ["channel", "ts"] } } } },
+      "responses": { "200": { "description": "Deletion ack" } },
+      "tags": ["chat"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations.archive",
+      "operation_id": "conversations.archive",
+      "summary": "Archive a channel",
+      "description": "Archives a public or private channel.",
+      "parameters": [],
+      "request_body": { "content": { "application/json": { "schema": { "type": "object", "properties": { "channel": { "type": "string" } }, "required": ["channel"] } } } },
+      "responses": { "200": { "description": "Archive ack" } },
+      "tags": ["conversations"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations.create",
+      "operation_id": "conversations.create",
+      "summary": "Create a new channel",
+      "description": "Creates a new channel.",
+      "parameters": [],
+      "request_body": { "content": { "application/json": { "schema": { "type": "object", "properties": { "name": { "type": "string" }, "is_private": { "type": "boolean" } }, "required": ["name"] } } } },
+      "responses": { "200": { "description": "Created channel object" } },
+      "tags": ["conversations"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/users.list",
+      "operation_id": "users.list",
+      "summary": "List users in the workspace",
+      "description": "Lists all users in a Slack team with pagination.",
+      "parameters": [
+        { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+        { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "Users page" } },
+      "tags": ["users"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/users.info",
+      "operation_id": "users.info",
+      "summary": "Retrieve user metadata",
+      "description": "Returns information about a workspace user.",
+      "parameters": [
+        { "name": "user", "in": "query", "required": true, "schema": { "type": "string" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "User object" } },
+      "tags": ["users"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/search.messages",
+      "operation_id": "search.messages",
+      "summary": "Search messages",
+      "description": "Searches messages by query (supports Slack search modifiers).",
+      "parameters": [
+        { "name": "query", "in": "query", "required": true, "schema": { "type": "string" } },
+        { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+        { "name": "count", "in": "query", "schema": { "type": "integer" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "Search results page" } },
+      "tags": ["search"],
+      "deprecated": false
+    }
+  ],
+  "schemas": {
+    "Channel": { "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "is_private": { "type": "boolean" }, "is_archived": { "type": "boolean" }, "num_members": { "type": "integer" } } },
+    "Message": { "type": "object", "properties": { "type": { "type": "string" }, "user": { "type": "string" }, "text": { "type": "string" }, "ts": { "type": "string" }, "thread_ts": { "type": "string" }, "channel": { "type": "string" } } },
+    "User": { "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "real_name": { "type": "string" }, "is_bot": { "type": "boolean" } } },
+    "PostMessageRequest": { "type": "object", "properties": { "channel": { "type": "string" }, "text": { "type": "string" }, "thread_ts": { "type": "string" }, "blocks": { "type": "array" } }, "required": ["channel"] },
+    "UpdateMessageRequest": { "type": "object", "properties": { "channel": { "type": "string" }, "ts": { "type": "string" }, "text": { "type": "string" }, "blocks": { "type": "array" } }, "required": ["channel", "ts"] }
+  },
+  "security_schemes": {
+    "bearerAuth": {
+      "type": "http",
+      "scheme": "bearer",
+      "in": null,
+      "name": null,
+      "flows": null
+    }
+  },
+  "dependency_graph": {
+    "Message": ["Channel", "User"],
+    "Channel": [],
+    "User": []
+  }
+}

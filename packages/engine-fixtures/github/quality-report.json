@@ -1,0 +1,144 @@
+{
+  "spec_hash": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678901234567890abcdef123456",
+  "f1_static": {
+    "passed": true,
+    "ts_compile_errors": [],
+    "json_schema_errors": [],
+    "mcp_compliance_errors": [],
+    "secret_scan_findings": [],
+    "bundle_bytes": 462848
+  },
+  "f2_smell": {
+    "tool_scores": [
+      {
+        "tool_name": "search",
+        "components": [
+          { "component": "purpose", "score": 4.4 },
+          { "component": "guidelines", "score": 4.3 },
+          { "component": "limitations", "score": 4.4 },
+          { "component": "parameter_doc", "score": 4.2 },
+          { "component": "length_completeness", "score": 4.3 }
+        ],
+        "average": 4.32
+      },
+      {
+        "tool_name": "fetch",
+        "components": [
+          { "component": "purpose", "score": 4.4 },
+          { "component": "guidelines", "score": 4.3 },
+          { "component": "limitations", "score": 4.2 },
+          { "component": "parameter_doc", "score": 4.5 },
+          { "component": "length_completeness", "score": 4.3 }
+        ],
+        "average": 4.34
+      },
+      {
+        "tool_name": "list_collections",
+        "components": [
+          { "component": "purpose", "score": 4.1 },
+          { "component": "guidelines", "score": 4.0 },
+          { "component": "limitations", "score": 4.0 },
+          { "component": "parameter_doc", "score": 4.0 },
+          { "component": "length_completeness", "score": 4.0 }
+        ],
+        "average": 4.02
+      },
+      {
+        "tool_name": "list_objects",
+        "components": [
+          { "component": "purpose", "score": 4.5 },
+          { "component": "guidelines", "score": 4.5 },
+          { "component": "limitations", "score": 4.4 },
+          { "component": "parameter_doc", "score": 4.4 },
+          { "component": "length_completeness", "score": 4.5 }
+        ],
+        "average": 4.46
+      },
+      {
+        "tool_name": "upsert",
+        "components": [
+          { "component": "purpose", "score": 4.3 },
+          { "component": "guidelines", "score": 4.2 },
+          { "component": "limitations", "score": 4.5 },
+          { "component": "parameter_doc", "score": 4.2 },
+          { "component": "length_completeness", "score": 4.2 }
+        ],
+        "average": 4.28
+      },
+      {
+        "tool_name": "delete",
+        "components": [
+          { "component": "purpose", "score": 4.5 },
+          { "component": "guidelines", "score": 4.7 },
+          { "component": "limitations", "score": 4.5 },
+          { "component": "parameter_doc", "score": 4.3 },
+          { "component": "length_completeness", "score": 4.3 }
+        ],
+        "average": 4.46
+      },
+      {
+        "tool_name": "issues_close",
+        "components": [
+          { "component": "purpose", "score": 4.4 },
+          { "component": "guidelines", "score": 4.3 },
+          { "component": "limitations", "score": 4.3 },
+          { "component": "parameter_doc", "score": 4.2 },
+          { "component": "length_completeness", "score": 4.1 }
+        ],
+        "average": 4.26
+      },
+      {
+        "tool_name": "pull_requests_merge",
+        "components": [
+          { "component": "purpose", "score": 4.5 },
+          { "component": "guidelines", "score": 4.4 },
+          { "component": "limitations", "score": 4.6 },
+          { "component": "parameter_doc", "score": 4.4 },
+          { "component": "length_completeness", "score": 4.3 }
+        ],
+        "average": 4.44
+      },
+      {
+        "tool_name": "releases_create",
+        "components": [
+          { "component": "purpose", "score": 4.4 },
+          { "component": "guidelines", "score": 4.3 },
+          { "component": "limitations", "score": 4.5 },
+          { "component": "parameter_doc", "score": 4.3 },
+          { "component": "length_completeness", "score": 4.3 }
+        ],
+        "average": 4.36
+      },
+      {
+        "tool_name": "create_pr_from_branch",
+        "components": [
+          { "component": "purpose", "score": 4.3 },
+          { "component": "guidelines", "score": 4.2 },
+          { "component": "limitations", "score": 4.4 },
+          { "component": "parameter_doc", "score": 4.2 },
+          { "component": "length_completeness", "score": 4.1 }
+        ],
+        "average": 4.24
+      }
+    ],
+    "overall_average": 4.32,
+    "passed": true
+  },
+  "f3_agent_eval": {
+    "results": [
+      { "task_id": "github-find-issue-by-keyword", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 3 },
+      { "task_id": "github-list-open-prs", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 3 },
+      { "task_id": "github-create-issue-with-labels", "passed": true, "judge_task_completion": 9, "judge_grounding": 9, "turns_used": 4 },
+      { "task_id": "github-close-issue-as-not-planned", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 3 },
+      { "task_id": "github-merge-pr-squash", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 4 },
+      { "task_id": "github-create-release-from-tag", "passed": true, "judge_task_completion": 9, "judge_grounding": 9, "turns_used": 3 },
+      { "task_id": "github-search-then-comment", "passed": false, "judge_task_completion": 6, "judge_grounding": 7, "turns_used": 7 },
+      { "task_id": "github-pagination-100-issues", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 5 },
+      { "task_id": "github-create-pr-from-branch-workflow", "passed": false, "judge_task_completion": 6, "judge_grounding": 6, "turns_used": 8 }
+    ],
+    "pass_rate": 0.78,
+    "passed": true
+  },
+  "overall_score": 4.18,
+  "quality_badge": "verified"
+}

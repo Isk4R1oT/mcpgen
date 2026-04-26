@@ -1,0 +1,210 @@
+{
+  "spec_format": "openapi-3.1",
+  "spec_hash": "f04ce1413eca89b53ab962b17b8f343d092e15a36e6daed56aa0bce88bdb45ca",
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/v1/customers",
+      "operation_id": "GetCustomers",
+      "summary": "List all customers",
+      "description": "Returns a list of your customers.",
+      "parameters": [
+        { "name": "email", "in": "query", "schema": { "type": "string" } },
+        { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+        { "name": "starting_after", "in": "query", "schema": { "type": "string" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "A list of customers" } },
+      "tags": ["Customers"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/customers",
+      "operation_id": "PostCustomers",
+      "summary": "Create a customer",
+      "description": "Creates a new customer object.",
+      "parameters": [],
+      "request_body": { "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/CustomerCreate" } } } },
+      "responses": { "200": { "description": "Customer object" } },
+      "tags": ["Customers"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/customers/{customer}",
+      "operation_id": "GetCustomersCustomer",
+      "summary": "Retrieve a customer",
+      "description": "Retrieves a Customer object.",
+      "parameters": [{ "name": "customer", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": null,
+      "responses": { "200": { "description": "Customer object" } },
+      "tags": ["Customers"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/customers/{customer}",
+      "operation_id": "PostCustomersCustomer",
+      "summary": "Update a customer",
+      "description": "Updates the specified Customer.",
+      "parameters": [{ "name": "customer", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": { "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/CustomerUpdate" } } } },
+      "responses": { "200": { "description": "Updated customer object" } },
+      "tags": ["Customers"],
+      "deprecated": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/customers/{customer}",
+      "operation_id": "DeleteCustomersCustomer",
+      "summary": "Delete a customer",
+      "description": "Permanently deletes a customer.",
+      "parameters": [{ "name": "customer", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": null,
+      "responses": { "200": { "description": "Deleted customer object" } },
+      "tags": ["Customers"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/charges",
+      "operation_id": "GetCharges",
+      "summary": "List all charges",
+      "description": "Returns a list of charges you've previously created.",
+      "parameters": [
+        { "name": "customer", "in": "query", "schema": { "type": "string" } },
+        { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "A list of charges" } },
+      "tags": ["Charges"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/charges",
+      "operation_id": "PostCharges",
+      "summary": "Create a charge",
+      "description": "To charge a credit or debit card, you create a Charge object.",
+      "parameters": [],
+      "request_body": { "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/ChargeCreate" } } } },
+      "responses": { "200": { "description": "Charge object" } },
+      "tags": ["Charges"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/charges/{charge}",
+      "operation_id": "GetChargesCharge",
+      "summary": "Retrieve a charge",
+      "description": "Retrieves the details of a charge.",
+      "parameters": [{ "name": "charge", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": null,
+      "responses": { "200": { "description": "Charge object" } },
+      "tags": ["Charges"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/charges/{charge}/capture",
+      "operation_id": "PostChargesChargeCapture",
+      "summary": "Capture a charge",
+      "description": "Capture the payment of an existing, uncaptured charge.",
+      "parameters": [{ "name": "charge", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": { "content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "properties": { "amount": { "type": "integer" } } } } } },
+      "responses": { "200": { "description": "Captured charge object" } },
+      "tags": ["Charges"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/refunds",
+      "operation_id": "PostRefunds",
+      "summary": "Create a refund",
+      "description": "When you create a new refund, you must specify a charge.",
+      "parameters": [],
+      "request_body": { "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/RefundCreate" } } } },
+      "responses": { "200": { "description": "Refund object" } },
+      "tags": ["Refunds"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/subscriptions",
+      "operation_id": "GetSubscriptions",
+      "summary": "List subscriptions",
+      "description": "By default, returns a list of subscriptions that have not been canceled.",
+      "parameters": [
+        { "name": "customer", "in": "query", "schema": { "type": "string" } },
+        { "name": "status", "in": "query", "schema": { "type": "string" } },
+        { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+      ],
+      "request_body": null,
+      "responses": { "200": { "description": "A list of subscriptions" } },
+      "tags": ["Subscriptions"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/subscriptions",
+      "operation_id": "PostSubscriptions",
+      "summary": "Create a subscription",
+      "description": "Creates a new subscription on an existing customer.",
+      "parameters": [],
+      "request_body": { "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/SubscriptionCreate" } } } },
+      "responses": { "200": { "description": "Subscription object" } },
+      "tags": ["Subscriptions"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/subscriptions/{subscription_exposed_id}",
+      "operation_id": "GetSubscriptionsSubscriptionExposedId",
+      "summary": "Retrieve a subscription",
+      "description": "Retrieves the subscription with the given ID.",
+      "parameters": [{ "name": "subscription_exposed_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": null,
+      "responses": { "200": { "description": "Subscription object" } },
+      "tags": ["Subscriptions"],
+      "deprecated": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/subscriptions/{subscription_exposed_id}",
+      "operation_id": "DeleteSubscriptionsSubscriptionExposedId",
+      "summary": "Cancel a subscription",
+      "description": "Cancels a customer's subscription immediately.",
+      "parameters": [{ "name": "subscription_exposed_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": null,
+      "responses": { "200": { "description": "Canceled subscription object" } },
+      "tags": ["Subscriptions"],
+      "deprecated": false
+    }
+  ],
+  "schemas": {
+    "Customer": { "type": "object", "properties": { "id": { "type": "string" }, "email": { "type": "string" }, "name": { "type": "string" }, "created": { "type": "integer" } } },
+    "Charge": { "type": "object", "properties": { "id": { "type": "string" }, "amount": { "type": "integer" }, "currency": { "type": "string" }, "customer": { "type": "string" }, "captured": { "type": "boolean" }, "status": { "type": "string" } } },
+    "Subscription": { "type": "object", "properties": { "id": { "type": "string" }, "customer": { "type": "string" }, "status": { "type": "string" }, "current_period_end": { "type": "integer" } } },
+    "Refund": { "type": "object", "properties": { "id": { "type": "string" }, "charge": { "type": "string" }, "amount": { "type": "integer" }, "status": { "type": "string" } } },
+    "CustomerCreate": { "type": "object", "properties": { "email": { "type": "string" }, "name": { "type": "string" } } },
+    "CustomerUpdate": { "type": "object", "properties": { "email": { "type": "string" }, "name": { "type": "string" } } },
+    "ChargeCreate": { "type": "object", "properties": { "amount": { "type": "integer" }, "currency": { "type": "string" }, "customer": { "type": "string" }, "capture": { "type": "boolean" } } },
+    "RefundCreate": { "type": "object", "properties": { "charge": { "type": "string" }, "amount": { "type": "integer" }, "reason": { "type": "string" } } },
+    "SubscriptionCreate": { "type": "object", "properties": { "customer": { "type": "string" }, "items": { "type": "array" } } }
+  },
+  "security_schemes": {
+    "bearerAuth": {
+      "type": "http",
+      "scheme": "bearer",
+      "in": null,
+      "name": null,
+      "flows": null
+    }
+  },
+  "dependency_graph": {
+    "Subscription": ["Customer"],
+    "Charge": ["Customer"],
+    "Refund": ["Charge"]
+  }
+}

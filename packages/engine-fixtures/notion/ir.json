@@ -1,0 +1,95 @@
+{
+  "spec_format": "openapi-3.1",
+  "spec_hash": "b2c3d4e5f60718293a4b5c6d7e8f90123456789012345678901234567890abcd",
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/v1/search",
+      "operation_id": "search",
+      "summary": "Search Notion",
+      "description": "Search across pages and databases the integration has access to.",
+      "parameters": [],
+      "request_body": { "content": { "application/json": { "schema": { "type": "object", "properties": { "query": { "type": "string" }, "filter": { "type": "object" }, "page_size": { "type": "integer" } } } } } },
+      "responses": { "200": { "description": "SearchResults" } },
+      "tags": ["search"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pages/{page_id}",
+      "operation_id": "pages.retrieve",
+      "summary": "Retrieve a page",
+      "description": "Retrieve a Page object by id.",
+      "parameters": [{ "name": "page_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": null,
+      "responses": { "200": { "description": "Page" } },
+      "tags": ["pages"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pages",
+      "operation_id": "pages.create",
+      "summary": "Create a page",
+      "description": "Create a Page in a database or as a child page.",
+      "parameters": [],
+      "request_body": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PageCreate" } } } },
+      "responses": { "200": { "description": "Created Page" } },
+      "tags": ["pages"],
+      "deprecated": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/pages/{page_id}",
+      "operation_id": "pages.update",
+      "summary": "Update a page (or archive it)",
+      "description": "Update Page properties; archive a page by setting archived=true.",
+      "parameters": [{ "name": "page_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": { "content": { "application/json": { "schema": { "type": "object", "properties": { "properties": { "type": "object" }, "archived": { "type": "boolean" } } } } } },
+      "responses": { "200": { "description": "Updated Page" } },
+      "tags": ["pages"],
+      "deprecated": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/databases/{database_id}",
+      "operation_id": "databases.retrieve",
+      "summary": "Retrieve a database",
+      "description": "Retrieve a Database object by id.",
+      "parameters": [{ "name": "database_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": null,
+      "responses": { "200": { "description": "Database" } },
+      "tags": ["databases"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/databases/{database_id}/query",
+      "operation_id": "databases.query",
+      "summary": "Query a database",
+      "description": "Query database rows with filter/sort/cursor.",
+      "parameters": [{ "name": "database_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "request_body": { "content": { "application/json": { "schema": { "type": "object", "properties": { "filter": { "type": "object" }, "sorts": { "type": "array" }, "start_cursor": { "type": "string" }, "page_size": { "type": "integer" } } } } } },
+      "responses": { "200": { "description": "Query result" } },
+      "tags": ["databases"],
+      "deprecated": false
+    }
+  ],
+  "schemas": {
+    "Page": { "type": "object", "properties": { "id": { "type": "string" }, "object": { "type": "string" }, "properties": { "type": "object" }, "archived": { "type": "boolean" } } },
+    "Database": { "type": "object", "properties": { "id": { "type": "string" }, "object": { "type": "string" }, "title": { "type": "array" }, "properties": { "type": "object" } } },
+    "PageCreate": { "type": "object", "properties": { "parent": { "type": "object" }, "properties": { "type": "object" } } }
+  },
+  "security_schemes": {
+    "bearerAuth": {
+      "type": "http",
+      "scheme": "bearer",
+      "in": null,
+      "name": null,
+      "flows": null
+    }
+  },
+  "dependency_graph": {
+    "Page": ["Database"]
+  }
+}

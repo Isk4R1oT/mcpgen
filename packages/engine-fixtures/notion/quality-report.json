@@ -1,0 +1,101 @@
+{
+  "spec_hash": "b2c3d4e5f60718293a4b5c6d7e8f90123456789012345678901234567890abcd",
+  "f1_static": {
+    "passed": true,
+    "ts_compile_errors": [],
+    "json_schema_errors": [],
+    "mcp_compliance_errors": [],
+    "secret_scan_findings": [],
+    "bundle_bytes": 391168
+  },
+  "f2_smell": {
+    "tool_scores": [
+      {
+        "tool_name": "search",
+        "components": [
+          { "component": "purpose", "score": 4.5 },
+          { "component": "guidelines", "score": 4.4 },
+          { "component": "limitations", "score": 4.3 },
+          { "component": "parameter_doc", "score": 4.4 },
+          { "component": "length_completeness", "score": 4.4 }
+        ],
+        "average": 4.40
+      },
+      {
+        "tool_name": "fetch",
+        "components": [
+          { "component": "purpose", "score": 4.4 },
+          { "component": "guidelines", "score": 4.3 },
+          { "component": "limitations", "score": 4.2 },
+          { "component": "parameter_doc", "score": 4.5 },
+          { "component": "length_completeness", "score": 4.3 }
+        ],
+        "average": 4.34
+      },
+      {
+        "tool_name": "list_collections",
+        "components": [
+          { "component": "purpose", "score": 4.3 },
+          { "component": "guidelines", "score": 4.2 },
+          { "component": "limitations", "score": 4.1 },
+          { "component": "parameter_doc", "score": 4.1 },
+          { "component": "length_completeness", "score": 4.0 }
+        ],
+        "average": 4.14
+      },
+      {
+        "tool_name": "list_objects",
+        "components": [
+          { "component": "purpose", "score": 4.6 },
+          { "component": "guidelines", "score": 4.6 },
+          { "component": "limitations", "score": 4.4 },
+          { "component": "parameter_doc", "score": 4.5 },
+          { "component": "length_completeness", "score": 4.5 }
+        ],
+        "average": 4.52
+      },
+      {
+        "tool_name": "upsert",
+        "components": [
+          { "component": "purpose", "score": 4.3 },
+          { "component": "guidelines", "score": 4.2 },
+          { "component": "limitations", "score": 4.5 },
+          { "component": "parameter_doc", "score": 4.2 },
+          { "component": "length_completeness", "score": 4.2 }
+        ],
+        "average": 4.28
+      },
+      {
+        "tool_name": "delete",
+        "components": [
+          { "component": "purpose", "score": 4.5 },
+          { "component": "guidelines", "score": 4.6 },
+          { "component": "limitations", "score": 4.5 },
+          { "component": "parameter_doc", "score": 4.3 },
+          { "component": "length_completeness", "score": 4.2 }
+        ],
+        "average": 4.42
+      }
+    ],
+    "overall_average": 4.35,
+    "passed": true
+  },
+  "f3_agent_eval": {
+    "results": [
+      { "task_id": "notion-find-page-by-title", "passed": true, "judge_task_completion": 9, "judge_grounding": 9, "turns_used": 3 },
+      { "task_id": "notion-list-rows-by-status", "passed": true, "judge_task_completion": 9, "judge_grounding": 9, "turns_used": 3 },
+      { "task_id": "notion-create-row-in-database", "passed": true, "judge_task_completion": 9, "judge_grounding": 9, "turns_used": 3 },
+      { "task_id": "notion-update-page-property", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 3 },
+      { "task_id": "notion-archive-batch-pages", "passed": true, "judge_task_completion": 9, "judge_grounding": 8, "turns_used": 4 },
+      { "task_id": "notion-list-databases", "passed": true, "judge_task_completion": 9, "judge_grounding": 9, "turns_used": 2 },
+      { "task_id": "notion-search-then-fetch", "passed": true, "judge_task_completion": 9, "judge_grounding": 9, "turns_used": 3 },
+      { "task_id": "notion-pagination-100-rows", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 5 },
+      { "task_id": "notion-filter-by-multi-property", "passed": true, "judge_task_completion": 8, "judge_grounding": 8, "turns_used": 4 },
+      { "task_id": "notion-restore-archived", "passed": false, "judge_task_completion": 6, "judge_grounding": 7, "turns_used": 6 }
+    ],
+    "pass_rate": 0.85,
+    "passed": true
+  },
+  "overall_score": 4.30,
+  "quality_badge": "verified"
+}

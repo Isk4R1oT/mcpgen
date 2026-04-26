@@ -1,0 +1,133 @@
+{
+  "spec_format": "openapi-3.1",
+  "spec_hash": "c3d4e5f60718293a4b5c6d7e8f9012345678901234567890abcdef123456789a",
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation_id": "issues.list",
+      "summary": "List issues",
+      "description": "GraphQL query: issues(filter, first, after) { nodes { ... } pageInfo }",
+      "parameters": [],
+      "request_body": { "content": { "application/json": { "schema": { "type": "object", "properties": { "query": { "type": "string" }, "variables": { "type": "object" } } } } } },
+      "responses": { "200": { "description": "GraphQL Issue connection" } },
+      "tags": ["issues"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation_id": "issues.get",
+      "summary": "Get an issue by id",
+      "description": "GraphQL query: issue(id: ID!) { ... }",
+      "parameters": [],
+      "request_body": null,
+      "responses": { "200": { "description": "Issue" } },
+      "tags": ["issues"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation_id": "issues.create",
+      "summary": "Create an issue",
+      "description": "GraphQL mutation: issueCreate(input: IssueCreateInput!) { success issue { ... } }",
+      "parameters": [],
+      "request_body": null,
+      "responses": { "200": { "description": "Created Issue" } },
+      "tags": ["issues"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation_id": "issues.update",
+      "summary": "Update an issue",
+      "description": "GraphQL mutation: issueUpdate(id: String!, input: IssueUpdateInput!)",
+      "parameters": [],
+      "request_body": null,
+      "responses": { "200": { "description": "Updated Issue" } },
+      "tags": ["issues"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation_id": "issues.archive",
+      "summary": "Archive an issue",
+      "description": "GraphQL mutation: issueArchive(id: String!)",
+      "parameters": [],
+      "request_body": null,
+      "responses": { "200": { "description": "Archived" } },
+      "tags": ["issues"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation_id": "issues.delete",
+      "summary": "Delete an issue (hard delete — admin only)",
+      "description": "GraphQL mutation: issueDelete(id: String!)",
+      "parameters": [],
+      "request_body": null,
+      "responses": { "200": { "description": "Deleted" } },
+      "tags": ["issues"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation_id": "cycles.list",
+      "summary": "List cycles",
+      "description": "GraphQL query: cycles(filter) { nodes { ... } }",
+      "parameters": [],
+      "request_body": null,
+      "responses": { "200": { "description": "Cycle connection" } },
+      "tags": ["cycles"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation_id": "cycles.advance",
+      "summary": "Advance the active cycle (close current, open next)",
+      "description": "GraphQL mutation: cycleAdvance(teamId: String!)",
+      "parameters": [],
+      "request_body": null,
+      "responses": { "200": { "description": "AdvancedCycleResult" } },
+      "tags": ["cycles"],
+      "deprecated": false
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation_id": "projects.list",
+      "summary": "List projects",
+      "description": "GraphQL query: projects(filter) { nodes { ... } }",
+      "parameters": [],
+      "request_body": null,
+      "responses": { "200": { "description": "Project connection" } },
+      "tags": ["projects"],
+      "deprecated": false
+    }
+  ],
+  "schemas": {
+    "Issue": { "type": "object", "properties": { "id": { "type": "string" }, "identifier": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" }, "state": { "type": "object" }, "priority": { "type": "integer" }, "archivedAt": { "type": "string" } } },
+    "Cycle": { "type": "object", "properties": { "id": { "type": "string" }, "number": { "type": "integer" }, "startsAt": { "type": "string" }, "endsAt": { "type": "string" }, "completedAt": { "type": "string" } } },
+    "Project": { "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "state": { "type": "string" }, "progress": { "type": "number" } } }
+  },
+  "security_schemes": {
+    "apiKeyAuth": {
+      "type": "apiKey",
+      "scheme": null,
+      "in": "header",
+      "name": "Authorization",
+      "flows": null
+    }
+  },
+  "dependency_graph": {
+    "Issue": ["Cycle", "Project"],
+    "Cycle": [],
+    "Project": []
+  }
+}

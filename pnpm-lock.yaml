@@ -273,6 +273,31 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@22.19.17)(terser@5.46.2)
 
+  packages/engine-fixtures:
+    dependencies:
+      '@mcpgen/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@mcpgen/ir':
+        specifier: workspace:*
+        version: link:../ir
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@mcpgen/shared-config':
+        specifier: workspace:*
+        version: link:../shared-config
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.19.17
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.19.17)(terser@5.46.2)
+
   packages/ir:
     dependencies:
       zod:
