@@ -47,7 +47,7 @@ Plans:
 - [x] 01-03-PLAN.md — 4 frozen contracts: IR (Zod source + Pydantic codegen) + generation-api + usage-event + launch-criteria + idempotency + runtime-sdk interface stub [Wave 3] ✓ 2026-04-26
 - [~] 01-04-PLAN.md — DB schema migration (Drizzle) + Neon dev DB push [BLOCKING] [Wave 4] · **in_progress** Tasks 1–3 committed 2026-04-26 (db-schema.ts + migration SQL + drizzle.config.ts + SCALING.md + db:test-migrate script); Task 4 [BLOCKING] schema-push to Neon dev DB awaiting user-provided DATABASE_URL — see `.planning/phases/01-foundation/01-04-SUMMARY.md` Pending Checkpoint section
 - [x] 01-05-PLAN.md — 6 empty-but-deployable apps: web (locked UI) + api (Hono BFF + SSE spike scaffold) + dispatch + dispatch-sample (canonical Stripe sample) + cli (Bun matrix) + docs [Wave 5] ✓ 2026-04-26
-- [ ] 01-06-PLAN.md — Engine FastAPI + uv + Sentry + Langfuse OTel + Day-1 Qwen smoke test + Dockerfile + fly.toml [Wave 5]
+- [x] 01-06-PLAN.md — Engine FastAPI + uv + Sentry + Langfuse OTel + Day-1 Qwen smoke test + Dockerfile + fly.toml [Wave 5] ✓ 2026-04-26
 - [ ] 01-07-PLAN.md — 5 hand-crafted engine fixtures + CF dispatch namespace creation [BLOCKING] + Logto Cloud scaffolding [BLOCKING] + 3 operational runbooks [Wave 6]
 - [ ] 01-08-PLAN.md — Hono streamSSE 30s spike on mcpgen-sandbox [BLOCKING] + Hyperdrive provisioning [BLOCKING] + Phase-1 verification doc [Wave 7]
 

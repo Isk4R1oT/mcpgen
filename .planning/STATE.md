@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 01-05: 6 apps scaffolded (web/api/dispatch/dispatch-sample/cli/docs); Plan 01-04 Task 4 [BLOCKING] still deferred to Wave 6 cloud-batch"
-last_updated: "2026-04-26T14:02:11.889Z"
+stopped_at: "Completed 01-06: engine scaffold (FastAPI + uv + PydanticAI + OpenRouter through MODEL singleton); 9 tests pass without OPENROUTER_API_KEY; Day-1 Qwen smoke test gated on real key (skipped under conftest placeholder); Sentry + Langfuse OTel wired; LiteLLM is DELETED"
+last_updated: "2026-04-26T14:24:36.867Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 8
-  completed_plans: 5
-  percent: 63
+  completed_plans: 6
+  percent: 75
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 1 (Foundation) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-04-26
 
-Progress: [██████░░░░] 63%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [██████░░░░] 63%
 | Phase 01 P03 | 26min | 3 tasks tasks | 32 files files |
 | Phase 01 P04 (Tasks 1–3, in_progress) | 22min | 3 of 4 tasks | 13 files |
 | Phase 01 P01-05 | 15min | 3 tasks | 39 files |
+| Phase 01 P06 | 13min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,11 @@ Recent decisions affecting current work:
 - Plan 01-05: apps/web Phase-1 build/lint/typecheck/test scripts are no-ops because locked UI ships as raw JSX without app/ or pages/ dir; Phase 7 wires the JSX into Next.js app/ structure and re-enables real scripts
 - Plan 01-05: test ULIDs use predictable repeating-A pattern (01HXAAAAAAAAAAAAAAAAAAAAA0/2/3) instead of high-entropy random ULIDs to avoid gitleaks generic-api-key false positives
 - Plan 01-05: apps/dispatch + apps/dispatch-sample use vitest --run --passWithNoTests so workspace pnpm -r test passes for stub apps; apps/api owns the CTRL-01 contract tests (4 passing)
+- Plan 01-06: pydantic-ai 0.2.20 exports OpenAIModel (not OpenAIChatModel — that's the 0.5+ API); MODEL singleton in llm/client.py uses the resolved version with bump-friendly comment
+- Plan 01-06: pytest filterwarnings=error scoped allowlist for upstream pydantic-ai 0.2.x deprecations from opentelemetry-sdk 1.39+ (Logger/LoggerProvider/ProxyLoggerProvider via typing_extensions) — single message-pattern ignore that disappears when pydantic-ai is bumped
+- Plan 01-06: conftest _sandbox_env autouse fixture sets OPENROUTER_API_KEY=sk-or-test-PLACEHOLDER (NOT None fallback); fail-fast contract verified by delenv after importlib.reload inside the relevant test
+- Plan 01-06: Dockerfile build context is REPO ROOT (not apps/generation-engine/) because mcpgen-ir workspace dep lives at packages/ir/; sed-rewrites [tool.uv.sources] path-source URI before uv sync
+- Plan 01-06: removed .python-version from .gitignore so apps/generation-engine/.python-version=3.12 carries on fresh clones (uv reads it; pyenv-compatible tools too)
 
 ### Pending Todos
 
@@ -121,8 +127,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-26T14:02:11.878Z
-Stopped at: Completed 01-05: 6 apps scaffolded (web/api/dispatch/dispatch-sample/cli/docs); Plan 01-04 Task 4 [BLOCKING] still deferred to Wave 6 cloud-batch
-Resume file: Plan 01-04 Task 4 schema-push still pending; Plan 01-07 CF + Logto provisioning still pending; Plan 01-08 D-15 spike + Hyperdrive still pending — all bundled in Wave 6 cloud-batch
+Last session: 2026-04-26T14:24:36.859Z
+Stopped at: Completed 01-06: engine scaffold (FastAPI + uv + PydanticAI + OpenRouter through MODEL singleton); 9 tests pass without OPENROUTER_API_KEY; Day-1 Qwen smoke test gated on real key (skipped under conftest placeholder); Sentry + Langfuse OTel wired; LiteLLM is DELETED
+Resume file: None — engine is ready for Phase 2 (Pass 0–1)
 
 **Planned Phase:** 1 (Foundation) — 8 plans — 2026-04-26T12:01:12.473Z
