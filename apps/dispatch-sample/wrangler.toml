@@ -1,0 +1,24 @@
+# apps/dispatch-sample/wrangler.toml
+#
+# Hand-coded Stripe sample tenant Worker — canonical reference shape for Phase 4
+# Stage E codegen. Phase 6 (dispatch) targets this shape for routing tests.
+#
+# References:
+#   - docs/mcpgen-stage-e-design.md §2 (file tree)
+#   - docs/mcpgen-stage-e-design.md §5.1 (passthrough auth)
+#   - .planning/phases/01-foundation/01-CONTEXT.md D-04 (MCP SDK v1 pin)
+#   - .planning/phases/01-foundation/01-CONTEXT.md D-08 (deploys into sandbox dispatch namespace)
+#   - T-1-07 mitigation: upload_source_maps = true (Sentry private upload)
+
+name = "sample-stripe"
+main = "src/index.ts"
+compatibility_date = "2026-04-24"
+compatibility_flags = ["nodejs_compat"]
+upload_source_maps = true
+
+# Deploy as a tenant Worker into the sandbox dispatch namespace (D-08).
+# Run: wrangler deploy --upload-source-maps --dispatch-namespace mcpgen-sandbox
+
+[[queues.producers]]
+binding = "USAGE_QUEUE"
+queue = "mcpgen-usage-events"
