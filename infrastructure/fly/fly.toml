@@ -1,0 +1,53 @@
+# MCPGen Generation Engine - Fly.io Machines deploy config (canonical IaC location).
+#
+# Mirror of apps/generation-engine/fly.toml per docs/mcpgen-architecture.md
+# §15 (infrastructure/ holds IaC; apps/ holds working copies). Updates to
+# either file MUST stay in sync; a future Phase-9 plan will introduce a
+# generator/lint step to enforce this.
+
+app = "mcpgen-engine"
+primary_region = "iad"
+
+[build]
+dockerfile = "../../apps/generation-engine/Dockerfile"
+
+[env]
+PORT = "8000"
+ENVIRONMENT = "production"
+
+[[services]]
+protocol = "tcp"
+internal_port = 8000
+
+  [[services.ports]]
+  port = 80
+  handlers = ["http"]
+  force_https = true
+
+  [[services.ports]]
+  port = 443
+  handlers = ["tls", "http"]
+
+  [services.concurrency]
+  type = "requests"
+  soft_limit = 25
+  hard_limit = 50
+
+[[services.tcp_checks]]
+interval = "15s"
+timeout = "2s"
+
+[[services.http_checks]]
+interval = "30s"
+timeout = "5s"
+grace_period = "10s"
+method = "GET"
+path = "/health"
+
+[[vm]]
+cpu_kind = "shared"
+cpus = 1
+memory = "1gb"
+auto_stop_machines = "suspend"
+auto_start_machines = true
+min_machines_running = 0

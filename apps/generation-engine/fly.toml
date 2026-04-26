@@ -1,0 +1,54 @@
+# MCPGen Generation Engine - Fly.io Machines deploy config.
+#
+# Auto-suspend per CLAUDE.md "managed services > self-host" + locked stack
+# (Fly Machines auto-suspend). Phase 1 verifies fly.toml validates; real
+# deploys land in Phase 9.
+
+app = "mcpgen-engine"
+primary_region = "iad"
+
+[build]
+dockerfile = "Dockerfile"
+
+[env]
+PORT = "8000"
+ENVIRONMENT = "production"
+
+[[services]]
+protocol = "tcp"
+internal_port = 8000
+
+  [[services.ports]]
+  port = 80
+  handlers = ["http"]
+  force_https = true
+
+  [[services.ports]]
+  port = 443
+  handlers = ["tls", "http"]
+
+  [services.concurrency]
+  type = "requests"
+  soft_limit = 25
+  hard_limit = 50
+
+[[services.tcp_checks]]
+interval = "15s"
+timeout = "2s"
+
+[[services.http_checks]]
+interval = "30s"
+timeout = "5s"
+grace_period = "10s"
+method = "GET"
+path = "/health"
+
+# Auto-suspend: Phase 1 only validates the config. Engine traffic in
+# production averages << 50% CPU, so machines suspend between bursts.
+[[vm]]
+cpu_kind = "shared"
+cpus = 1
+memory = "1gb"
+auto_stop_machines = "suspend"
+auto_start_machines = true
+min_machines_running = 0
