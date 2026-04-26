@@ -5,3 +5,5 @@ export * from './generation-api.js';
 export * from './usage-event.js';
 export * from './launch-criteria.js';
 export * from './idempotency.js';
+export * from './db-schema.js';
+export * from './db-types.js';

@@ -16,15 +16,24 @@
     "build": "tsc --noEmit -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest --run",
-    "lint": "echo \"no lint step in @mcpgen/contracts (covered by workspace eslint via pnpm -r lint)\""
+    "lint": "echo \"no lint step in @mcpgen/contracts (covered by workspace eslint via pnpm -r lint)\"",
+    "drizzle-kit:check": "drizzle-kit check --config ../../infrastructure/neon/drizzle.config.ts",
+    "drizzle-kit:generate": "drizzle-kit generate --config ../../infrastructure/neon/drizzle.config.ts",
+    "drizzle-kit:push": "drizzle-kit push --config ../../infrastructure/neon/drizzle.config.ts",
+    "db:test-migrate": "tsx scripts/test-migrate.ts"
   },
   "dependencies": {
     "@mcpgen/ir": "workspace:*",
+    "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@mcpgen/shared-config": "workspace:*",
     "@types/node": "^22.10.5",
+    "@types/pg": "^8",
+    "drizzle-kit": "^0.31.10",
+    "pg": "^8",
     "typescript": "^6.0.3",
     "vitest": "^1.6.0"
   }
