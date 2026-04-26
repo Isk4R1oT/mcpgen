@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01 (foundation skeleton)
-last_updated: "2026-04-26T12:14:51.836Z"
+stopped_at: Completed 01-02 (pre-commit + GitHub Actions CI)
+last_updated: "2026-04-26T12:32:19Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 8
-  completed_plans: 1
-  percent: 13
+  completed_plans: 2
+  percent: 25
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 1 (Foundation) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-04-26
 
-Progress: [█░░░░░░░░░] 13%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [█░░░░░░░░░] 13%
 
 *Updated after each plan completion*
 | Phase 01 P01 | 10min | 3 tasks | 19 files |
+| Phase 01 P02 | 13min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,11 @@ Recent decisions affecting current work:
 - Plan 01-01: pinned turbo@2.9.6 / typescript@6.0.3 / eslint@10.2.1 / vitest@1.6.0 verbatim from RESEARCH.md Standard Stack
 - Plan 01-01: dual tsconfig pattern in shared-config (tsconfig.base.json export shim + tsconfig.json runtime entry) — convention for every downstream package
 - Plan 01-01: .prettierignore excludes pre-existing out-of-scope files (docs/, CLAUDE.md, RULES.md, claude-design-ui/, .planning/, pnpm-lock.yaml) per CLAUDE.md scope rules
+- Plan 01-02: pre-commit eslint hook switched from `mirrors-eslint v10.2.1` to a `repo: local` `pnpm -r --if-present lint` workspace hook because the mirror's isolated node_env can't see workspace tsconfigs needed for `@typescript-eslint/no-unsafe-assignment` typed-linting (errors on already-committed `packages/shared-config/index.ts`); workspace ESLint stays pinned at `^10.2.1` via `packages/shared-config/devDependencies`
+- Plan 01-02: per-workstream CI workflow files (`engine-ci.yml` / `runtime-ci.yml` / `frontend-ci.yml` / `ops-ci.yml`) exist as thin entry-point markers; real work runs in `main-ci.yml` conditional jobs (`docs/decisions/002`)
+- Plan 01-02: accept Drizzle native `YYYYMMDDHHMMSS_<name>.sql` migration filename format; first migration `20260427000000_init_schema.sql` (`docs/decisions/001`)
+- Plan 01-02: cross-workstream test ownership policy — failing tests owned by the workstream that owns the file under test; cross-cutting failures escalate to `main` as `chore(contracts):` PR (`docs/decisions/000`)
+- Plan 01-02: `launch-criteria-assertion` CI step uses `grep -qF` (fixed-string) on `F2_SMELL_MIN: 4.0` / `F3_AGENT_PASS_RATE_MIN: 0.7` / `PASS_KB: 800` / `WARN_KB: 950` to avoid regex-escape ambiguity
 
 ### Pending Todos
 
@@ -94,8 +100,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-26T12:14:38.803Z
-Stopped at: Completed 01-01 (foundation skeleton)
+Last session: 2026-04-26T12:32:19Z
+Stopped at: Completed 01-02 (pre-commit + GitHub Actions CI)
 Resume file: None
 
 **Planned Phase:** 1 (Foundation) — 8 plans — 2026-04-26T12:01:12.473Z

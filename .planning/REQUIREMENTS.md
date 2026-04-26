@@ -23,7 +23,7 @@
 - [ ] **FND-09**: Cloudflare account scaffolded with single dispatch namespace per environment (`mcpgen-prod`, `mcpgen-staging`, `mcpgen-sandbox`) — never a namespace per tenant [P0: pitfall #11]
 - [ ] **FND-10**: Empty-DSN Sentry SDK initialized in `apps/web`, `apps/api`, `apps/dispatch`, `apps/generation-engine`; CI step uploads source maps for each runtime
 - [ ] **FND-11**: Langfuse v4 OTel exporter wired into the engine FastAPI bootstrap (`logfire.configure(send_to_logfire=False, otlp_endpoint=...)`) so traces appear from Phase 2 day 1
-- [ ] **FND-12**: Pre-commit hooks installed and enforced (gitleaks, ruff, eslint, mypy, conventional-pre-commit); never bypassed
+- [x] **FND-12**: Pre-commit hooks installed and enforced (gitleaks, ruff, eslint, mypy, conventional-pre-commit); never bypassed
 - [ ] **FND-13**: Logto Cloud free-tier scaffolded with email + GitHub providers; runbook for self-host migration documented and tested on staging by W7
 - [ ] **FND-14**: Idempotency keys specified at all four surfaces (`POST /api/v1/generate`, Inngest job triggers, Stripe Meters event creation, CF dispatch namespace deploys)
 - [ ] **FND-15**: Hono `streamSSE` 30-second sub-request limit verified on CF Workers via 30-min spike before contract freeze
@@ -172,7 +172,7 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | FND-09 | Phase 1 | Pending |
 | FND-10 | Phase 1 | Pending |
 | FND-11 | Phase 1 | Pending |
-| FND-12 | Phase 1 | Pending |
+| FND-12 | Phase 1 | Complete (01-02) |
 | FND-13 | Phase 1 | Pending |
 | FND-14 | Phase 1 | Pending |
 | FND-15 | Phase 1 | Pending |
@@ -217,8 +217,8 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | GTM-02 | Phase 10 | Pending |
 | GTM-03 | Phase 10 | Pending |
 | OPS-01 | Phase 1 (cross-phase) | Pending |
-| OPS-02 | Phase 1 (cross-phase) | Pending |
-| OPS-03 | Phase 1 (cross-phase) | Pending |
+| OPS-02 | Phase 1 (cross-phase) | Complete (01-01, 01-02) |
+| OPS-03 | Phase 1 (cross-phase) | Complete (01-01, 01-02) |
 
 **Coverage:**
 - v1 requirements: 58 total (FND-15, GEN-13, RUN-7, CTRL-9, CLI-3, FE-5, GTM-3, OPS-3)
