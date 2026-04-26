@@ -53,7 +53,7 @@
 - [ ] **RUN-06**: Each tool call emits a usage event via `ctx.waitUntil(queue.send(...))` with KV fallback bucket on send failure; CF Queue → Inngest → TimescaleDB hypertable + Stripe Meters API; `usage_event_id` UUID + UNIQUE `(tenant_id, tool_call_id)` for dedup; daily reconciliation job [P0: pitfall #13]
 - [ ] **RUN-07**: One-click Claude Desktop config block (or fallback copy-paste) is generated for each deployed server, with collision detection against existing config entries [P1: pitfall #30]
 
-### Control Plane / Backend (CTRL) — Phases 1, 8
+### Control Plane / Backend (CTRL) — Phases 1, 8, 9
 
 - [ ] **CTRL-01**: Hono BFF on CF Workers exposes `POST /api/v1/generate` (job submission, returns 202 + SSE URL) and a per-job SSE callback channel that supports `last-event-id` resume + Postgres-as-source-of-truth fallback when SSE drops [P1: pitfall #20]
 - [ ] **CTRL-02**: Auth uses Logto Cloud (free tier scaffolded; Pro pre-bought at W7) with email + GitHub providers; no Google/Twitter/Apple in MVP [P0: pitfall #17]
@@ -65,7 +65,7 @@
 - [ ] **CTRL-08**: Sentry (TS + Python with source maps), BetterStack (logs + uptime + CF Queue depth alert), Langfuse v4 (LLM tracing via OTel) wired across all components; Sentry `beforeSend` strips auth headers and spec content
 - [ ] **CTRL-09**: Inngest function IDs are stable strings (`drift-watcher-v1`, `usage-reconciler-v1`); orphan audit in Phase 9 [P2: pitfall #21]
 
-### CLI (CLI) — Phases 2–6
+### CLI (CLI) — Phases 2, 6
 
 - [ ] **CLI-01**: `npx mcpgen init <openapi-url>` produces a working local MCP server file in <60 seconds (no signup required)
 - [ ] **CLI-02**: `mcpgen deploy` pushes the generated server to CF Workers for Platforms tenant namespace and returns a live URL
@@ -85,7 +85,9 @@
 - [ ] **GTM-02**: Privacy + ToS + Pricing page published; pricing matches code-enforced quotas
 - [ ] **GTM-03**: Soft launch (W7 of sprint plan) → 20 invited users; public launch (W9) → Show HN, Product Hunt, Reddit r/MachineLearning + r/LocalLLaMA
 
-### Operational discipline (OPS) — All phases
+### Operational discipline (OPS) — Phase 1 (applies across all phases)
+
+> OPS-* are cross-phase operational disciplines. They are anchored to Phase 1 for scaffolding (CI policy, plan-file conventions, Friday demo cadence ritual) but enforced continuously through every subsequent phase.
 
 - [ ] **OPS-01**: Friday demo cadence preserved through W10; pre-recorded clips throughout the week, Friday is editing only [P0: pitfall #23 — velocity death spiral]
 - [ ] **OPS-02**: Cross-workstream test ownership policy enforced — failing tests "owned" by the workstream that owns the file; cross-ws failures escalate to MAIN as contract-change PR [P1: pitfall #26]
@@ -152,18 +154,93 @@
 
 ## Traceability
 
-Empty. Filled by roadmapper.
+Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-sprint-plan.md` 10-phase structure. OPS-* are anchored to Phase 1 for scaffolding but apply continuously across all subsequent phases per the OPS section above.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by `gsd-roadmapper`) | | |
+| FND-01 | Phase 1 | Pending |
+| FND-02 | Phase 1 | Pending |
+| FND-03 | Phase 1 | Pending |
+| FND-04 | Phase 1 | Pending |
+| FND-05 | Phase 1 | Pending |
+| FND-06 | Phase 1 | Pending |
+| FND-07 | Phase 1 | Pending |
+| FND-08 | Phase 1 | Pending |
+| FND-09 | Phase 1 | Pending |
+| FND-10 | Phase 1 | Pending |
+| FND-11 | Phase 1 | Pending |
+| FND-12 | Phase 1 | Pending |
+| FND-13 | Phase 1 | Pending |
+| FND-14 | Phase 1 | Pending |
+| FND-15 | Phase 1 | Pending |
+| GEN-01 | Phase 2 | Pending |
+| GEN-02 | Phase 2 | Pending |
+| GEN-03 | Phase 2 | Pending |
+| GEN-04 | Phase 3 | Pending |
+| GEN-05 | Phase 3 | Pending |
+| GEN-06 | Phase 3 | Pending |
+| GEN-07 | Phase 4 | Pending |
+| GEN-08 | Phase 4 | Pending |
+| GEN-09 | Phase 5 | Pending |
+| GEN-10 | Phase 5 | Pending |
+| GEN-11 | Phase 5 | Pending |
+| GEN-12 | Phase 2 | Pending |
+| GEN-13 | Phase 2 | Pending |
+| RUN-01 | Phase 6 | Pending |
+| RUN-02 | Phase 6 | Pending |
+| RUN-03 | Phase 6 | Pending |
+| RUN-04 | Phase 6 | Pending |
+| RUN-05 | Phase 6 | Pending |
+| RUN-06 | Phase 6 | Pending |
+| RUN-07 | Phase 6 | Pending |
+| CTRL-01 | Phase 1 | Pending |
+| CTRL-02 | Phase 8 | Pending |
+| CTRL-03 | Phase 8 | Pending |
+| CTRL-04 | Phase 8 | Pending |
+| CTRL-05 | Phase 8 | Pending |
+| CTRL-06 | Phase 8 | Pending |
+| CTRL-07 | Phase 8 | Pending |
+| CTRL-08 | Phase 9 | Pending |
+| CTRL-09 | Phase 9 | Pending |
+| CLI-01 | Phase 2 | Pending |
+| CLI-02 | Phase 6 | Pending |
+| CLI-03 | Phase 6 | Pending |
+| FE-01 | Phase 7 | Pending |
+| FE-02 | Phase 7 | Pending |
+| FE-03 | Phase 7 | Pending |
+| FE-04 | Phase 7 | Pending |
+| FE-05 | Phase 7 | Pending |
+| GTM-01 | Phase 10 | Pending |
+| GTM-02 | Phase 10 | Pending |
+| GTM-03 | Phase 10 | Pending |
+| OPS-01 | Phase 1 (cross-phase) | Pending |
+| OPS-02 | Phase 1 (cross-phase) | Pending |
+| OPS-03 | Phase 1 (cross-phase) | Pending |
 
 **Coverage:**
-- v1 requirements: 49 total (FND-15, GEN-13, RUN-7, CTRL-9, CLI-3, FE-5, GTM-3, OPS-3)
-- Mapped to phases: 0
-- Unmapped: 49 ⚠️ (will be 0 after roadmap)
+- v1 requirements: 58 total (FND-15, GEN-13, RUN-7, CTRL-9, CLI-3, FE-5, GTM-3, OPS-3)
+- Mapped to phases: 58
+- Unmapped: 0 ✓
+
+**Per-phase requirement counts:**
+
+| Phase | Count | Requirement IDs |
+|-------|-------|-----------------|
+| Phase 1: Foundation | 19 | FND-01..15, CTRL-01, OPS-01..03 |
+| Phase 2: Engine Architect (Pass 0+1) | 6 | GEN-01, GEN-02, GEN-03, GEN-12, GEN-13, CLI-01 |
+| Phase 3: Engine Author (Pass 2+3+4) | 3 | GEN-04, GEN-05, GEN-06 |
+| Phase 4: Engine Shape & Codegen (Pass 5 + Stage E) | 2 | GEN-07, GEN-08 |
+| Phase 5: Engine Validation (Stage F) | 3 | GEN-09, GEN-10, GEN-11 |
+| Phase 6: Runtime Plane | 9 | RUN-01..07, CLI-02, CLI-03 |
+| Phase 7: Frontend Wire-Up | 5 | FE-01..05 |
+| Phase 8: Auth + Billing | 6 | CTRL-02..07 |
+| Phase 9: Observability & Polish | 2 | CTRL-08, CTRL-09 |
+| Phase 10: Launch | 3 | GTM-01..03 |
+| **Total** | **58** | (no orphans, no duplicates) |
+
+> Note: a counting correction was applied during traceability — the prior summary stated 49 v1 requirements, but the actual sum across categories is FND-15 + GEN-13 + RUN-7 + CTRL-9 + CLI-3 + FE-5 + GTM-3 + OPS-3 = **58**. The mapping is complete.
 
 ---
 
 *Requirements defined: 2026-04-26*
-*Last updated: 2026-04-26 after initialization*
+*Last updated: 2026-04-26 — traceability filled by `gsd-roadmapper`*
