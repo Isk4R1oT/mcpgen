@@ -1,0 +1,30 @@
+{
+  "name": "@mcpgen/ir",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest --run",
+    "codegen": "tsx scripts/codegen.ts",
+    "codegen:check": "tsx scripts/codegen.ts --check",
+    "lint": "echo \"no lint step in @mcpgen/ir (covered by workspace eslint via pnpm -r lint)\""
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@mcpgen/shared-config": "workspace:*",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^6.0.3",
+    "vitest": "^1.6.0"
+  }
+}

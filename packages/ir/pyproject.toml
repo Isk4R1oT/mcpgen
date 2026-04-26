@@ -1,0 +1,20 @@
+# packages/ir/pyproject.toml
+# Exposes packages/ir/python/ as a Python package `mcpgen_ir` for the
+# generation engine (apps/generation-engine). The Python types here are
+# GENERATED from packages/ir/src/types.ts via packages/ir/scripts/codegen.ts.
+# Do NOT hand-edit packages/ir/python/types.py — see README.md.
+
+[project]
+name = "mcpgen-ir"
+version = "0.0.0"
+description = "Generated Pydantic 2 mirror of the @mcpgen/ir Zod schemas (D-01/D-02)."
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2,<3"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["python"]
+include = ["*"]
