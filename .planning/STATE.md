@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03 (4 frozen contracts + runtime SDK interface stub)
-last_updated: "2026-04-26T13:08:47.419Z"
+stopped_at: "Plan 01-04 in_progress: Tasks 1–3 committed; Task 4 [BLOCKING] schema-push awaiting DATABASE_URL"
+last_updated: "2026-04-26T18:35:00.000Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 10
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 
 Phase: 1 (Foundation) — EXECUTING
 Plan: 4 of 8
-Status: Ready to execute
+Status: In progress (Tasks 1–3 committed; Task 4 [BLOCKING] schema-push checkpoint pending)
 Last activity: 2026-04-26
 
 Progress: [████░░░░░░] 38%
@@ -55,6 +55,7 @@ Progress: [████░░░░░░] 38%
 | Phase 01 P01 | 10min | 3 tasks | 19 files |
 | Phase 01 P02 | 13min | 3 tasks | 17 files |
 | Phase 01 P03 | 26min | 3 tasks tasks | 32 files files |
+| Phase 01 P04 (Tasks 1–3, in_progress) | 22min | 3 of 4 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,11 @@ Recent decisions affecting current work:
 - Plan 01-03: createStubRuntime() factory throws documented Phase-1 errors instead of returning sentinel values — silent stubs lead to misleading partial behaviour; explicit throws force replacement before Phase 6 (RUN-01..05)
 - Plan 01-03: codegen tests gated by RUN_CODEGEN_TESTS=1 env var — local devs without datamodel-code-generator can still run pnpm test; CI sets the env var
 - Plan 01-03: DEPLOY_ID_REGEX accepts any RFC 4122 UUID v1-v8 (relaxed variant byte) — strict v4 would reject legitimate Cloudflare-generated dispatch worker names
+- Plan 01-04: drizzle-kit `out`/`schema` paths resolved relative to caller CWD (not config-file location); config written from `packages/contracts/` perspective with explicit NOTE comment to prevent future regression
+- Plan 01-04: First migration filename `20260427000000_init_schema.sql` is FROZEN per FND-08; renamed Drizzle's auto-generated `20260426131532_init_schema.sql` and aligned journal+snapshot tags. Subsequent migrations adopt Drizzle's CURRENT timestamp natively per docs/decisions/001
+- Plan 01-04: Manual SQL augmentation inside the Phase-1 migration (CREATE EXTENSION at top, create_hypertable at bottom) with explicit comment markers warning future readers NOT to regenerate the file in place — documented schema-change workflow in `infrastructure/neon/README.md`
+- Plan 01-04: pgvector `vector(1536)` dimension chosen (matches OpenAI text-embedding-3-small) instead of architecture §7.1's `VECTOR(1024)`; architecture.md to be reconciled in a future doc-only commit
+- Plan 01-04: `DATABASE_URL ?? ''` fallback in drizzle.config.ts so `drizzle-kit generate` and `drizzle-kit check` work without env (they only read schema source); `push` and `migrate` fail naturally on bad URL — keeps CI-stage `check` runnable without a live DB
 
 ### Pending Todos
 
@@ -97,6 +103,7 @@ None yet.
 - `@modelcontextprotocol/sdk` v1 vs v2 final pick — decide end of Phase 1 via Key Decision in PROJECT.md (per `.planning/research/STACK.md` §6.1)
 - IR cross-language source-of-truth direction — recommend TS Zod → Pydantic codegen; lock at Phase 1 (per `.planning/research/ARCHITECTURE.md` R-A6)
 - Hono `streamSSE` 30-second sub-request limit on CF Workers — 30-min spike before contract freeze (per `.planning/research/STACK.md` §6.6)
+- **Plan 01-04 Task 4 [BLOCKING] — schema push to Neon dev DB pending DATABASE_URL.** Tasks 1–3 (db-schema.ts + migration SQL + drizzle.config.ts + SCALING.md + db:test-migrate script) are committed and verified locally (`pnpm -r typecheck`, `drizzle-kit check`, all 124 tests green). To unblock: (1) Neon Console → create project `mcpgen` + branch `dev` per `infrastructure/neon/README.md`; (2) enable `vector` + `timescaledb` extensions; (3) put pooled connection URL in repo-root `.env.local` (gitignored) as `DATABASE_URL=postgresql://...?sslmode=require`; (4) run `pnpm --filter @mcpgen/contracts drizzle-kit:push` followed by `pnpm --filter @mcpgen/contracts db:test-migrate` (expect "OK: migration applied; all 9 tables present; usage_events is a hypertable; pgvector enabled."); (5) capture evidence in `.planning/phases/01-foundation/01-04-SCHEMA-PUSH-EVIDENCE.md`; (6) re-run `/gsd-execute-phase 1` (or `/gsd-execute-plan 01-04`) to mark plan complete and advance to plan 01-05.
 
 ## Deferred Items
 
@@ -108,8 +115,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-26T13:08:47.407Z
-Stopped at: Completed 01-03 (4 frozen contracts + runtime SDK interface stub)
-Resume file: None
+Last session: 2026-04-26T18:35:00.000Z
+Stopped at: "Plan 01-04 in_progress: Tasks 1–3 committed (Drizzle TS schema + migration SQL + Neon SCALING.md + db:test-migrate script); Task 4 [BLOCKING] schema-push to Neon dev DB awaiting user-provided DATABASE_URL"
+Resume file: .planning/phases/01-foundation/01-04-SUMMARY.md (Pending Checkpoint section documents the exact commands)
 
 **Planned Phase:** 1 (Foundation) — 8 plans — 2026-04-26T12:01:12.473Z
