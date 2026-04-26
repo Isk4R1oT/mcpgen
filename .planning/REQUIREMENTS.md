@@ -13,11 +13,16 @@
 
 - [x] **FND-01
 **: Monorepo scaffolded with Turborepo + pnpm 9 (`apps/web`, `apps/api`, `apps/dispatch`, `apps/generation-engine`, `apps/cli`, `apps/docs` directories with empty-but-deployable scaffolds)
-- [ ] **FND-02**: `packages/ir/` defines IR schema with TS Zod as source of truth and Pydantic generated via codegen — covers `Tool`, `ToolDescription`, `ToolAnnotations`, `ResponseConfig`, `RoutingRule`, `WorkflowDef`, `SmartIdSchema`, `FinalTool` [P1: prevents drift between TS frontend/runtime and Python engine]
-- [ ] **FND-03**: `packages/contracts/src/generation-api.ts` specifies `POST /api/v1/generate` request shape, SSE event envelope, error code enum, callback POST shape, and `Idempotency-Key` header convention
-- [ ] **FND-04**: `packages/contracts/src/usage-event.ts` defines a single usage event schema consumed at the tenant Worker emit-site, the CF Queue payload, the TimescaleDB row, and the Stripe Meters dimension keys [P0: prevents silent billing drift]
-- [ ] **FND-05**: `packages/contracts/src/launch-criteria.ts` encodes F2 ≥ 4.0 and F3 ≥ 0.7 thresholds + bundle-size limits as runtime constants; pre-commit hook fails any change without paired `docs/decisions/` entry [P0: blocks #29 AI-fix-by-lowering-threshold]
-- [ ] **FND-06**: `packages/runtime-sdk/` ships interface stub for the Tenant Worker SDK API (route helpers, upstream call, usage event emit, auth context shape)
+- [x] **FND-02
+**: `packages/ir/` defines IR schema with TS Zod as source of truth and Pydantic generated via codegen — covers `Tool`, `ToolDescription`, `ToolAnnotations`, `ResponseConfig`, `RoutingRule`, `WorkflowDef`, `SmartIdSchema`, `FinalTool` [P1: prevents drift between TS frontend/runtime and Python engine]
+- [x] **FND-03
+**: `packages/contracts/src/generation-api.ts` specifies `POST /api/v1/generate` request shape, SSE event envelope, error code enum, callback POST shape, and `Idempotency-Key` header convention
+- [x] **FND-04
+**: `packages/contracts/src/usage-event.ts` defines a single usage event schema consumed at the tenant Worker emit-site, the CF Queue payload, the TimescaleDB row, and the Stripe Meters dimension keys [P0: prevents silent billing drift]
+- [x] **FND-05
+**: `packages/contracts/src/launch-criteria.ts` encodes F2 ≥ 4.0 and F3 ≥ 0.7 thresholds + bundle-size limits as runtime constants; pre-commit hook fails any change without paired `docs/decisions/` entry [P0: blocks #29 AI-fix-by-lowering-threshold]
+- [x] **FND-06
+**: `packages/runtime-sdk/` ships interface stub for the Tenant Worker SDK API (route helpers, upstream call, usage event emit, auth context shape)
 - [ ] **FND-07**: `packages/engine-fixtures/` ships realistic-but-static IR / FinalTool / QualityReport fixtures so frontend / runtime / ops can integrate end-to-end before the engine produces real output [P1: unblocks parallel workstreams]
 - [ ] **FND-08**: Drizzle migrations create `0001_init.sql` covering all tables in `docs/mcpgen-architecture.md` §7.1 plus the `pending_callbacks` table for SSE callback retry; migration filename uses `YYYYMMDD_HHMMSS_` prefix [P1: prevents collisions]
 - [ ] **FND-09**: Cloudflare account scaffolded with single dispatch namespace per environment (`mcpgen-prod`, `mcpgen-staging`, `mcpgen-sandbox`) — never a namespace per tenant [P0: pitfall #11]
@@ -25,7 +30,8 @@
 - [ ] **FND-11**: Langfuse v4 OTel exporter wired into the engine FastAPI bootstrap (`logfire.configure(send_to_logfire=False, otlp_endpoint=...)`) so traces appear from Phase 2 day 1
 - [x] **FND-12**: Pre-commit hooks installed and enforced (gitleaks, ruff, eslint, mypy, conventional-pre-commit); never bypassed
 - [ ] **FND-13**: Logto Cloud free-tier scaffolded with email + GitHub providers; runbook for self-host migration documented and tested on staging by W7
-- [ ] **FND-14**: Idempotency keys specified at all four surfaces (`POST /api/v1/generate`, Inngest job triggers, Stripe Meters event creation, CF dispatch namespace deploys)
+- [x] **FND-14
+**: Idempotency keys specified at all four surfaces (`POST /api/v1/generate`, Inngest job triggers, Stripe Meters event creation, CF dispatch namespace deploys)
 - [ ] **FND-15**: Hono `streamSSE` 30-second sub-request limit verified on CF Workers via 30-min spike before contract freeze
 
 ### Generation Engine (GEN) — Phases 2–5
@@ -56,7 +62,8 @@
 
 ### Control Plane / Backend (CTRL) — Phases 1, 8, 9
 
-- [ ] **CTRL-01**: Hono BFF on CF Workers exposes `POST /api/v1/generate` (job submission, returns 202 + SSE URL) and a per-job SSE callback channel that supports `last-event-id` resume + Postgres-as-source-of-truth fallback when SSE drops [P1: pitfall #20]
+- [x] **CTRL-01
+**: Hono BFF on CF Workers exposes `POST /api/v1/generate` (job submission, returns 202 + SSE URL) and a per-job SSE callback channel that supports `last-event-id` resume + Postgres-as-source-of-truth fallback when SSE drops [P1: pitfall #20]
 - [ ] **CTRL-02**: Auth uses Logto Cloud (free tier scaffolded; Pro pre-bought at W7) with email + GitHub providers; no Google/Twitter/Apple in MVP [P0: pitfall #17]
 - [ ] **CTRL-03**: Drift Watcher (Inngest cron, daily) compares **parsed IR**, not raw spec content hash; surfaces semantic diff (added/removed/changed endpoints/parameters) in UI with manual review / one-click regenerate / auto-regenerate toggle; per-recipient email rate-limit (max 1 drift email/week) [P2: pitfall #34]
 - [ ] **CTRL-04**: Drizzle migrations cover the data model (organizations → users → projects → specs → generations → deployments → tools with pgvector embedding) on Neon Postgres 16 + TimescaleDB + pgvector; Scale-tier compute (≥4 vCPU, 8GB) for production [P1: pitfall #19]
@@ -162,11 +169,11 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | FND-01 | Phase 1 | Pending |
-| FND-02 | Phase 1 | Pending |
-| FND-03 | Phase 1 | Pending |
-| FND-04 | Phase 1 | Pending |
-| FND-05 | Phase 1 | Pending |
-| FND-06 | Phase 1 | Pending |
+| FND-02 | Phase 1 | Complete (01-03) |
+| FND-03 | Phase 1 | Complete (01-03) |
+| FND-04 | Phase 1 | Complete (01-03) |
+| FND-05 | Phase 1 | Complete (01-03) |
+| FND-06 | Phase 1 | Complete (01-03) |
 | FND-07 | Phase 1 | Pending |
 | FND-08 | Phase 1 | Pending |
 | FND-09 | Phase 1 | Pending |
@@ -174,7 +181,7 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | FND-11 | Phase 1 | Pending |
 | FND-12 | Phase 1 | Complete (01-02) |
 | FND-13 | Phase 1 | Pending |
-| FND-14 | Phase 1 | Pending |
+| FND-14 | Phase 1 | Complete (01-03) |
 | FND-15 | Phase 1 | Pending |
 | GEN-01 | Phase 2 | Pending |
 | GEN-02 | Phase 2 | Pending |
@@ -196,7 +203,7 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | RUN-05 | Phase 6 | Pending |
 | RUN-06 | Phase 6 | Pending |
 | RUN-07 | Phase 6 | Pending |
-| CTRL-01 | Phase 1 | Pending |
+| CTRL-01 | Phase 1 | Complete (01-03) |
 | CTRL-02 | Phase 8 | Pending |
 | CTRL-03 | Phase 8 | Pending |
 | CTRL-04 | Phase 8 | Pending |

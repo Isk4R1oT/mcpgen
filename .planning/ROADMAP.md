@@ -44,7 +44,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — Repo skeleton + tooling foundation (pnpm/Turborepo/tsconfig/shared-config) [Wave 1] ✓ 2026-04-26
 - [x] 01-02-PLAN.md — Pre-commit hooks + GitHub Actions CI + 4 local guard scripts + decision-log scaffolding [Wave 2] ✓ 2026-04-26
-- [ ] 01-03-PLAN.md — 4 frozen contracts: IR (Zod source + Pydantic codegen) + generation-api + usage-event + launch-criteria + idempotency + runtime-sdk interface stub [Wave 3]
+- [x] 01-03-PLAN.md — 4 frozen contracts: IR (Zod source + Pydantic codegen) + generation-api + usage-event + launch-criteria + idempotency + runtime-sdk interface stub [Wave 3] ✓ 2026-04-26
 - [ ] 01-04-PLAN.md — DB schema migration (Drizzle) + Neon dev DB push [BLOCKING] [Wave 4]
 - [ ] 01-05-PLAN.md — 6 empty-but-deployable apps: web (locked UI) + api (Hono BFF + SSE spike scaffold) + dispatch + dispatch-sample (canonical Stripe sample) + cli (Bun matrix) + docs [Wave 5]
 - [ ] 01-06-PLAN.md — Engine FastAPI + uv + Sentry + Langfuse OTel + Day-1 Qwen smoke test + Dockerfile + fly.toml [Wave 5]

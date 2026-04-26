@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-02 (pre-commit + GitHub Actions CI)
-last_updated: "2026-04-26T12:32:19Z"
+stopped_at: Completed 01-03 (4 frozen contracts + runtime SDK interface stub)
+last_updated: "2026-04-26T13:08:47.419Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 8
-  completed_plans: 2
-  percent: 25
+  completed_plans: 3
+  percent: 38
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 1 (Foundation) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-04-26
 
-Progress: [██░░░░░░░░] 25%
+Progress: [████░░░░░░] 38%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [██░░░░░░░░] 25%
 *Updated after each plan completion*
 | Phase 01 P01 | 10min | 3 tasks | 19 files |
 | Phase 01 P02 | 13min | 3 tasks | 17 files |
+| Phase 01 P03 | 26min | 3 tasks tasks | 32 files files |
 
 ## Accumulated Context
 
@@ -75,6 +76,13 @@ Recent decisions affecting current work:
 - Plan 01-02: accept Drizzle native `YYYYMMDDHHMMSS_<name>.sql` migration filename format; first migration `20260427000000_init_schema.sql` (`docs/decisions/001`)
 - Plan 01-02: cross-workstream test ownership policy — failing tests owned by the workstream that owns the file under test; cross-cutting failures escalate to `main` as `chore(contracts):` PR (`docs/decisions/000`)
 - Plan 01-02: `launch-criteria-assertion` CI step uses `grep -qF` (fixed-string) on `F2_SMELL_MIN: 4.0` / `F3_AGENT_PASS_RATE_MIN: 0.7` / `PASS_KB: 800` / `WARN_KB: 950` to avoid regex-escape ambiguity
+- Plan 01-03: combined Zod schemas into a single JSON Schema document with $defs (instead of one file per type) — datamodel-code-generator's modular-references path produces an output directory, not a single file, breaking the engine's expected mcpgen_ir.types module shape
+- Plan 01-03: --disable-timestamp flag mandatory on datamodel-code-generator output for deterministic byte-diffs in --check mode (without it, every regen injects fresh timestamp header)
+- Plan 01-03: cross-package tool_name regex single-source-of-truth pattern — TOOL_NAME_REGEX defined in @mcpgen/contracts/idempotency.ts; @mcpgen/ir/types.ts re-exports same constant; runtime test introspects FinalTool.name via Zod 4 _zod.def.checks to verify live regex matches
+- Plan 01-03: cross-doc launch-criteria consistency test points at docs/mcpgen-stage-f-design.md + CLAUDE.md (the canonical sources of F2 ≥ 4.0 / F3 ≥ 0.7) instead of docs/mcpgen-implementation-plan.md §11.7 (which has §10 launch-criteria as qualitative gates only)
+- Plan 01-03: createStubRuntime() factory throws documented Phase-1 errors instead of returning sentinel values — silent stubs lead to misleading partial behaviour; explicit throws force replacement before Phase 6 (RUN-01..05)
+- Plan 01-03: codegen tests gated by RUN_CODEGEN_TESTS=1 env var — local devs without datamodel-code-generator can still run pnpm test; CI sets the env var
+- Plan 01-03: DEPLOY_ID_REGEX accepts any RFC 4122 UUID v1-v8 (relaxed variant byte) — strict v4 would reject legitimate Cloudflare-generated dispatch worker names
 
 ### Pending Todos
 
@@ -100,8 +108,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-26T12:32:19Z
-Stopped at: Completed 01-02 (pre-commit + GitHub Actions CI)
+Last session: 2026-04-26T13:08:47.407Z
+Stopped at: Completed 01-03 (4 frozen contracts + runtime SDK interface stub)
 Resume file: None
 
 **Planned Phase:** 1 (Foundation) — 8 plans — 2026-04-26T12:01:12.473Z
