@@ -302,6 +302,32 @@ $ for t in organizations users projects specs generations deployments tools pend
 - `77cf97e` chore(01-04): add Neon SCALING.md (D-18) + db:test-migrate smoke script ✓
 
 ---
+
+## Deviation: Task 4 deferred to Wave 6 cloud-batch
+
+**Decision date:** 2026-04-26 (after orchestrator checkpoint pause)
+**Rationale:** Phase 1 has three plans with `human-action` checkpoints touching external cloud accounts:
+- Plan 04 Task 4 — `drizzle-kit push` against Neon dev branch
+- Plan 07 — Cloudflare dispatch-namespace creation + Logto Cloud free-tier scaffolding
+- Plan 08 — Hono streamSSE 30s spike on real CF Workers + Hyperdrive provisioning
+
+Per user direction, all three are bundled into a single cloud-credentials session at Wave 6 (after Wave 5's autonomous app scaffolding completes). This avoids three separate context switches and keeps the wave-gate violation localized to one documented deviation.
+
+**Wave-gate impact:** Wave 5 (Plans 05 + 06) is technically downstream of Wave 4. Verified that Wave 5 only depends on the *committed schema files* from Plan 04 Tasks 1–3 (`packages/contracts/src/db-schema.ts`, `db-types.ts`), NOT the live DB state. `pnpm -r typecheck` and 124 tests still pass. The deviation is wave-gate-loose but file-dependency-strict.
+
+**Pickup checklist for the cloud-batch session (must run before Wave 7 verification):**
+1. Confirm `.env.local` has `DATABASE_URL=postgresql://…?sslmode=require` (already present per orchestrator scan 2026-04-26).
+2. Enable Postgres extensions on the Neon dev branch via SQL editor:
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS vector;
+   CREATE EXTENSION IF NOT EXISTS timescaledb;
+   ```
+3. Run `set -a && source .env.local && set +a && pnpm --filter @mcpgen/contracts drizzle-kit:push`.
+4. Run `pnpm --filter @mcpgen/contracts db:test-migrate` — expect exit 0 + "all 9 tables present, hypertable + pgvector confirmed".
+5. Author `.planning/phases/01-foundation/01-04-SCHEMA-PUSH-EVIDENCE.md` per Plan 04 Task 4 step 10.
+6. Mark plan 04 complete: `gsd-sdk query roadmap.update-plan-progress 01 01-04 complete` + STATE.md + REQUIREMENTS.md (FND-08, FND-14).
+
+---
 *Phase: 01-foundation*
-*Status: in_progress (Task 4 [BLOCKING] pending checkpoint)*
+*Status: in_progress (Task 4 [BLOCKING] deferred to Wave 6 cloud-batch per 2026-04-26 user direction)*
 *Tasks 1–3 completed: 2026-04-26*
