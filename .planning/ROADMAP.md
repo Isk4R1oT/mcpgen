@@ -12,7 +12,7 @@ MCPGen ships in 10 phases over ~6 calendar weeks via 4–5 parallel workstreams 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Monorepo, 5 frozen contracts, 8 Phase-1 refinements, sandbox CF namespace, fixtures shadow service
+- [x] **Phase 1: Foundation** - Monorepo, 5 frozen contracts, 8 Phase-1 refinements, sandbox CF namespace, fixtures shadow service (completed 2026-04-26)
 - [ ] **Phase 2: Generation Engine — Architect (Pass 0+1)** - Stage A parser + Pass 0 inventory + Pass 1 Six-Tool consolidation with tenant-prefixed smart IDs
 - [ ] **Phase 3: Generation Engine — Author (Pass 2+3+4)** - Description authoring, parameter specification, annotations inference
 - [ ] **Phase 4: Generation Engine — Shape & Codegen (Pass 5 + Stage E)** - Response shaping + ~25–30-file deterministic Jinja2 codegen with bundle-size + DNS-rebinding gates
@@ -181,7 +181,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 8/8 | In progress (awaits verifier) | - |
+| 1. Foundation | 9/8 | Complete    | 2026-04-26 |
 | 2. Generation Engine — Architect (Pass 0+1) | 0/TBD | Not started | - |
 | 3. Generation Engine — Author (Pass 2+3+4) | 0/TBD | Not started | - |
 | 4. Generation Engine — Shape & Codegen (Pass 5 + Stage E) | 0/TBD | Not started | - |

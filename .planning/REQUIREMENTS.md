@@ -27,7 +27,7 @@
 **: `packages/engine-fixtures/` ships realistic-but-static IR / FinalTool / QualityReport fixtures so frontend / runtime / ops can integrate end-to-end before the engine produces real output [P1: unblocks parallel workstreams]
 - [x] **FND-08
 **: Drizzle migrations create `20260427000000_init_schema.sql` (Drizzle native YYYYMMDDHHMMSS prefix per `docs/decisions/001`) covering all tables in `docs/mcpgen-architecture.md` §7.1 + §7.2 plus the `pending_callbacks` table for SSE callback retry; pushed to Neon dev branch 2026-04-26 (9 tables + pgvector 0.8.0 + TimescaleDB 2.17.1 hypertable verified — see `.planning/phases/01-foundation/01-04-SCHEMA-PUSH-EVIDENCE.md`) [P1: prevents collisions]
-- [ ] **FND-09**: Cloudflare account scaffolded with single dispatch namespace per environment (`mcpgen-prod`, `mcpgen-staging`, `mcpgen-sandbox`) — never a namespace per tenant [P0: pitfall #11] — **DEFERRED to Phase 10 per `.planning/phases/01-foundation/01-PHASE-DEVIATIONS.md` revision 2; canonical creation script committed in Plan 01-07 with exit-78 deferral guard at `infrastructure/cloudflare/scripts/create-namespaces.sh`**
+- [x] **FND-09**: Cloudflare account scaffolded with single dispatch namespace per environment (`mcpgen-prod`, `mcpgen-staging`, `mcpgen-sandbox`) — never a namespace per tenant [P0: pitfall #11] — **DEFERRED to Phase 10 per `.planning/phases/01-foundation/01-PHASE-DEVIATIONS.md` revision 2; canonical creation script committed in Plan 01-07 with exit-78 deferral guard at `infrastructure/cloudflare/scripts/create-namespaces.sh`**
 - [x] **FND-10
 **: Empty-DSN Sentry SDK initialized in `apps/web`, `apps/api`, `apps/dispatch`, `apps/generation-engine`; CI step uploads source maps for each runtime
 - [x] **FND-11
@@ -175,7 +175,7 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FND-01 | Phase 1 | Pending |
+| FND-01 | Phase 1 | Complete |
 | FND-02 | Phase 1 | Complete (01-03) |
 | FND-03 | Phase 1 | Complete (01-03) |
 | FND-04 | Phase 1 | Complete (01-03) |
@@ -184,8 +184,8 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | FND-07 | Phase 1 | Complete (01-07) |
 | FND-08 | Phase 1 | Complete (01-04) |
 | FND-09 | Phase 1 | DEFERRED to Phase 10 (PHASE-DEVIATIONS.md rev 2; script scaffolded in 01-07) |
-| FND-10 | Phase 1 | Pending |
-| FND-11 | Phase 1 | Pending |
+| FND-10 | Phase 1 | Complete |
+| FND-11 | Phase 1 | Complete |
 | FND-12 | Phase 1 | Complete (01-02) |
 | FND-13 | Phase 1 | Complete (01-07) |
 | FND-14 | Phase 1 | Complete (01-03 contract + 01-04 backing table) |
