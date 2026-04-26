@@ -36,17 +36,22 @@ repos:
           - pydantic-settings
           - httpx
 
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v10.2.1
+  # ESLint runs in workspace context (`pnpm -r lint`), NOT via mirrors-eslint.
+  # Rationale: the shared @mcpgen/shared-config base enables typed @typescript-eslint
+  # rules (e.g. no-unsafe-assignment) which require parserOptions.project to be set
+  # by each consuming package's tsconfig. The mirror's isolated node_env can't see
+  # the workspace tsconfigs, so it errors out on already-committed code. The workspace
+  # `pnpm -r lint` resolves all per-package configs correctly. The mirror rev is still
+  # pinned (v10.2.1) elsewhere in the repo via packages/shared-config/devDependencies
+  # to keep ESLint version consistent across local + CI.
+  - repo: local
     hooks:
       - id: eslint
+        name: eslint (workspace `pnpm -r lint`)
+        entry: pnpm -r --if-present lint
+        language: system
         files: \.(ts|tsx)$
-        types: [file]
-        additional_dependencies:
-          - eslint@^10.2.1
-          - typescript@^6.0.3
-          - "@typescript-eslint/parser@^8"
-          - "@typescript-eslint/eslint-plugin@^8"
+        pass_filenames: false
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.6.0
