@@ -1,0 +1,85 @@
+{
+  "coverage_pct": 100,
+  "coverage_proof": [
+    {
+      "endpoint_id": "POST /v1/search",
+      "mapped_to_universal_tool": "search",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "project plan" },
+        "url": "https://api.notion.com/v1/search"
+      }
+    },
+    {
+      "endpoint_id": "GET /v1/pages/{page_id}",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "page_id": "11111111-2222-3333-4444-555555555555" },
+        "url": "https://api.notion.com/v1/pages/11111111-2222-3333-4444-555555555555"
+      }
+    },
+    {
+      "endpoint_id": "GET /v1/databases/{database_id}",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "database_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" },
+        "url": "https://api.notion.com/v1/databases/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+      }
+    },
+    {
+      "endpoint_id": "POST /v1/databases/{database_id}/query",
+      "mapped_to_universal_tool": "list_objects",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "database_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "page_size": 25 },
+        "url": "https://api.notion.com/v1/databases/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/query"
+      }
+    },
+    {
+      "endpoint_id": "POST /v1/pages",
+      "mapped_to_universal_tool": "upsert",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "data": { "parent": { "database_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" }, "properties": { "Name": { "title": [{ "text": { "content": "Test" } }] } } } },
+        "url": "https://api.notion.com/v1/pages"
+      }
+    },
+    {
+      "endpoint_id": "PATCH /v1/pages/{page_id}",
+      "mapped_to_universal_tool": "upsert",
+      "sample_invocation": {
+        "method": "PATCH",
+        "params": { "page_id": "11111111-2222-3333-4444-555555555555", "data": { "properties": { "Status": { "select": { "name": "Done" } } } } },
+        "url": "https://api.notion.com/v1/pages/11111111-2222-3333-4444-555555555555"
+      }
+    }
+  ],
+  "routing": {
+    "rules": [
+      { "params_mapping": { "query": "query" }, "target_endpoint": "POST /v1/search", "universal_tool": "search" },
+      { "params_mapping": { "id": "page_id" }, "target_endpoint": "GET /v1/pages/{page_id}", "universal_tool": "fetch" },
+      { "params_mapping": { "id": "database_id" }, "target_endpoint": "GET /v1/databases/{database_id}", "universal_tool": "fetch" },
+      { "params_mapping": {}, "target_endpoint": "POST /v1/search", "universal_tool": "list_collections" },
+      { "params_mapping": { "collection": "database_id", "limit": "page_size", "cursor": "start_cursor" }, "target_endpoint": "POST /v1/databases/{database_id}/query", "universal_tool": "list_objects" },
+      { "params_mapping": { "data": "$body" }, "target_endpoint": "POST /v1/pages", "universal_tool": "upsert" },
+      { "params_mapping": { "id": "page_id", "data": "$body" }, "target_endpoint": "PATCH /v1/pages/{page_id}", "universal_tool": "upsert" },
+      { "params_mapping": { "id": "page_id", "$body": "{archived:true}" }, "target_endpoint": "PATCH /v1/pages/{page_id}", "universal_tool": "delete" }
+    ],
+    "smart_id": {
+      "collections": ["Page", "Database"],
+      "format": "notion-api:{type}:{collection}:{identifier}",
+      "types": ["object", "collection"]
+    }
+  },
+  "tools": [
+    { "name": "search", "source_endpoints": ["POST /v1/search"], "type": "universal" },
+    { "name": "fetch", "source_endpoints": ["GET /v1/pages/{page_id}", "GET /v1/databases/{database_id}"], "type": "universal" },
+    { "name": "list_collections", "source_endpoints": ["POST /v1/search"], "type": "universal" },
+    { "name": "list_objects", "source_endpoints": ["POST /v1/databases/{database_id}/query"], "type": "universal" },
+    { "name": "upsert", "source_endpoints": ["POST /v1/pages", "PATCH /v1/pages/{page_id}"], "type": "universal" },
+    { "name": "delete", "source_endpoints": ["PATCH /v1/pages/{page_id}"], "type": "universal" }
+  ],
+  "workflows": []
+}

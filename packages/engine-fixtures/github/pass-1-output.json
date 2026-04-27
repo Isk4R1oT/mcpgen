@@ -1,0 +1,174 @@
+{
+  "coverage_pct": 100,
+  "coverage_proof": [
+    {
+      "endpoint_id": "GET /search/issues",
+      "mapped_to_universal_tool": "search",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "q": "is:issue label:bug" },
+        "url": "https://api.github.com/search/issues?q=is%3Aissue+label%3Abug"
+      }
+    },
+    {
+      "endpoint_id": "GET /repos/{owner}/{repo}/issues/{issue_number}",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "owner": "octocat", "repo": "Hello-World", "issue_number": 42 },
+        "url": "https://api.github.com/repos/octocat/Hello-World/issues/42"
+      }
+    },
+    {
+      "endpoint_id": "GET /repos/{owner}/{repo}/pulls/{pull_number}",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "owner": "octocat", "repo": "Hello-World", "pull_number": 7 },
+        "url": "https://api.github.com/repos/octocat/Hello-World/pulls/7"
+      }
+    },
+    {
+      "endpoint_id": "GET /repos/{owner}/{repo}/releases/{release_id}",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "owner": "octocat", "repo": "Hello-World", "release_id": 123456 },
+        "url": "https://api.github.com/repos/octocat/Hello-World/releases/123456"
+      }
+    },
+    {
+      "endpoint_id": "GET /repos/{owner}/{repo}/issues",
+      "mapped_to_universal_tool": "list_objects",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "owner": "octocat", "repo": "Hello-World", "per_page": 25 },
+        "url": "https://api.github.com/repos/octocat/Hello-World/issues?per_page=25"
+      }
+    },
+    {
+      "endpoint_id": "GET /repos/{owner}/{repo}/pulls",
+      "mapped_to_universal_tool": "list_objects",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "owner": "octocat", "repo": "Hello-World", "per_page": 25 },
+        "url": "https://api.github.com/repos/octocat/Hello-World/pulls?per_page=25"
+      }
+    },
+    {
+      "endpoint_id": "GET /repos/{owner}/{repo}/releases",
+      "mapped_to_universal_tool": "list_objects",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "owner": "octocat", "repo": "Hello-World", "per_page": 25 },
+        "url": "https://api.github.com/repos/octocat/Hello-World/releases?per_page=25"
+      }
+    },
+    {
+      "endpoint_id": "POST /repos/{owner}/{repo}/issues",
+      "mapped_to_universal_tool": "upsert",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "owner": "octocat", "repo": "Hello-World", "data": { "title": "Found a bug", "body": "I am having a problem with this." } },
+        "url": "https://api.github.com/repos/octocat/Hello-World/issues"
+      }
+    },
+    {
+      "endpoint_id": "PATCH /repos/{owner}/{repo}/issues/{issue_number}",
+      "mapped_to_universal_tool": "issues_close",
+      "sample_invocation": {
+        "method": "PATCH",
+        "params": { "owner": "octocat", "repo": "Hello-World", "issue_number": 42, "state": "closed" },
+        "url": "https://api.github.com/repos/octocat/Hello-World/issues/42"
+      }
+    },
+    {
+      "endpoint_id": "POST /repos/{owner}/{repo}/pulls",
+      "mapped_to_universal_tool": "upsert",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "owner": "octocat", "repo": "Hello-World", "data": { "title": "feat: new feature", "head": "feature-branch", "base": "main" } },
+        "url": "https://api.github.com/repos/octocat/Hello-World/pulls"
+      }
+    },
+    {
+      "endpoint_id": "POST /repos/{owner}/{repo}/releases",
+      "mapped_to_universal_tool": "releases_create",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "owner": "octocat", "repo": "Hello-World", "data": { "tag_name": "v1.0.0", "name": "v1.0.0" } },
+        "url": "https://api.github.com/repos/octocat/Hello-World/releases"
+      }
+    },
+    {
+      "endpoint_id": "DELETE /repos/{owner}/{repo}/releases/{release_id}",
+      "mapped_to_universal_tool": "delete",
+      "sample_invocation": {
+        "method": "DELETE",
+        "params": { "owner": "octocat", "repo": "Hello-World", "release_id": 123456 },
+        "url": "https://api.github.com/repos/octocat/Hello-World/releases/123456"
+      }
+    },
+    {
+      "endpoint_id": "PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge",
+      "mapped_to_universal_tool": "pull_requests_merge",
+      "sample_invocation": {
+        "method": "PUT",
+        "params": { "owner": "octocat", "repo": "Hello-World", "pull_number": 7, "merge_method": "squash" },
+        "url": "https://api.github.com/repos/octocat/Hello-World/pulls/7/merge"
+      }
+    },
+    {
+      "endpoint_id": "GET /repos/{owner}/{repo}/git/refs/heads/{branch}",
+      "mapped_to_universal_tool": "create_pr_from_branch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "owner": "octocat", "repo": "Hello-World", "branch": "feature-branch" },
+        "url": "https://api.github.com/repos/octocat/Hello-World/git/refs/heads/feature-branch"
+      }
+    }
+  ],
+  "routing": {
+    "rules": [
+      { "params_mapping": { "query": "q" }, "target_endpoint": "GET /search/issues", "universal_tool": "search" },
+      { "params_mapping": { "id": "issue_number" }, "target_endpoint": "GET /repos/{owner}/{repo}/issues/{issue_number}", "universal_tool": "fetch" },
+      { "params_mapping": { "id": "pull_number" }, "target_endpoint": "GET /repos/{owner}/{repo}/pulls/{pull_number}", "universal_tool": "fetch" },
+      { "params_mapping": { "id": "release_id" }, "target_endpoint": "GET /repos/{owner}/{repo}/releases/{release_id}", "universal_tool": "fetch" },
+      { "params_mapping": {}, "target_endpoint": "GET /repos/{owner}/{repo}/issues", "universal_tool": "list_collections" },
+      { "params_mapping": { "limit": "per_page", "cursor": "page" }, "target_endpoint": "GET /repos/{owner}/{repo}/issues", "universal_tool": "list_objects" },
+      { "params_mapping": { "limit": "per_page", "cursor": "page" }, "target_endpoint": "GET /repos/{owner}/{repo}/pulls", "universal_tool": "list_objects" },
+      { "params_mapping": { "limit": "per_page", "cursor": "page" }, "target_endpoint": "GET /repos/{owner}/{repo}/releases", "universal_tool": "list_objects" },
+      { "params_mapping": { "data": "$body" }, "target_endpoint": "POST /repos/{owner}/{repo}/issues", "universal_tool": "upsert" },
+      { "params_mapping": { "data": "$body" }, "target_endpoint": "POST /repos/{owner}/{repo}/pulls", "universal_tool": "upsert" },
+      { "params_mapping": { "data": "$body" }, "target_endpoint": "POST /repos/{owner}/{repo}/releases", "universal_tool": "upsert" },
+      { "params_mapping": { "id": "release_id" }, "target_endpoint": "DELETE /repos/{owner}/{repo}/releases/{release_id}", "universal_tool": "delete" }
+    ],
+    "smart_id": {
+      "collections": ["Issue", "PullRequest", "Release"],
+      "format": "github-v3-rest-api:{type}:{collection}:{identifier}",
+      "types": ["object", "collection"]
+    }
+  },
+  "tools": [
+    { "name": "search", "source_endpoints": ["GET /search/issues"], "type": "universal" },
+    { "name": "fetch", "source_endpoints": ["GET /repos/{owner}/{repo}/issues/{issue_number}", "GET /repos/{owner}/{repo}/pulls/{pull_number}", "GET /repos/{owner}/{repo}/releases/{release_id}"], "type": "universal" },
+    { "name": "list_collections", "source_endpoints": ["GET /repos/{owner}/{repo}/issues", "GET /repos/{owner}/{repo}/pulls", "GET /repos/{owner}/{repo}/releases"], "type": "universal" },
+    { "name": "list_objects", "source_endpoints": ["GET /repos/{owner}/{repo}/issues", "GET /repos/{owner}/{repo}/pulls", "GET /repos/{owner}/{repo}/releases"], "type": "universal" },
+    { "name": "upsert", "source_endpoints": ["POST /repos/{owner}/{repo}/issues", "POST /repos/{owner}/{repo}/pulls", "POST /repos/{owner}/{repo}/releases"], "type": "universal" },
+    { "name": "delete", "source_endpoints": ["DELETE /repos/{owner}/{repo}/releases/{release_id}"], "type": "universal" },
+    { "name": "issues_close", "source_endpoints": ["PATCH /repos/{owner}/{repo}/issues/{issue_number}"], "type": "action" },
+    { "name": "pull_requests_merge", "source_endpoints": ["PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge"], "type": "action" },
+    { "name": "releases_create", "source_endpoints": ["POST /repos/{owner}/{repo}/releases"], "type": "action" },
+    { "name": "create_pr_from_branch", "source_endpoints": ["GET /repos/{owner}/{repo}/git/refs/heads/{branch}", "POST /repos/{owner}/{repo}/pulls"], "type": "workflow" }
+  ],
+  "workflows": [
+    {
+      "name": "create_pr_from_branch",
+      "partial_failure_strategy": "report",
+      "steps": [
+        { "description": "Resolve the SHA of the source branch.", "endpoint": "GET /repos/{owner}/{repo}/git/refs/heads/{branch}" },
+        { "description": "Open the PR with the resolved head and the requested base.", "endpoint": "POST /repos/{owner}/{repo}/pulls" }
+      ]
+    }
+  ]
+}

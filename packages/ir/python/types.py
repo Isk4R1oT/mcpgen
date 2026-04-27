@@ -6,7 +6,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, confloat, conint, constr
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field, confloat, conint, constr
 
 
 class FieldMcpgenIrRoot(BaseModel):
@@ -218,6 +218,24 @@ class CompositeCandidate(BaseModel):
     name: str
     steps: List[str] = Field(..., max_length=5, min_length=2)
     rationale: str
+
+
+class SampleInvocation(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    url: AnyUrl
+    method: str
+    params: Dict[str, Any]
+
+
+class CoverageProof(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    endpoint_id: str
+    mapped_to_universal_tool: str
+    sample_invocation: SampleInvocation
 
 
 class DropReason(Enum):
@@ -461,8 +479,9 @@ class Pass0Output(BaseModel):
     tool_plans: List[ToolPlan]
     dropped_endpoints: List[DroppedEndpoint1]
     composite_candidates: List[CompositeCandidate]
-    auth_requirements: List[AuthRequirement1]
+    auth_requirements: Dict[str, List[AuthRequirement1]]
     target_complexity: TargetComplexity
+    prompt_injection_warnings: List[str]
 
 
 class Tool1(BaseModel):
@@ -500,6 +519,15 @@ class Workflow1(BaseModel):
     partial_failure_strategy: PartialFailureStrategy
 
 
+class CoverageProofItem(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    endpoint_id: str
+    mapped_to_universal_tool: str
+    sample_invocation: SampleInvocation
+
+
 class Pass1Output(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -508,6 +536,7 @@ class Pass1Output(BaseModel):
     routing: Routing1
     workflows: List[Workflow1]
     coverage_pct: confloat(ge=0.0, le=100.0)
+    coverage_proof: List[CoverageProofItem]
 
 
 class Pass2Output(BaseModel):
@@ -889,6 +918,15 @@ class Workflow2(BaseModel):
     partial_failure_strategy: PartialFailureStrategy
 
 
+class CoverageProofItem1(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    endpoint_id: str
+    mapped_to_universal_tool: str
+    sample_invocation: SampleInvocation
+
+
 class ToolTaxonomy(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -897,6 +935,7 @@ class ToolTaxonomy(BaseModel):
     routing: Routing2
     workflows: List[Workflow2]
     coverage_pct: confloat(ge=0.0, le=100.0)
+    coverage_proof: List[CoverageProofItem1]
 
 
 class ToolTaxonomyEntry(BaseModel):

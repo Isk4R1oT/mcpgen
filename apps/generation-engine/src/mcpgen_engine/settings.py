@@ -11,6 +11,8 @@ startup MUST fail at construction time if the key is unset (T-1-09 fail-fast).
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,3 +38,21 @@ class EngineSettings(BaseSettings):
 
     # DB (used in Phase 2+).
     database_url: str = ""
+
+    # Filesystem cache (Phase 2 / D-39): L1/L2/L3 cache root. Sharded layout
+    # `<root>/{l1,l2,l3}/<key[:2]>/<key[2:]>.json.gz`; 0700 dir + 0600 file
+    # perms enforced at write time. Default lives outside the source tree so
+    # `.gitignore` can rely on a single line.
+    mcpgen_cache_dir: str = ".cache/mcpgen"
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> EngineSettings:
+    """Cached `EngineSettings` accessor.
+
+    The cache is process-wide. Tests that mutate environment variables MUST
+    call ``get_settings.cache_clear()`` so the next call re-reads the env.
+    """
+    # pydantic-settings populates `openrouter_api_key` from env at construction;
+    # mypy doesn't model that, so the call-arg check is silenced here.
+    return EngineSettings()  # type: ignore[call-arg]

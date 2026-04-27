@@ -68,8 +68,8 @@ describe('buildBlock()', () => {
       { name: 'sample', url: 'http://localhost:8790' },
       {},
     );
-    expect(out.mcpServers.sample.url).toBe('http://localhost:8790');
-    expect(out.mcpServers.sample.transport).toBe('http');
+    expect(out.mcpServers.sample?.url).toBe('http://localhost:8790');
+    expect(out.mcpServers.sample?.transport).toBe('http');
   });
 });
 

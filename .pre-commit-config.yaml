@@ -35,6 +35,7 @@ repos:
           - fastapi
           - pydantic-settings
           - httpx
+          - types-PyYAML
 
   # ESLint runs in workspace context (`pnpm -r lint`), NOT via mirrors-eslint.
   # Rationale: the shared @mcpgen/shared-config base enables typed @typescript-eslint

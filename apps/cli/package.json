@@ -8,7 +8,7 @@
     "build": "bun run build.ts",
     "dev": "bun src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest --run",
+    "test": "bun test ./tests/init*.test.ts ./tests/auto_spawn.test.ts ./tests/inspector*.test.ts && vitest --run ./tests/deploy*.test.ts ./tests/claude-desktop-config.test.ts",
     "lint": "echo \"no lint step in @mcpgen/cli (covered by workspace eslint via pnpm -r lint)\""
   },
   "dependencies": {
@@ -17,7 +17,12 @@
     "picocolors": "^1.1.1",
     "ora": "^8.2.0",
     "@mcpgen/contracts": "workspace:*",
-    "eventsource-parser": "^3.0.8"
+    "@mcpgen/ir": "workspace:*",
+    "@mcpgen/engine-fixtures": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "eventsource-parser": "^3.0.8",
+    "ulid": "^2.4.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@mcpgen/shared-config": "workspace:*",

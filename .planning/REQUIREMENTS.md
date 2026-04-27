@@ -42,9 +42,12 @@
 
 ### Generation Engine (GEN) — Phases 2–5
 
-- [ ] **GEN-01**: Stage A parses OpenAPI 3.x specs (using `prance[osv]` + `openapi-spec-validator`) into a deterministic `RawIR` plus dependency graph; no LLM
-- [ ] **GEN-02**: Pass 0 (Tool Inventory & Naming) filters endpoints, names tools `{resource}_{action}`, detects auth subsystem **per endpoint** (not just global `securitySchemes`) [P1: pitfall #6], supports chunked approach for >200 endpoints, and enforces tiered caps (≤30 / 31–50 / 51–80 / >80 hard fail with multi-server split suggestion)
-- [ ] **GEN-03**: Pass 1 (Six-Tool Pattern) consolidates ~50 plans into 6–12 final tools (`search`, `fetch`, `list_collections`, `list_objects`, `upsert`, `delete` + actions/workflows/specialized) with smart IDs prefixed by tenant short-id (`{tenant_short_id}-{spec_slug}:{type}:{collection}:{identifier}`) and 100% endpoint coverage validation including a `coverage_proof` field per endpoint [P0: pitfall #1, #3]
+- [x] **GEN-01
+**: Stage A parses OpenAPI 3.x specs (using `prance[osv]` + `openapi-spec-validator`) into a deterministic `RawIR` plus dependency graph; no LLM
+- [x] **GEN-02
+**: Pass 0 (Tool Inventory & Naming) filters endpoints, names tools `{resource}_{action}`, detects auth subsystem **per endpoint** (not just global `securitySchemes`) [P1: pitfall #6], supports chunked approach for >200 endpoints, and enforces tiered caps (≤30 / 31–50 / 51–80 / >80 hard fail with multi-server split suggestion)
+- [x] **GEN-03
+**: Pass 1 (Six-Tool Pattern) consolidates ~50 plans into 6–12 final tools (`search`, `fetch`, `list_collections`, `list_objects`, `upsert`, `delete` + actions/workflows/specialized) with smart IDs prefixed by tenant short-id (`{tenant_short_id}-{spec_slug}:{type}:{collection}:{identifier}`) and 100% endpoint coverage validation including a `coverage_proof` field per endpoint [P0: pitfall #1, #3]
 - [ ] **GEN-04**: Pass 2 (Description Authoring) emits 5-of-6 paper-rubric description components per tool with type-specific length budgets (universal 200–400, action 100–200, workflow 150–300, specialized 80–150 tokens); inline Haiku quality gate; forbidden-pattern regex; examples ONLY from spec; retry prompts re-run forbidden-pattern check after each retry [P1: pitfall #10]
 - [ ] **GEN-05**: Pass 3 (Parameter Specification) produces production-ready JSON Schema with 5-component MCP-Bundles parameter descriptions, naming normalization rules, smart-ID patterns auto-generated from Pass 1 SmartIdSchema, and filter-design selection (structured object / DSL / individual)
 - [ ] **GEN-06**: Pass 4 (Annotations Inference) emits 4 MCP boolean hints + title for every tool with `openWorldHint=true` invariant always set explicitly; tool-type rules + verb pattern matching cover 80% deterministically; conservative aggregation for workflow tools
@@ -53,8 +56,10 @@
 - [ ] **GEN-09**: Stage F1 (Static validation) runs tsc + ajv + ESLint + bundle-size gate (<800KB pass / 800–950KB warn / >950KB fail) + MCP protocol compliance + secret scan (gitleaks) + smart-ID regex compile + routing completeness + auth middleware presence + cross-tenant smart-ID fuzz check + OpenAI compliance fixture for `search` / `fetch` exact signatures, and maps each failed check to a specific upstream-pass retry [P0: pitfalls #1, #8, #32]
 - [ ] **GEN-10**: Stage F2 (Smell scan) runs single Qwen3-Coder with 5-shuffle prompt averaging + temperature variance (T=0.0/0.2/0.5) per Model Override doc; threshold ≥ 4.0 on 6-component rubric; **between-tool σ ≥ 0.4 discrimination metric** flagged when violated [P1: pitfall #9]; per-component failures trigger targeted retries (max 2 rounds)
 - [ ] **GEN-11**: Stage F3 (Agent eval) runs real Sonnet 4.7 agent against golden tasks for top-10 APIs in real sandbox + mocked env for the rest; two-tier evaluator (rule-based + LLM judge); pass criterion ≥ 0.7 server pass rate; mock client harness covers Cursor (`readOnlyHint=true` confirmation skip), Claude Desktop, and ChatGPT Deep Research signature compliance [P0: pitfalls #31, #32]
-- [ ] **GEN-12**: 4-layer caching (L1 spec sha + L2 pass-input hash + L3 tool hash + L4 Anthropic prompt cache) — repeated generation of the same spec costs $0 LLM
-- [ ] **GEN-13**: All LLM calls go through PydanticAI + OpenRouter `OpenAIProvider` using `qwen/qwen3-coder` with provider routing pinned (`extra_body={"provider": {"order": [...], "allow_fallbacks": false, "quantizations": ["fp16"], "require_parameters": true}}`) [P0: pitfall #2]; Stage F3 test agent is the documented exception (Sonnet 4.7); Day-1 smoke test (`apps/generation-engine/tests/smoke_test_qwen.py`) runs on every engine PR [P0: pitfall #27]
+- [x] **GEN-12
+**: 4-layer caching (L1 spec sha + L2 pass-input hash + L3 tool hash + L4 Anthropic prompt cache) — repeated generation of the same spec costs $0 LLM
+- [x] **GEN-13
+**: All LLM calls go through PydanticAI + OpenRouter `OpenAIProvider` using `qwen/qwen3-coder` with provider routing pinned (`extra_body={"provider": {"order": [...], "allow_fallbacks": false, "quantizations": ["fp16"], "require_parameters": true}}`) [P0: pitfall #2]; Stage F3 test agent is the documented exception (Sonnet 4.7); Day-1 smoke test (`apps/generation-engine/tests/smoke_test_qwen.py`) runs on every engine PR [P0: pitfall #27]
 
 ### Runtime Plane (RUN) — Phase 6
 
@@ -89,11 +94,9 @@
 
 ### CLI (CLI) — Phases 2, 6
 
-- [ ] **CLI-01**: `npx mcpgen init <openapi-url>` produces a working local MCP server file in <60 seconds (no signup required)
-- [x] **CLI-02
-**: `mcpgen deploy` pushes the generated server to CF Workers for Platforms tenant namespace and returns a live URL
-- [x] **CLI-03
-**: CLI ships as a Bun-compiled single binary on npm + GitHub releases (targets: `bun-darwin-arm64`, `bun-darwin-x64`, `bun-linux-x64`, `bun-windows-x64`)
+- [x] **CLI-01**: `npx mcpgen init <openapi-url>` produces a working local MCP server file in <60 seconds (no signup required)
+- [x] **CLI-02**: `mcpgen deploy` pushes the generated server to CF Workers for Platforms tenant namespace and returns a live URL
+- [x] **CLI-03**: CLI ships as a Bun-compiled single binary on npm + GitHub releases (targets: `bun-darwin-arm64`, `bun-darwin-x64`, `bun-linux-x64`, `bun-windows-x64`)
 
 ### Frontend (FE) — Phase 7 (UI is LOCKED in `claude-design-ui/MCP-Gen.zip`)
 
@@ -200,9 +203,9 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | FND-13 | Phase 1 | Complete (01-07) |
 | FND-14 | Phase 1 | Complete (01-03 contract + 01-04 backing table) |
 | FND-15 | Phase 1 | Complete (01-05 spike route + 01-08 local-Bun acceptance; real-CF re-spike DEFERRED to Phase 10 per PHASE-DEVIATIONS.md rev 2) |
-| GEN-01 | Phase 2 | Pending |
-| GEN-02 | Phase 2 | Pending |
-| GEN-03 | Phase 2 | Pending |
+| GEN-01 | Phase 2 | Complete (plans 02-02, 02-08) |
+| GEN-02 | Phase 2 | Complete (plans 02-03, 02-04, 02-05, 02-06) |
+| GEN-03 | Phase 2 | Complete (plans 02-03, 02-04, 02-07) |
 | GEN-04 | Phase 3 | Pending |
 | GEN-05 | Phase 3 | Pending |
 | GEN-06 | Phase 3 | Pending |
@@ -211,8 +214,9 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | GEN-09 | Phase 5 | Pending |
 | GEN-10 | Phase 5 | Pending |
 | GEN-11 | Phase 5 | Pending |
-| GEN-12 | Phase 2 | Pending |
-| GEN-13 | Phase 2 | Pending |
+<<<<<<< HEAD
+| GEN-12 | Phase 2 | Complete (plan 02-08) |
+| GEN-13 | Phase 2 | Complete (plan 02-01) |
 | RUN-01 | Phase 6 | Complete (06-01) |
 | RUN-02 | Phase 6 | Complete (06-02 + 06-04 + 06-06) |
 | RUN-03 | Phase 6 | Complete (06-03) |
@@ -229,7 +233,7 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | CTRL-07 | Phase 8 | Pending |
 | CTRL-08 | Phase 9 | Pending |
 | CTRL-09 | Phase 9 | Pending |
-| CLI-01 | Phase 2 | Pending |
+| CLI-01 | Phase 2 | Complete (plan 02-09) |
 | CLI-02 | Phase 6 | Complete (06-05; --cf real path Phase 10) |
 | CLI-03 | Phase 6 | Complete (06-05; signed binaries Phase 10) |
 | FE-01 | Phase 7 | Pending |

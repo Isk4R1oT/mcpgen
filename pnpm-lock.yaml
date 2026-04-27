@@ -102,6 +102,15 @@ importers:
       '@mcpgen/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@mcpgen/engine-fixtures':
+        specifier: workspace:*
+        version: link:../../packages/engine-fixtures
+      '@mcpgen/ir':
+        specifier: workspace:*
+        version: link:../../packages/ir
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.29.0
+        version: 1.29.0(zod@4.3.6)
       commander:
         specifier: ^14.0.3
         version: 14.0.3
@@ -114,6 +123,12 @@ importers:
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
+      ulid:
+        specifier: ^2.4.0
+        version: 2.4.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@mcpgen/shared-config':
         specifier: workspace:*

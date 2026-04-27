@@ -1,0 +1,161 @@
+{
+  "coverage_pct": 100,
+  "coverage_proof": [
+    {
+      "endpoint_id": "POST /graphql (issueSearch)",
+      "mapped_to_universal_tool": "search",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "{ issueSearch(term: \"login\") { nodes { id title } } }" },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (projects)",
+      "mapped_to_universal_tool": "list_collections",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "{ projects { nodes { id name } } }" },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (cycles)",
+      "mapped_to_universal_tool": "list_collections",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "{ cycles { nodes { id name } } }" },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (issue)",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "query($id: String!) { issue(id: $id) { id title } }", "variables": { "id": "LIN-1234" } },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (project)",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "query($id: String!) { project(id: $id) { id name } }", "variables": { "id": "proj_test_AAAA" } },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (cycle)",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "query($id: String!) { cycle(id: $id) { id name } }", "variables": { "id": "cycle_test_BBBB" } },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (teams)",
+      "mapped_to_universal_tool": "list_collections",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "{ teams { nodes { id key } } }" },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (issues)",
+      "mapped_to_universal_tool": "list_objects",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "{ issues(first: 25) { nodes { id title } pageInfo { endCursor } } }" },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (issueCreate)",
+      "mapped_to_universal_tool": "upsert",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id } } }", "variables": { "input": { "title": "Test", "teamId": "team_AAA" } } },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (issueUpdate)",
+      "mapped_to_universal_tool": "upsert",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }", "variables": { "id": "LIN-1234", "input": { "stateId": "state_done" } } },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (issueDelete)",
+      "mapped_to_universal_tool": "delete",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "mutation($id: String!) { issueDelete(id: $id) { success } }", "variables": { "id": "LIN-1234" } },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (issueCreate with relations[])",
+      "mapped_to_universal_tool": "issues_create_with_relations",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id relations { nodes { id } } } } }", "variables": { "input": { "title": "Subtask", "teamId": "team_AAA", "parentId": "LIN-1234" } } },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (issueArchive)",
+      "mapped_to_universal_tool": "issues_archive",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "mutation($id: String!) { issueArchive(id: $id) { success } }", "variables": { "id": "LIN-1234" } },
+        "url": "https://api.linear.app/graphql"
+      }
+    },
+    {
+      "endpoint_id": "POST /graphql (cycleAdvance)",
+      "mapped_to_universal_tool": "cycles_advance",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "query": "mutation($teamId: String!) { cycleAdvance(teamId: $teamId) { success } }", "variables": { "teamId": "team_AAA" } },
+        "url": "https://api.linear.app/graphql"
+      }
+    }
+  ],
+  "routing": {
+    "rules": [
+      { "params_mapping": { "query": "term" }, "target_endpoint": "POST /graphql (issueSearch)", "universal_tool": "search" },
+      { "params_mapping": { "id": "id" }, "target_endpoint": "POST /graphql (issue)", "universal_tool": "fetch" },
+      { "params_mapping": { "id": "id" }, "target_endpoint": "POST /graphql (project)", "universal_tool": "fetch" },
+      { "params_mapping": { "id": "id" }, "target_endpoint": "POST /graphql (cycle)", "universal_tool": "fetch" },
+      { "params_mapping": {}, "target_endpoint": "POST /graphql (teams)", "universal_tool": "list_collections" },
+      { "params_mapping": { "limit": "first", "cursor": "after" }, "target_endpoint": "POST /graphql (issues)", "universal_tool": "list_objects" },
+      { "params_mapping": { "data": "input" }, "target_endpoint": "POST /graphql (issueCreate)", "universal_tool": "upsert" },
+      { "params_mapping": { "id": "id", "data": "input" }, "target_endpoint": "POST /graphql (issueUpdate)", "universal_tool": "upsert" },
+      { "params_mapping": { "id": "id" }, "target_endpoint": "POST /graphql (issueDelete)", "universal_tool": "delete" }
+    ],
+    "smart_id": {
+      "collections": ["Issue", "Project", "Cycle"],
+      "format": "linear-api:{type}:{collection}:{identifier}",
+      "types": ["object", "collection"]
+    }
+  },
+  "tools": [
+    { "name": "search", "source_endpoints": ["POST /graphql (issueSearch)"], "type": "universal" },
+    { "name": "fetch", "source_endpoints": ["POST /graphql (issue)", "POST /graphql (project)", "POST /graphql (cycle)"], "type": "universal" },
+    { "name": "list_collections", "source_endpoints": ["POST /graphql (teams)", "POST /graphql (projects)", "POST /graphql (cycles)"], "type": "universal" },
+    { "name": "list_objects", "source_endpoints": ["POST /graphql (issues)"], "type": "universal" },
+    { "name": "upsert", "source_endpoints": ["POST /graphql (issueCreate)", "POST /graphql (issueUpdate)"], "type": "universal" },
+    { "name": "delete", "source_endpoints": ["POST /graphql (issueDelete)"], "type": "universal" },
+    { "name": "issues_create_with_relations", "source_endpoints": ["POST /graphql (issueCreate with relations[])"], "type": "action" },
+    { "name": "issues_archive", "source_endpoints": ["POST /graphql (issueArchive)"], "type": "action" },
+    { "name": "cycles_advance", "source_endpoints": ["POST /graphql (cycleAdvance)"], "type": "action" }
+  ],
+  "workflows": []
+}

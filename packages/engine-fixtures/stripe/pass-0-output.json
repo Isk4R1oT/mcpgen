@@ -1,0 +1,151 @@
+{
+  "auth_requirements": {
+    "DELETE /v1/customers/{customer}": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "DELETE /v1/subscriptions/{subscription_exposed_id}": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /v1/charges": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /v1/charges/{charge}": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /v1/customers": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /v1/customers/{customer}": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /v1/refunds": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /v1/subscriptions": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /v1/subscriptions/{subscription_exposed_id}": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /v1/charges": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /v1/charges/{charge}/capture": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /v1/customers": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /v1/customers/{customer}": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /v1/refunds": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /v1/subscriptions": [
+      { "notes": "Stripe restricted or full secret key (sk_live_... / rk_live_...).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ]
+  },
+  "composite_candidates": [
+    {
+      "name": "authorize_then_capture_charge",
+      "rationale": "Two-step settlement pattern: create Charge with capture=false, then capture later. Common merchant flow when shipping confirmation gates settlement.",
+      "steps": ["POST /v1/charges", "POST /v1/charges/{charge}/capture"]
+    }
+  ],
+  "dropped_endpoints": [
+    {
+      "can_user_override": true,
+      "method": "POST",
+      "path": "/v1/files",
+      "reason": "LOW_VALUE"
+    },
+    {
+      "can_user_override": true,
+      "method": "POST",
+      "path": "/v1/file_links",
+      "reason": "LOW_VALUE"
+    },
+    {
+      "can_user_override": false,
+      "method": "POST",
+      "path": "/v1/webhook_endpoints",
+      "reason": "WEBHOOK"
+    }
+  ],
+  "prompt_injection_warnings": [],
+  "target_complexity": "standard",
+  "tool_plans": [
+    {
+      "category": "search",
+      "name": "stripe_search",
+      "rationale": "Cross-resource search across customers, charges, subscriptions returning ranked smart IDs.",
+      "source_endpoints": ["GET /v1/customers", "GET /v1/charges", "GET /v1/subscriptions"]
+    },
+    {
+      "category": "crud",
+      "name": "stripe_fetch",
+      "rationale": "Retrieve a single Stripe object by smart ID; routes to /retrieve endpoint per type.",
+      "source_endpoints": [
+        "GET /v1/customers/{customer}",
+        "GET /v1/charges/{charge}",
+        "GET /v1/subscriptions/{subscription_exposed_id}"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "collections_list",
+      "rationale": "List available top-level Stripe object collections for discovery.",
+      "source_endpoints": ["GET /v1/customers", "GET /v1/charges", "GET /v1/subscriptions"]
+    },
+    {
+      "category": "crud",
+      "name": "objects_list",
+      "rationale": "List Stripe objects within a chosen collection with cursor pagination and filtering.",
+      "source_endpoints": [
+        "GET /v1/customers",
+        "GET /v1/charges",
+        "GET /v1/subscriptions",
+        "GET /v1/refunds"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "objects_upsert",
+      "rationale": "Create or update a Stripe object (smart routing by presence of id; supports idempotency_key).",
+      "source_endpoints": [
+        "POST /v1/customers",
+        "POST /v1/customers/{customer}",
+        "POST /v1/charges",
+        "POST /v1/subscriptions"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "objects_delete",
+      "rationale": "Delete a Stripe Customer or Subscription (Charge cannot be deleted; use charges_refund).",
+      "source_endpoints": [
+        "DELETE /v1/customers/{customer}",
+        "DELETE /v1/subscriptions/{subscription_exposed_id}"
+      ]
+    },
+    {
+      "category": "action",
+      "name": "charges_capture",
+      "rationale": "Capture funds previously authorized on an uncaptured Charge (does not fit upsert — distinct side-effect on settle state).",
+      "source_endpoints": ["POST /v1/charges/{charge}/capture"]
+    },
+    {
+      "category": "action",
+      "name": "charges_refund",
+      "rationale": "Refund a captured Charge (destructive, !idempotent per _refund verb pattern).",
+      "source_endpoints": ["POST /v1/refunds"]
+    },
+    {
+      "category": "action",
+      "name": "subscriptions_cancel",
+      "rationale": "Cancel an active Subscription (destructive+idempotent per _cancel verb pattern; preserves audit trail vs delete).",
+      "source_endpoints": ["DELETE /v1/subscriptions/{subscription_exposed_id}"]
+    }
+  ]
+}

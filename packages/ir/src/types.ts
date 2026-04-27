@@ -222,12 +222,18 @@ export const CompositeCandidate = z.object({
 });
 export type CompositeCandidate = z.infer<typeof CompositeCandidate>;
 
+// `auth_requirements` is a per-endpoint dict (D-21) so hybrid auth schemes
+// (e.g., GitHub Bearer + Apps OAuth) emit multiple entries per endpoint
+// (Pitfall #6). Keys are endpoint IDs in the form "<METHOD> <path>" (e.g.,
+// "GET /repos/{owner}/{repo}/issues"). `prompt_injection_warnings` (D-51)
+// surfaces heuristic matches for known PI patterns inside spec descriptions.
 export const Pass0Output = z.object({
   tool_plans: z.array(ToolPlan),
   dropped_endpoints: z.array(DroppedEndpoint),
   composite_candidates: z.array(CompositeCandidate),
-  auth_requirements: z.array(AuthRequirement),
+  auth_requirements: z.record(z.string(), z.array(AuthRequirement)),
   target_complexity: z.enum(['minimal', 'standard', 'comprehensive']),
+  prompt_injection_warnings: z.array(z.string()),
 });
 export type Pass0Output = z.infer<typeof Pass0Output>;
 
@@ -247,11 +253,31 @@ export const RoutingConfig = z.object({
 });
 export type RoutingConfig = z.infer<typeof RoutingConfig>;
 
+// Pass 1 — SampleInvocation + CoverageProof (per-endpoint coverage proof, D-33)
+// Pitfall #3 mitigation: every Pass 0 endpoint must round-trip to a syntactically
+// valid upstream URL through `urllib.parse.urlparse` / `new URL(...)`. Phase 2
+// validates URL shape only; Stage E (Phase 4) executes a dry-run against an
+// HTTP mock to prove the routing rule is end-to-end correct.
+export const SampleInvocation = z.object({
+  url: z.string().url(),
+  method: z.string(),
+  params: z.record(z.string(), z.unknown()),
+});
+export type SampleInvocation = z.infer<typeof SampleInvocation>;
+
+export const CoverageProof = z.object({
+  endpoint_id: z.string(),
+  mapped_to_universal_tool: z.string(),
+  sample_invocation: SampleInvocation,
+});
+export type CoverageProof = z.infer<typeof CoverageProof>;
+
 export const Pass1Output = z.object({
   tools: z.array(ToolTaxonomyEntry),
   routing: RoutingConfig,
   workflows: z.array(WorkflowDef),
   coverage_pct: z.number().min(0).max(100),
+  coverage_proof: z.array(CoverageProof),
 });
 export type Pass1Output = z.infer<typeof Pass1Output>;
 

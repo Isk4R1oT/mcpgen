@@ -1,0 +1,134 @@
+{
+  "coverage_pct": 100,
+  "coverage_proof": [
+    {
+      "endpoint_id": "GET /api/search.messages",
+      "mapped_to_universal_tool": "search",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "query": "deploy production" },
+        "url": "https://slack.com/api/search.messages?query=deploy+production"
+      }
+    },
+    {
+      "endpoint_id": "GET /api/conversations.list",
+      "mapped_to_universal_tool": "list_collections",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "limit": 25 },
+        "url": "https://slack.com/api/conversations.list?limit=25"
+      }
+    },
+    {
+      "endpoint_id": "GET /api/users.list",
+      "mapped_to_universal_tool": "search",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "limit": 25 },
+        "url": "https://slack.com/api/users.list?limit=25"
+      }
+    },
+    {
+      "endpoint_id": "GET /api/conversations.info",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "channel": "C0123456789" },
+        "url": "https://slack.com/api/conversations.info?channel=C0123456789"
+      }
+    },
+    {
+      "endpoint_id": "GET /api/users.info",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "user": "U0456789012" },
+        "url": "https://slack.com/api/users.info?user=U0456789012"
+      }
+    },
+    {
+      "endpoint_id": "GET /api/conversations.history",
+      "mapped_to_universal_tool": "list_objects",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "channel": "C0123456789", "limit": 25 },
+        "url": "https://slack.com/api/conversations.history?channel=C0123456789&limit=25"
+      }
+    },
+    {
+      "endpoint_id": "POST /api/chat.postMessage",
+      "mapped_to_universal_tool": "messages_send",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "channel": "C0123456789", "text": "Hello, world!" },
+        "url": "https://slack.com/api/chat.postMessage"
+      }
+    },
+    {
+      "endpoint_id": "POST /api/chat.update",
+      "mapped_to_universal_tool": "messages_edit",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "channel": "C0123456789", "ts": "1700000000.000100", "text": "Edited text" },
+        "url": "https://slack.com/api/chat.update"
+      }
+    },
+    {
+      "endpoint_id": "POST /api/chat.delete",
+      "mapped_to_universal_tool": "delete",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "channel": "C0123456789", "ts": "1700000000.000100" },
+        "url": "https://slack.com/api/chat.delete"
+      }
+    },
+    {
+      "endpoint_id": "POST /api/conversations.archive",
+      "mapped_to_universal_tool": "channels_archive",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "channel": "C0123456789" },
+        "url": "https://slack.com/api/conversations.archive"
+      }
+    }
+  ],
+  "routing": {
+    "rules": [
+      { "params_mapping": { "query": "query" }, "target_endpoint": "GET /api/search.messages", "universal_tool": "search" },
+      { "params_mapping": { "id": "channel" }, "target_endpoint": "GET /api/conversations.info", "universal_tool": "fetch" },
+      { "params_mapping": { "id": "user" }, "target_endpoint": "GET /api/users.info", "universal_tool": "fetch" },
+      { "params_mapping": {}, "target_endpoint": "GET /api/conversations.list", "universal_tool": "list_collections" },
+      { "params_mapping": { "collection": "channel", "limit": "limit", "cursor": "cursor" }, "target_endpoint": "GET /api/conversations.history", "universal_tool": "list_objects" },
+      { "params_mapping": { "data": "$body" }, "target_endpoint": "POST /api/chat.postMessage", "universal_tool": "upsert" },
+      { "params_mapping": { "id": "ts", "data": "$body" }, "target_endpoint": "POST /api/chat.update", "universal_tool": "upsert" },
+      { "params_mapping": { "id": "ts" }, "target_endpoint": "POST /api/chat.delete", "universal_tool": "delete" }
+    ],
+    "smart_id": {
+      "collections": ["Message", "Channel", "User"],
+      "format": "slack-api:{type}:{collection}:{identifier}",
+      "types": ["object", "collection"]
+    }
+  },
+  "tools": [
+    { "name": "search", "source_endpoints": ["GET /api/search.messages", "GET /api/conversations.list", "GET /api/users.list"], "type": "universal" },
+    { "name": "fetch", "source_endpoints": ["GET /api/conversations.info", "GET /api/users.info", "GET /api/conversations.history"], "type": "universal" },
+    { "name": "list_collections", "source_endpoints": ["GET /api/conversations.list"], "type": "universal" },
+    { "name": "list_objects", "source_endpoints": ["GET /api/conversations.history"], "type": "universal" },
+    { "name": "upsert", "source_endpoints": ["POST /api/chat.postMessage", "POST /api/chat.update"], "type": "universal" },
+    { "name": "delete", "source_endpoints": ["POST /api/chat.delete"], "type": "universal" },
+    { "name": "messages_send", "source_endpoints": ["POST /api/chat.postMessage"], "type": "action" },
+    { "name": "messages_edit", "source_endpoints": ["POST /api/chat.update"], "type": "action" },
+    { "name": "channels_archive", "source_endpoints": ["POST /api/conversations.archive"], "type": "action" },
+    { "name": "send_with_thread_followup", "source_endpoints": ["POST /api/chat.postMessage (parent)", "POST /api/chat.postMessage (with thread_ts)"], "type": "workflow" }
+  ],
+  "workflows": [
+    {
+      "name": "send_with_thread_followup",
+      "partial_failure_strategy": "report",
+      "steps": [
+        { "description": "Post the parent message to the target channel.", "endpoint": "POST /api/chat.postMessage" },
+        { "description": "Post the threaded follow-up reply using thread_ts from step 1.", "endpoint": "POST /api/chat.postMessage" }
+      ]
+    }
+  ]
+}

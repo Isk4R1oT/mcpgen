@@ -64,7 +64,18 @@ Plans:
   4. Smart IDs minted at deploy time as `{tenant_short_id}-{spec_slug}:{type}:{collection}:{identifier}` — different tenants wrapping the same upstream produce non-overlapping ID regexes (verified by a fixture test in this phase)
   5. L1 spec-sha + L2 pass-input-hash + L3 tool-hash caching makes a second generation of the same spec cost $0 in LLM tokens
   6. `npx mcpgen init <stripe-openapi-url>` produces a working local MCP server file in <60 seconds with no signup required
-**Plans**: TBD
+**Phase Status**: ✅ COMPLETE (signed off 2026-04-28 — see `.planning/phases/02-generation-engine-architect-pass-0-1/02-PHASE-VERIFICATION.md`)
+**Plans**: 9 plans
+Plans:
+- [x] 02-01-PLAN.md — Agent factory + sampling + extra_body provider pin + Day-1 smoke test extension [Wave 1]
+- [x] 02-02-PLAN.md — Stage A OpenAPI parser (prance + openapi-spec-validator) + dependency graph derivation [Wave 1]
+- [x] 02-03-PLAN.md — IR additive types + 5 fixture pass-0/pass-1 hand-tuned outputs (Stripe/GitHub/Notion/Linear/Slack) [Wave 1]
+- [x] 02-04-PLAN.md — Wave 0 test scaffolding (pytest + bun test infrastructure) [Wave 1]
+- [x] 02-05-PLAN.md — Pass 0 deterministic stages: filter + auth_detect + validation [Wave 2]
+- [x] 02-06-PLAN.md — Pass 0 LLM stage: prompts (XML sandbox) + llm + chunked + orchestrator [Wave 2]
+- [x] 02-07-PLAN.md — Pass 1 Six-Tool Pattern: classify + schema_synth + routing + coverage + smart-ID non-overlap [Wave 3]
+- [x] 02-08-PLAN.md — L1+L2+L3 cache + pipeline orchestrator + POST /api/v1/generate SSE endpoint [Wave 4]
+- [x] 02-09-PLAN.md — CLI mcpgen init: auto-spawn + SSE consumer + render stub + perf budget + manual MCP Desktop verification gate [Wave 4]
 
 ### Phase 3: Generation Engine — Author (Pass 2+3+4)
 **Workstream**: `engine`

@@ -281,10 +281,13 @@ describe('Pass0–5 outputs', () => {
       ],
       dropped_endpoints: [],
       composite_candidates: [],
-      auth_requirements: [
-        { scheme: 'apiKey' as const, recommended_mode: 'passthrough' as const, notes: null },
-      ],
+      auth_requirements: {
+        'POST /v1/charges': [
+          { scheme: 'apiKey' as const, recommended_mode: 'passthrough' as const, notes: null },
+        ],
+      },
       target_complexity: 'standard' as const,
+      prompt_injection_warnings: [],
     };
     expect(() => Pass0Output.parse(sample)).not.toThrow();
   });
@@ -314,6 +317,17 @@ describe('Pass0–5 outputs', () => {
       },
       workflows: [],
       coverage_pct: 100,
+      coverage_proof: [
+        {
+          endpoint_id: 'GET /v1/charges/search',
+          mapped_to_universal_tool: 'search',
+          sample_invocation: {
+            url: 'https://api.stripe.com/v1/charges/search',
+            method: 'GET',
+            params: { query: 'amount>1000' },
+          },
+        },
+      ],
     };
     expect(() => Pass1Output.parse(sample)).not.toThrow();
   });

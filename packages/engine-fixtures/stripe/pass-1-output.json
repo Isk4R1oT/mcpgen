@@ -1,0 +1,175 @@
+{
+  "coverage_pct": 100,
+  "coverage_proof": [
+    {
+      "endpoint_id": "GET /v1/customers",
+      "mapped_to_universal_tool": "list_objects",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "limit": 25 },
+        "url": "https://api.stripe.com/v1/customers?limit=25"
+      }
+    },
+    {
+      "endpoint_id": "POST /v1/customers",
+      "mapped_to_universal_tool": "upsert",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "data": { "email": "test@example.invalid" } },
+        "url": "https://api.stripe.com/v1/customers"
+      }
+    },
+    {
+      "endpoint_id": "GET /v1/customers/{customer}",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "customer": "cus_test_AAAAAAAAAAAAAA" },
+        "url": "https://api.stripe.com/v1/customers/cus_test_AAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "endpoint_id": "POST /v1/customers/{customer}",
+      "mapped_to_universal_tool": "upsert",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "customer": "cus_test_AAAAAAAAAAAAAA", "data": { "metadata": { "tier": "gold" } } },
+        "url": "https://api.stripe.com/v1/customers/cus_test_AAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "endpoint_id": "DELETE /v1/customers/{customer}",
+      "mapped_to_universal_tool": "delete",
+      "sample_invocation": {
+        "method": "DELETE",
+        "params": { "customer": "cus_test_AAAAAAAAAAAAAA" },
+        "url": "https://api.stripe.com/v1/customers/cus_test_AAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "endpoint_id": "GET /v1/charges",
+      "mapped_to_universal_tool": "list_objects",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "limit": 25 },
+        "url": "https://api.stripe.com/v1/charges?limit=25"
+      }
+    },
+    {
+      "endpoint_id": "POST /v1/charges",
+      "mapped_to_universal_tool": "upsert",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "data": { "amount": 1000, "currency": "usd", "source": "tok_visa" } },
+        "url": "https://api.stripe.com/v1/charges"
+      }
+    },
+    {
+      "endpoint_id": "GET /v1/charges/{charge}",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "charge": "ch_test_BBBBBBBBBBBBBB" },
+        "url": "https://api.stripe.com/v1/charges/ch_test_BBBBBBBBBBBBBB"
+      }
+    },
+    {
+      "endpoint_id": "POST /v1/charges/{charge}/capture",
+      "mapped_to_universal_tool": "charges_capture",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "charge": "ch_test_BBBBBBBBBBBBBB" },
+        "url": "https://api.stripe.com/v1/charges/ch_test_BBBBBBBBBBBBBB/capture"
+      }
+    },
+    {
+      "endpoint_id": "GET /v1/subscriptions",
+      "mapped_to_universal_tool": "list_objects",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "limit": 25 },
+        "url": "https://api.stripe.com/v1/subscriptions?limit=25"
+      }
+    },
+    {
+      "endpoint_id": "POST /v1/subscriptions",
+      "mapped_to_universal_tool": "upsert",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "data": { "customer": "cus_test_AAAAAAAAAAAAAA", "items": [{ "price": "price_test_CCCCCC" }] } },
+        "url": "https://api.stripe.com/v1/subscriptions"
+      }
+    },
+    {
+      "endpoint_id": "GET /v1/subscriptions/{subscription_exposed_id}",
+      "mapped_to_universal_tool": "fetch",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "subscription_exposed_id": "sub_test_DDDDDDDDDDDD" },
+        "url": "https://api.stripe.com/v1/subscriptions/sub_test_DDDDDDDDDDDD"
+      }
+    },
+    {
+      "endpoint_id": "DELETE /v1/subscriptions/{subscription_exposed_id}",
+      "mapped_to_universal_tool": "subscriptions_cancel",
+      "sample_invocation": {
+        "method": "DELETE",
+        "params": { "subscription_exposed_id": "sub_test_DDDDDDDDDDDD" },
+        "url": "https://api.stripe.com/v1/subscriptions/sub_test_DDDDDDDDDDDD"
+      }
+    },
+    {
+      "endpoint_id": "GET /v1/refunds",
+      "mapped_to_universal_tool": "list_objects",
+      "sample_invocation": {
+        "method": "GET",
+        "params": { "limit": 25 },
+        "url": "https://api.stripe.com/v1/refunds?limit=25"
+      }
+    },
+    {
+      "endpoint_id": "POST /v1/refunds",
+      "mapped_to_universal_tool": "charges_refund",
+      "sample_invocation": {
+        "method": "POST",
+        "params": { "charge": "ch_test_BBBBBBBBBBBBBB", "amount": 500 },
+        "url": "https://api.stripe.com/v1/refunds"
+      }
+    }
+  ],
+  "routing": {
+    "rules": [
+      { "params_mapping": { "query": "query" }, "target_endpoint": "GET /v1/customers", "universal_tool": "search" },
+      { "params_mapping": { "id": "customer" }, "target_endpoint": "GET /v1/customers/{customer}", "universal_tool": "fetch" },
+      { "params_mapping": { "id": "charge" }, "target_endpoint": "GET /v1/charges/{charge}", "universal_tool": "fetch" },
+      { "params_mapping": { "id": "subscription_exposed_id" }, "target_endpoint": "GET /v1/subscriptions/{subscription_exposed_id}", "universal_tool": "fetch" },
+      { "params_mapping": {}, "target_endpoint": "GET /v1/customers", "universal_tool": "list_collections" },
+      { "params_mapping": { "limit": "limit", "cursor": "starting_after" }, "target_endpoint": "GET /v1/customers", "universal_tool": "list_objects" },
+      { "params_mapping": { "limit": "limit", "cursor": "starting_after" }, "target_endpoint": "GET /v1/charges", "universal_tool": "list_objects" },
+      { "params_mapping": { "limit": "limit", "cursor": "starting_after" }, "target_endpoint": "GET /v1/subscriptions", "universal_tool": "list_objects" },
+      { "params_mapping": { "limit": "limit", "cursor": "starting_after" }, "target_endpoint": "GET /v1/refunds", "universal_tool": "list_objects" },
+      { "params_mapping": { "data": "$body" }, "target_endpoint": "POST /v1/customers", "universal_tool": "upsert" },
+      { "params_mapping": { "id": "customer", "data": "$body" }, "target_endpoint": "POST /v1/customers/{customer}", "universal_tool": "upsert" },
+      { "params_mapping": { "data": "$body" }, "target_endpoint": "POST /v1/charges", "universal_tool": "upsert" },
+      { "params_mapping": { "data": "$body" }, "target_endpoint": "POST /v1/subscriptions", "universal_tool": "upsert" },
+      { "params_mapping": { "id": "customer" }, "target_endpoint": "DELETE /v1/customers/{customer}", "universal_tool": "delete" }
+    ],
+    "smart_id": {
+      "collections": ["Charge", "Customer", "Subscription", "Refund"],
+      "format": "stripe-api:{type}:{collection}:{identifier}",
+      "types": ["object", "collection"]
+    }
+  },
+  "tools": [
+    { "name": "search", "source_endpoints": ["GET /v1/customers", "GET /v1/charges", "GET /v1/subscriptions"], "type": "universal" },
+    { "name": "fetch", "source_endpoints": ["GET /v1/customers/{customer}", "GET /v1/charges/{charge}", "GET /v1/subscriptions/{subscription_exposed_id}"], "type": "universal" },
+    { "name": "list_collections", "source_endpoints": ["GET /v1/customers", "GET /v1/charges", "GET /v1/subscriptions"], "type": "universal" },
+    { "name": "list_objects", "source_endpoints": ["GET /v1/customers", "GET /v1/charges", "GET /v1/subscriptions", "GET /v1/refunds"], "type": "universal" },
+    { "name": "upsert", "source_endpoints": ["POST /v1/customers", "POST /v1/customers/{customer}", "POST /v1/charges", "POST /v1/subscriptions"], "type": "universal" },
+    { "name": "delete", "source_endpoints": ["DELETE /v1/customers/{customer}"], "type": "universal" },
+    { "name": "charges_capture", "source_endpoints": ["POST /v1/charges/{charge}/capture"], "type": "action" },
+    { "name": "charges_refund", "source_endpoints": ["POST /v1/refunds"], "type": "action" },
+    { "name": "subscriptions_cancel", "source_endpoints": ["DELETE /v1/subscriptions/{subscription_exposed_id}"], "type": "action" }
+  ],
+  "workflows": []
+}

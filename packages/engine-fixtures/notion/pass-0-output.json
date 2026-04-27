@@ -1,0 +1,77 @@
+{
+  "auth_requirements": {
+    "GET /v1/databases/{database_id}": [
+      { "notes": "Notion integration token (secret_...) sent as Bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /v1/pages/{page_id}": [
+      { "notes": "Notion integration token (secret_...) sent as Bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "PATCH /v1/pages/{page_id}": [
+      { "notes": "Notion integration token (secret_...) sent as Bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /v1/databases/{database_id}/query": [
+      { "notes": "Notion integration token (secret_...) sent as Bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /v1/pages": [
+      { "notes": "Notion integration token (secret_...) sent as Bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /v1/search": [
+      { "notes": "Notion integration token (secret_...) sent as Bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ]
+  },
+  "composite_candidates": [],
+  "dropped_endpoints": [
+    {
+      "can_user_override": true,
+      "method": "POST",
+      "path": "/v1/oauth/token",
+      "reason": "AUTH_FLOW"
+    },
+    {
+      "can_user_override": false,
+      "method": "GET",
+      "path": "/v1/users/me",
+      "reason": "LOW_VALUE"
+    }
+  ],
+  "prompt_injection_warnings": [],
+  "target_complexity": "minimal",
+  "tool_plans": [
+    {
+      "category": "search",
+      "name": "workspace_search",
+      "rationale": "Cross-workspace search across pages and databases (Notion's canonical search endpoint).",
+      "source_endpoints": ["POST /v1/search"]
+    },
+    {
+      "category": "crud",
+      "name": "objects_fetch",
+      "rationale": "Retrieve a single Page or Database by smart ID.",
+      "source_endpoints": ["GET /v1/pages/{page_id}", "GET /v1/databases/{database_id}"]
+    },
+    {
+      "category": "crud",
+      "name": "collections_list",
+      "rationale": "Discover databases (collections) accessible to the integration via search.",
+      "source_endpoints": ["POST /v1/search"]
+    },
+    {
+      "category": "crud",
+      "name": "objects_list",
+      "rationale": "List rows in a database with cursor pagination + filter.",
+      "source_endpoints": ["POST /v1/databases/{database_id}/query"]
+    },
+    {
+      "category": "crud",
+      "name": "objects_upsert",
+      "rationale": "Create a Page (POST /v1/pages) or update properties of an existing one (PATCH).",
+      "source_endpoints": ["POST /v1/pages", "PATCH /v1/pages/{page_id}"]
+    },
+    {
+      "category": "crud",
+      "name": "objects_delete",
+      "rationale": "Notion does not delete — archive via PATCH .../pages/{id} {archived: true}.",
+      "source_endpoints": ["PATCH /v1/pages/{page_id}"]
+    }
+  ]
+}

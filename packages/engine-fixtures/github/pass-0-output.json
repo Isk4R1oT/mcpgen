@@ -1,0 +1,170 @@
+{
+  "auth_requirements": {
+    "DELETE /repos/{owner}/{repo}/releases/{release_id}": [
+      { "notes": "Personal access token (classic / fine-grained) with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (x-github.enabledForGitHubApps=true on this endpoint — Pitfall E hybrid auth).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "GET /repos/{owner}/{repo}/git/refs/heads/{branch}": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "GET /repos/{owner}/{repo}/issues": [
+      { "notes": "Personal access token with repo scope (or public_repo for public repositories).", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "GET /repos/{owner}/{repo}/issues/{issue_number}": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "GET /repos/{owner}/{repo}/pulls": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "GET /repos/{owner}/{repo}/pulls/{pull_number}": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "GET /repos/{owner}/{repo}/releases": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "GET /repos/{owner}/{repo}/releases/{release_id}": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "GET /search/issues": [
+      { "notes": "Personal access token with repo scope (or unauthenticated for public-only).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "PATCH /repos/{owner}/{repo}/issues/{issue_number}": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "POST /repos/{owner}/{repo}/issues": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "POST /repos/{owner}/{repo}/pulls": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "POST /repos/{owner}/{repo}/releases": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ],
+    "PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge": [
+      { "notes": "Personal access token with repo scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" },
+      { "notes": "GitHub App installation token (Pitfall E hybrid).", "recommended_mode": "oauth_flow", "scheme": "oauth2" }
+    ]
+  },
+  "composite_candidates": [
+    {
+      "name": "create_pr_from_branch",
+      "rationale": "Multi-step coherent task: resolve branch SHA → open PR. Recoverable on partial failure (branch SHA fetch is read-only). Promoted to a workflow tool by Pass 1.",
+      "steps": ["GET /repos/{owner}/{repo}/git/refs/heads/{branch}", "POST /repos/{owner}/{repo}/pulls"]
+    }
+  ],
+  "dropped_endpoints": [
+    {
+      "can_user_override": false,
+      "method": "POST",
+      "path": "/repos/{owner}/{repo}/hooks",
+      "reason": "WEBHOOK"
+    },
+    {
+      "can_user_override": true,
+      "method": "GET",
+      "path": "/repos/{owner}/{repo}/actions/runs",
+      "reason": "LOW_VALUE"
+    },
+    {
+      "can_user_override": false,
+      "method": "GET",
+      "path": "/octocat",
+      "reason": "INTERNAL"
+    }
+  ],
+  "prompt_injection_warnings": [],
+  "target_complexity": "standard",
+  "tool_plans": [
+    {
+      "category": "search",
+      "name": "issues_search",
+      "rationale": "Search GitHub issues across repo scope with ranking and smart IDs.",
+      "source_endpoints": ["GET /search/issues"]
+    },
+    {
+      "category": "crud",
+      "name": "objects_fetch",
+      "rationale": "Retrieve a single Issue, PullRequest, or Release by smart ID.",
+      "source_endpoints": [
+        "GET /repos/{owner}/{repo}/issues/{issue_number}",
+        "GET /repos/{owner}/{repo}/pulls/{pull_number}",
+        "GET /repos/{owner}/{repo}/releases/{release_id}"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "collections_list",
+      "rationale": "List the available top-level GitHub object collections (issues, pulls, releases).",
+      "source_endpoints": [
+        "GET /repos/{owner}/{repo}/issues",
+        "GET /repos/{owner}/{repo}/pulls",
+        "GET /repos/{owner}/{repo}/releases"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "objects_list",
+      "rationale": "List GitHub objects within a chosen collection with cursor pagination.",
+      "source_endpoints": [
+        "GET /repos/{owner}/{repo}/issues",
+        "GET /repos/{owner}/{repo}/pulls",
+        "GET /repos/{owner}/{repo}/releases"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "objects_upsert",
+      "rationale": "Create or update an Issue, PullRequest, or Release (smart routing).",
+      "source_endpoints": [
+        "POST /repos/{owner}/{repo}/issues",
+        "PATCH /repos/{owner}/{repo}/issues/{issue_number}",
+        "POST /repos/{owner}/{repo}/pulls",
+        "POST /repos/{owner}/{repo}/releases"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "objects_delete",
+      "rationale": "Delete a Release (Issues/PRs are closed, not deleted).",
+      "source_endpoints": ["DELETE /repos/{owner}/{repo}/releases/{release_id}"]
+    },
+    {
+      "category": "action",
+      "name": "issues_close",
+      "rationale": "Close an Issue (idempotent — closing a closed issue is a no-op per Appendix B verb pattern).",
+      "source_endpoints": ["PATCH /repos/{owner}/{repo}/issues/{issue_number}"]
+    },
+    {
+      "category": "action",
+      "name": "pull_requests_merge",
+      "rationale": "Merge a PullRequest (not idempotent — merging twice fails with 405).",
+      "source_endpoints": ["PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge"]
+    },
+    {
+      "category": "action",
+      "name": "releases_create",
+      "rationale": "Create a Release with a specific tag_name (not idempotent — re-create on tag conflict fails).",
+      "source_endpoints": ["POST /repos/{owner}/{repo}/releases"]
+    },
+    {
+      "category": "workflow",
+      "name": "create_pr_from_branch",
+      "rationale": "Workflow: resolve branch SHA, then open a PR. Recoverable on partial failure; positive token economy.",
+      "source_endpoints": [
+        "GET /repos/{owner}/{repo}/git/refs/heads/{branch}",
+        "POST /repos/{owner}/{repo}/pulls"
+      ]
+    }
+  ]
+}

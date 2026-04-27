@@ -22,6 +22,7 @@ dependencies = [
   "psycopg[binary,pool]>=3.2,<4.0",
   "aioboto3>=13.2,<14.0",
   "mcpgen-ir",
+  "python-ulid>=3.1.0",
 ]
 
 [dependency-groups]
@@ -77,7 +78,12 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "ANN201", "ANN001"]
+# S106 misfires on `pass_name="pass_0"` / `pass_version="1"` kwargs (pass-* token).
+# SLF001 is OK in tests that need to inspect on-disk cache layout via `_path_for`.
+"tests/**/*.py" = ["S101", "ANN201", "ANN001", "S106", "SLF001"]
+# Module-level *_PROMPT constants are LLM system prompts, not credentials.
+# S105 (hardcoded password) misfires on the "PASS"/"PROMPT" name prefix.
+"src/mcpgen_engine/passes/**/prompts.py" = ["S105"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -105,7 +111,15 @@ strict_equality = true
 extra_checks = true
 
 [[tool.mypy.overrides]]
-module = ["prance.*", "openapi_spec_validator.*", "tenacity.*", "logfire.*", "aioboto3.*"]
+module = [
+  "prance.*",
+  "openapi_spec_validator.*",
+  "tenacity.*",
+  "logfire.*",
+  "aioboto3.*",
+  "yaml",
+  "mcpgen_ir.*",
+]
 ignore_missing_imports = true
 
 # ─── pytest ────────────────────────────────────────────────────────

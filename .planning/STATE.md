@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: "Phase 8 (Auth + Billing) complete: 5 plans / 5 waves / 32 commits / 119+11 tests / live Neon migration pushed; --no-transition gate stops chain here"
-last_updated: "2026-04-27T19:47:37.087Z"
-last_activity: 2026-04-27 -- Phase 8 execution started
+status: phase-complete
+stopped_at: Phase 2 closed — manual gate signed off (3/3 smokes PASS); 5 contract/SDK pivots fixed during gate; ready for Phase 3
+last_updated: "2026-04-28T00:00:00.000Z"
+last_activity: 2026-04-28
 progress:
   total_phases: 10
   completed_phases: 2
-  total_plans: 13
-  completed_plans: 15
-  percent: 100
+  total_plans: 26
+  completed_plans: 17
+  percent: 20
 ---
 
 # Project State
@@ -21,16 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-26)
 
 **Core value:** Generated MCP servers measurably outperform hand-written ones on agent task success rate — paste an OpenAPI URL → 60 seconds later you have a deployed MCP server that scores ≥4.0 on F2 smell rubric and ≥70% F3 agent task success on golden tasks for that API.
-**Current focus:** Phase 8 — Auth + Billing
+**Current focus:** Phase 2 ✅ CLOSED — ready for Phase 3 (Generation Engine — Author: Pass 2 + 3 + 4)
 
 ## Current Position
 
-Phase: 8 (Auth + Billing) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 8
-Last activity: 2026-04-27 -- Phase 8 execution started
+Phase: 2 (generation-engine-architect-pass-0-1) — ✅ COMPLETE
+Plan: 9 of 9 complete
+Status: Phase closed (manual gate signed off 2026-04-28)
+Last activity: 2026-04-28
 
-Progress: [██████████] 100%
+Progress: [██░░░░░░░░] 20% (2 of 10 phases complete)
+
+## Next
+
+Run `/gsd-discuss-phase 3 --auto --ws engine` to start Phase 3
+(Generation Engine — Author: Pass 2 description authoring + Pass 3
+parameter spec + Pass 4 annotations).
 
 ## Performance Metrics
 
@@ -60,6 +66,15 @@ Progress: [██████████] 100%
 | Phase 01 P06 | 13min | 3 tasks | 19 files |
 | Phase 01 P07 | 16min | 3 tasks | 36 files |
 | Phase 01-foundation P08 | 25 | 4 tasks | 5 files |
+| Phase 02 P01 | 25min | 4 tasks | 5 files |
+| Phase 02 P02 | 30min | 2 tasks tasks | 5 files files |
+| Phase 02 P03 | 9 | 3 tasks | 18 files |
+| Phase 02 P04 | 12min | 2 tasks tasks | 20 files files |
+| Phase 02 P05 | ~50min | 3 tasks | 7 files |
+| Phase 02 P06 | 36min | 3 tasks | 9 files |
+| Phase 02 P07 | 95min | 2 tasks tasks | 12 files files |
+| Phase 02-generation-engine-architect-pass-0-1 P08 | 150 | 2 tasks | 8 files |
+| Phase 02-generation-engine-architect-pass-0-1 P09 | 17min | 5 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -108,6 +123,36 @@ Recent decisions affecting current work:
 - Plan 01-08: Phase-10 launch-criteria gate constants (real-CF SSE spike + Fly cold-start) NOT added to launch-criteria.ts in Phase 1 — adding them now would create false-valued constants gating every Phase 2-9 build; Phase 10 owns the addition + verification together (paired decision per T-1-03)
 - Plan 01-08: Rule-1 fix committed CLAUDE.md + RULES.md + 11× docs/mcpgen-*.md + claude-design-ui/ to git (commit 1de0589) — these were authored before any phase started but never landed in git, so packages/contracts/tests/launch-criteria.test.ts ENOENT'd on fresh clone breaking Phase-1 success criterion #1
 - Plan 01-08: phase-level 01-SUMMARY.md introduced as a distinct artifact from per-plan 01-NN-SUMMARY.md — phase-level holds scope rationale string + per-plan completion table + local port map + Phase-10 carry-forward; per-plan holds task commits + deviations
+- Plan 02-01: PEP 695 type-parameter form (def make_agent[T: BaseModel](...)) used in agent_factory.py instead of T = TypeVar("T", bound=BaseModel) — pre-commit ruff hook auto-fixes UP047 and strips noqa as unused; PEP 695 is semantically identical and project-canonical for Python 3.12+
+- Plan 02-01: conftest.py primes OPENROUTER_API_KEY=sk-or-test-PLACEHOLDER at MODULE scope (not just via _sandbox_env autouse fixture) — test modules now import mcpgen_engine.llm.agent_factory at top level which transitively constructs the MODEL singleton at import time; per-test fixture runs too late
+- Plan 02-01: _PROVIDER_ROUTING annotated dict[str, dict[str, object]] (not bare dict) — mypy disallow_any_generics rejects untyped dict; object preserves heterogeneous values (list[str] / bool / list[str] / bool) without leaking Any
+- Plan 02-02: Stage A — RawIR.dependency_graph kept as Phase-1 FROZEN Dict[str, List[str]] adjacency map (NOT edge-list with resource label as plan body suggested) — zero IR mutation; resource label discarded after correlation
+- Plan 02-02: bare 'id'/'uuid' field names DROPPED from dep-graph harvest — only namespaced IDs (charge_id, customer_uuid) and bare resource hints used as path params (charge, customer, len > 2) emit edges; prevents quadratic blowup at Stripe scale
+- Plan 02-02: Endpoint.extensions field NOT added (FROZEN IR has extra='forbid'); Pitfall E GitHub x-extensions consumed by Pass 0 directly from resolved-dict surface, not via RawIR.endpoints
+- Plan 02-03: extended IR additively with SampleInvocation + CoverageProof + per-endpoint auth_requirements (Dict shape) + prompt_injection_warnings + Pass1Output.coverage_proof; paired decision doc records justification (zero existing consumers; D-21 + Pitfall E require Dict shape)
+- Plan 02-03: 10 hand-authored fixture JSONs (Stripe/GitHub/Notion/Linear/Slack × pass-0/pass-1) ship as fixtures-as-contract truth target; smart-ID format ships SCHEMA-LEVEL only at Phase 2 (no tenant prefix per D-31)
+- Plan 02-04: chose pure bun:test over vitest for CLI tests (per VALIDATION.md 'Framework (CLI): bun test') — no vitest.config.ts or bunfig.toml needed; Bun 1.3.5 picks up tests/**/*.test.ts by default
+- Plan 02-04: widened apps/cli/tsconfig.json include to add 'tests/**/*' so pnpm typecheck strictness gate covers test files (mirrors engine ruff src=['src','tests'])
+- Plan 02-04: Wave-0 stubs import only the test framework (pytest / bun:test); no try/except ImportError or pytest.importorskip — every test always skips, so omitting code-under-test imports keeps mypy --strict clean
+- Pass 0 deterministic stages (filter/auth_detect/validation) ship with sidecar Mapping parameters for vendor extensions and operation-level security since the frozen IR Endpoint model has no extensions/security fields — Plan 02-06 will populate from raw spec dict in the orchestrator.
+- UserOptions, Pass0LlmOutput, CapsEnforcementResult Pydantic models live engine-locally rather than in mcpgen_ir.types because the Plan 02-03 IR codegen only authored the final Pass0Output shape — Plan 02-06 promotes them to public IR if the LLM contract finalizes them.
+- Catch BOTH pydantic.ValidationError AND pydantic_ai.UnexpectedModelBehavior in Pass 0 LLM validation-retry loop — PydanticAI's tool-call validation surfaces as the latter once max_result_retries exhausts
+- Pass 0 degraded fallback ceiling at 80 kept endpoints — beyond that the fallback would itself trigger MULTI_SERVER_SPLIT_REQUIRED, so re-raise instead
+- Module-level PASS_0_AGENT singleton via make_agent — sampling/extra_body propagation at .run() time via model_settings=PASS_0_SETTINGS
+- Chunked Phase 2 (cross-cluster composite hints) is best-effort: failures degrade to empty hints rather than poison the chunked pipeline
+- Plan 02-07 — split __init__.py across Task 1 (minimal re-export skeleton) + Task 2 (full LLM-bearing run() orchestrator) to avoid circular import on schema_synth.py at Task 1 commit
+- Plan 02-07 — coverage_pct(raw_ir=...) excludes Pass 0 source_endpoints absent from raw_ir.endpoints; coverage_proof de-duplicates by endpoint_id
+- Plan 02-07 — Pass 1 retry loop on coverage gap re-fires only synthesize_universal_tools (extras unchanged across retries)
+- Plan 02-07 — spec_title threaded through pass_1.run(...) as a separate argument (RawIR has no info.title field)
+- Filesystem L1/L2/L3 cache w/ engine_version-embedded sha256 keys + 30-day mtime TTL + atomic tempfile-rename writes; KISS-duplicated layers (refactor when Phase 6 R2 lands)
+- Stable SSE error codes are stage-stable (STAGE_A_FAILED / PASS_0_FAILED / PASS_1_FAILED / INTERNAL_ERROR), with stage-specific subcode in error.message — keeps the CLI/frontend routing surface narrow
+- L1 store uses model_dump(by_alias=True) so SecuritySchemes.in_ round-trips losslessly through model_validate (caught during T-2-D1 implementation)
+- Hand-rolled SSE wire generator (no sse-starlette dep) — 12-line generator, exact frozen-Phase-1 contract fidelity
+- Plan 02-09: drove MCP Inspector E2E via direct stdio JSON-RPC handshake (initialize → notifications/initialized → tools/list) — more reliable in CI than spawning the GUI Inspector binary; faster (no fresh npm install per test)
+- Plan 02-09: added @modelcontextprotocol/sdk + zod as direct deps of @mcpgen/cli so generated server.ts can resolve them via apps/cli/node_modules symlinked into test tmpdir (avoids costly per-test npm install in inspector E2E)
+- Plan 02-09: GET /api/v1/generate/{job_id}/artifacts re-derives spec_hash by re-running deterministic Stage A on stored job parameters and reads L1 directly — keeps engine in-memory _JOB_TABLE small. Phase 6+ migrates to Postgres generations.artifacts JSONB
+- Plan 02-09: notion/linear/slack live-fetch skipped in 5-fixture parametrized E2E — those fixtures' upstream spec_url values point to GraphQL / REST docs portals (not raw OpenAPI 3.x JSON which D-12 requires); structural-equivalence assertion turns on automatically when Phase 4+ adds GraphQL ingestion
+- Plan 02-09: init.perf cold-cache budget asserts <90_000ms (D-46 soft cap, hard CI fail threshold) — the 60s M1 target is recorded manually in 02-PHASE-VERIFICATION.md since CI macos-arm64 is approximate hardware
 
 ### Pending Todos
 
@@ -134,8 +179,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 8 (Auth + Billing) complete: 5 plans / 5 waves / 32 commits / 119+11 tests / live Neon migration pushed; --no-transition gate stops chain here
-Resume file: --resume-file
+Last session: 2026-04-27T19:41:10.192Z
+Stopped at: Completed 02-09 — CLI mcpgen init end-to-end + manual gate template
+Resume file: None
 
-**Planned Phase:** 8 (Auth + Billing) — 5 plans — 2026-04-27T07:11:57.367Z
+**Planned Phase:** 2 (generation-engine-architect-pass-0-1) — 9 plans — 2026-04-27T06:48:18.574Z

@@ -1,0 +1,134 @@
+{
+  "auth_requirements": {
+    "POST /graphql (cycleAdvance)": [
+      { "notes": "Linear API key (Authorization: <key>) or OAuth bearer; both accepted.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (cycles)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (issue)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (issueArchive)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (issueCreate)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (issueCreate with relations[])": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (issueDelete)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (issueSearch)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (issueUpdate)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (issues)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (project)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (projects)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (cycle)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /graphql (teams)": [
+      { "notes": "Linear API key or OAuth bearer.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ]
+  },
+  "composite_candidates": [],
+  "dropped_endpoints": [
+    {
+      "can_user_override": true,
+      "method": "POST",
+      "path": "/graphql (webhookCreate)",
+      "reason": "WEBHOOK"
+    },
+    {
+      "can_user_override": false,
+      "method": "POST",
+      "path": "/graphql (apiKeyCreate)",
+      "reason": "INTERNAL"
+    }
+  ],
+  "prompt_injection_warnings": [],
+  "target_complexity": "standard",
+  "tool_plans": [
+    {
+      "category": "search",
+      "name": "issues_search",
+      "rationale": "Search Linear issues / projects / cycles by free-text query (Linear GraphQL search resolvers).",
+      "source_endpoints": [
+        "POST /graphql (issueSearch)",
+        "POST /graphql (projects)",
+        "POST /graphql (cycles)"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "objects_fetch",
+      "rationale": "Retrieve a single Issue, Project, or Cycle by smart ID.",
+      "source_endpoints": [
+        "POST /graphql (issue)",
+        "POST /graphql (project)",
+        "POST /graphql (cycle)"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "collections_list",
+      "rationale": "Discover top-level collections (Teams, Projects, Cycles) for the workspace.",
+      "source_endpoints": [
+        "POST /graphql (teams)",
+        "POST /graphql (projects)",
+        "POST /graphql (cycles)"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "objects_list",
+      "rationale": "List Issues with cursor pagination and filter (Linear GraphQL pageInfo.endCursor).",
+      "source_endpoints": ["POST /graphql (issues)"]
+    },
+    {
+      "category": "crud",
+      "name": "objects_upsert",
+      "rationale": "Create or update an Issue (issueCreate / issueUpdate mutations).",
+      "source_endpoints": [
+        "POST /graphql (issueCreate)",
+        "POST /graphql (issueUpdate)"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "objects_delete",
+      "rationale": "Permanently delete an Issue (issueDelete mutation; archival uses dedicated action).",
+      "source_endpoints": ["POST /graphql (issueDelete)"]
+    },
+    {
+      "category": "action",
+      "name": "issues_create_with_relations",
+      "rationale": "Create an Issue with parent / blocking relations atomically — does not fit plain upsert (relation links require coordinated set).",
+      "source_endpoints": ["POST /graphql (issueCreate with relations[])"]
+    },
+    {
+      "category": "action",
+      "name": "issues_archive",
+      "rationale": "Archive an Issue (destructive+idempotent per _archive Appendix B verb pattern; preserves audit trail vs delete).",
+      "source_endpoints": ["POST /graphql (issueArchive)"]
+    },
+    {
+      "category": "action",
+      "name": "cycles_advance",
+      "rationale": "Roll the active Cycle forward (not idempotent — advancing twice produces side effects).",
+      "source_endpoints": ["POST /graphql (cycleAdvance)"]
+    }
+  ]
+}

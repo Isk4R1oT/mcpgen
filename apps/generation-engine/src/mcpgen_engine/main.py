@@ -1,7 +1,8 @@
 """MCPGen generation engine — FastAPI entrypoint.
 
 Phase 1: scaffold only. /health returns 200; no Pass code wired.
-Phase 2+ wires POST /api/v1/generate handler.
+Phase 2: wires POST /api/v1/generate + GET /api/v1/generate/{job_id}/stream
+via ``api.generate.router``.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from typing import TYPE_CHECKING
 import sentry_sdk
 from fastapi import FastAPI
 
+from .api import generate as generate_api
 from .observability import configure_langfuse_otel
 
 if TYPE_CHECKING:
@@ -64,6 +66,9 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    # Phase 2: POST /api/v1/generate + GET /api/v1/generate/{job_id}/stream.
+    app.include_router(generate_api.router)
 
     return app
 

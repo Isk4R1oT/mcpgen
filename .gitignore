@@ -54,3 +54,6 @@ playwright-report/
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
+
+# Phase 2 — engine cache (filesystem L1/L2/L3 per D-39)
+.cache/mcpgen/

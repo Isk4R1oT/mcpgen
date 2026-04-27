@@ -1,0 +1,136 @@
+{
+  "auth_requirements": {
+    "GET /api/conversations.history": [
+      { "notes": "Slack OAuth bearer token (xoxb-... bot or xoxp-... user).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /api/conversations.info": [
+      { "notes": "Slack OAuth bearer token (xoxb-... bot or xoxp-... user).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /api/conversations.list": [
+      { "notes": "Slack OAuth bearer token (xoxb-... bot or xoxp-... user).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /api/search.messages": [
+      { "notes": "Slack OAuth bearer token with search:read scope (user token only).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /api/users.info": [
+      { "notes": "Slack OAuth bearer token (xoxb-... bot or xoxp-... user).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "GET /api/users.list": [
+      { "notes": "Slack OAuth bearer token (xoxb-... bot or xoxp-... user).", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /api/chat.delete": [
+      { "notes": "Slack OAuth bearer token with chat:write scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /api/chat.postMessage": [
+      { "notes": "Slack OAuth bearer token with chat:write scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /api/chat.update": [
+      { "notes": "Slack OAuth bearer token with chat:write scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ],
+    "POST /api/conversations.archive": [
+      { "notes": "Slack OAuth bearer token with channels:manage scope.", "recommended_mode": "passthrough", "scheme": "http_bearer" }
+    ]
+  },
+  "composite_candidates": [
+    {
+      "name": "send_with_thread_followup",
+      "rationale": "Post a parent message and immediately add a threaded follow-up reply — common pattern for context-rich announcements. Sub-op 1 is non-rollbackable (a posted message cannot be unposted atomically); use partial_failure_strategy='report'.",
+      "steps": ["POST /api/chat.postMessage", "POST /api/chat.postMessage"]
+    }
+  ],
+  "dropped_endpoints": [
+    {
+      "can_user_override": true,
+      "method": "POST",
+      "path": "/api/files.upload",
+      "reason": "LOW_VALUE"
+    },
+    {
+      "can_user_override": false,
+      "method": "POST",
+      "path": "/api/admin.users.invite",
+      "reason": "LOW_VALUE"
+    },
+    {
+      "can_user_override": false,
+      "method": "POST",
+      "path": "/api/auth.test",
+      "reason": "AUTH_FLOW"
+    }
+  ],
+  "prompt_injection_warnings": [],
+  "target_complexity": "standard",
+  "tool_plans": [
+    {
+      "category": "search",
+      "name": "messages_search",
+      "rationale": "Search messages and channels and users by free-text query and return ranked smart IDs.",
+      "source_endpoints": [
+        "GET /api/search.messages",
+        "GET /api/conversations.list",
+        "GET /api/users.list"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "objects_fetch",
+      "rationale": "Retrieve a single Channel, User, or Message by smart ID.",
+      "source_endpoints": [
+        "GET /api/conversations.info",
+        "GET /api/users.info",
+        "GET /api/conversations.history"
+      ]
+    },
+    {
+      "category": "crud",
+      "name": "collections_list",
+      "rationale": "Discover top-level collections (Channels) for the workspace.",
+      "source_endpoints": ["GET /api/conversations.list"]
+    },
+    {
+      "category": "crud",
+      "name": "objects_list",
+      "rationale": "List Messages within a Channel with cursor pagination (response_metadata.next_cursor).",
+      "source_endpoints": ["GET /api/conversations.history"]
+    },
+    {
+      "category": "crud",
+      "name": "objects_upsert",
+      "rationale": "Create a new Message (chat.postMessage) or update an existing one (chat.update).",
+      "source_endpoints": ["POST /api/chat.postMessage", "POST /api/chat.update"]
+    },
+    {
+      "category": "crud",
+      "name": "objects_delete",
+      "rationale": "Delete a Message (chat.delete). Channels are archived, not deleted (use channels_archive).",
+      "source_endpoints": ["POST /api/chat.delete"]
+    },
+    {
+      "category": "action",
+      "name": "messages_send",
+      "rationale": "Send a Message (medium-confidence _send pattern; not idempotent — resending creates a duplicate). Distinct semantics from upsert because it is the canonical user intent.",
+      "source_endpoints": ["POST /api/chat.postMessage"]
+    },
+    {
+      "category": "action",
+      "name": "messages_edit",
+      "rationale": "Edit an existing Message (idempotent — re-applying same edit is a no-op per Slack semantics).",
+      "source_endpoints": ["POST /api/chat.update"]
+    },
+    {
+      "category": "action",
+      "name": "channels_archive",
+      "rationale": "Archive a Channel (destructive+idempotent per _archive Appendix B verb pattern; Slack's canonical 'remove channel' since channels cannot be hard-deleted).",
+      "source_endpoints": ["POST /api/conversations.archive"]
+    },
+    {
+      "category": "workflow",
+      "name": "send_with_thread_followup",
+      "rationale": "Multi-step workflow: post parent message, then post threaded reply. Conservative aggregation: !destructive, !idempotent (sub-op 1 dominates), partial_failure_strategy='report' (cannot atomically rollback a posted parent message).",
+      "source_endpoints": [
+        "POST /api/chat.postMessage (parent)",
+        "POST /api/chat.postMessage (with thread_ts)"
+      ]
+    }
+  ]
+}

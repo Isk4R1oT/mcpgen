@@ -2,7 +2,19 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
+
+# Module-level env priming: when a test module imports `mcpgen_engine.llm.*`
+# at top level (e.g. test_smoke_qwen.py imports `make_agent` which transitively
+# constructs the MODEL singleton at import time), the per-test `_sandbox_env`
+# autouse fixture below runs too late — it triggers at test SETUP, not at
+# module IMPORT. We therefore set the placeholder here at conftest load so
+# that downstream test-module imports succeed. Tests that need to verify
+# fail-fast behavior on missing key (test_llm_client.py) delenv inside the
+# test body and rely on importlib.reload — that path is unchanged.
+os.environ.setdefault("OPENROUTER_API_KEY", "sk-or-test-PLACEHOLDER")
 
 
 @pytest.fixture(autouse=True)
