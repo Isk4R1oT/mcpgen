@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:inngest": "npx --ignore-scripts=false inngest-cli@latest dev -u http://localhost:8787/api/inngest",
     "build": "tsc --noEmit",
     "deploy": "wrangler deploy --upload-source-maps",
     "typecheck": "tsc --noEmit",
@@ -20,7 +21,10 @@
     "drizzle-orm": "^0.45.2",
     "@neondatabase/serverless": "^1.1.0",
     "inngest": "^4.2.4",
-    "@logto/node": "^3.1.10",
+    "jose": "^6.2.2",
+    "resend": "^6.12.2",
+    "stripe": "^22.1.0",
+    "@mcpgen/engine-fixtures": "workspace:*",
     "@sentry/cloudflare": "^10.50.0",
     "ulid": "^2.4.0"
   },

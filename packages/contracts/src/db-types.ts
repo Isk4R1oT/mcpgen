@@ -8,13 +8,19 @@
 
 import type {
   deployments,
+  drift_email_log,
+  drift_events,
   generations,
+  mau_log,
   organizations,
   pending_callbacks,
   projects,
+  reconciliation_log,
   specs,
+  subscription_events,
   tools,
   usage_events,
+  usage_events_outbox,
   users,
 } from './db-schema.js';
 
@@ -44,3 +50,22 @@ export type NewPendingCallback = typeof pending_callbacks.$inferInsert;
 
 export type UsageEventRow = typeof usage_events.$inferSelect;
 export type NewUsageEventRow = typeof usage_events.$inferInsert;
+
+// ─── Phase 8 ────────────────────────────────────────────────────────────────
+export type SubscriptionEvent = typeof subscription_events.$inferSelect;
+export type NewSubscriptionEvent = typeof subscription_events.$inferInsert;
+
+export type DriftEvent = typeof drift_events.$inferSelect;
+export type NewDriftEvent = typeof drift_events.$inferInsert;
+
+export type DriftEmailLog = typeof drift_email_log.$inferSelect;
+export type NewDriftEmailLog = typeof drift_email_log.$inferInsert;
+
+export type UsageEventOutbox = typeof usage_events_outbox.$inferSelect;
+export type NewUsageEventOutbox = typeof usage_events_outbox.$inferInsert;
+
+export type ReconciliationLog = typeof reconciliation_log.$inferSelect;
+export type NewReconciliationLog = typeof reconciliation_log.$inferInsert;
+
+export type MauLog = typeof mau_log.$inferSelect;
+export type NewMauLog = typeof mau_log.$inferInsert;

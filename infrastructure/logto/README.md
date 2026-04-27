@@ -32,8 +32,15 @@ downstream apps depend on these names exactly.
 | `LOGTO_APP_ID`     | Logto Console → Applications → "MCPGen Web" → App ID                                    | `apps/web` (OIDC client)                 |
 | `LOGTO_APP_SECRET` | Same dialog → App Secret. **Never commit; never log.**                                 | `apps/web` (OIDC client)                 |
 
-For the M2M app (engine ↔ BFF callbacks), an additional pair lives under
-`LOGTO_M2M_*` once Phase 2 wires it; not used in Phase 1.
+For the M2M app (engine ↔ BFF callbacks), an additional triple lives under
+`LOGTO_M2M_*` (added Phase 8 Wave 1 — used by `apps/api/src/lib/m2m-token.ts`
+and `apps/api/src/middleware/auth.ts`):
+
+| Var                              | Source                                                                                         | Used by                                  |
+| -------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `LOGTO_M2M_APP_ID`               | Logto Console → Applications → "MCPGen Engine M2M" (Phase 8) → App ID                          | `apps/api` (M2M client_credentials grant)|
+| `LOGTO_M2M_APP_SECRET`           | Same dialog → App Secret. **Never commit; never log.**                                         | `apps/api` (M2M client_credentials grant)|
+| `LOGTO_M2M_RESOURCE_INDICATOR`   | Logto Console → API Resources → `https://api.mcpgen.dev/m2m` → Resource Indicator              | `apps/api` (M2M JWT audience)            |
 
 ## Reachability check
 

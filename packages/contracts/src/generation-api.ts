@@ -80,6 +80,42 @@ export const EngineCallbackEnvelope = z.object({
 export type EngineCallbackEnvelope = z.infer<typeof EngineCallbackEnvelope>;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Phase 8 D-13: typed `partial_result` shapes (additive — backward-compat with
+// the `partial_result: z.record(...).optional()` field above).
+//
+// `PartialResultCost` is the cost-update shape engine streams to BFF after each
+// pass. BFF's /internal/v1/sse-callback dispatches into the cost-cap-enforcer
+// Inngest function on every cost_update event. References:
+//   - .planning/phases/08-auth-billing/08-CONTEXT.md D-13
+//   - .planning/phases/08-auth-billing/08-RESEARCH.md §12
+//   - apps/api/src/inngest/functions/cost-cap-enforcer.ts (consumer)
+// ─────────────────────────────────────────────────────────────────────────────
+export const PartialResultCost = z.object({
+  type: z.literal('cost_update'),
+  pass_name: z.enum([
+    'pass_0',
+    'pass_1',
+    'pass_2',
+    'pass_3',
+    'pass_4',
+    'pass_5',
+    'stage_e',
+    'stage_f1',
+    'stage_f2',
+    'stage_f3',
+  ]),
+  pass_cost_usd: z.number().nonnegative(),
+  cumulative_cost_usd: z.number().nonnegative(),
+});
+export type PartialResultCost = z.infer<typeof PartialResultCost>;
+
+export const PartialResult = z.discriminatedUnion('type', [
+  PartialResultCost,
+  // future partial-result shapes added by other passes
+]);
+export type PartialResult = z.infer<typeof PartialResult>;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // `POST /api/v1/generate` request/response
 // ─────────────────────────────────────────────────────────────────────────────
 export const TargetComplexity = z.enum(['minimal', 'standard', 'comprehensive']);

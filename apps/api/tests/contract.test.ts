@@ -6,20 +6,38 @@
 //   - GET /health/launch-criteria → matches @mcpgen/contracts LAUNCH_CRITERIA
 //   - POST /api/v1/generate → 501 with Idempotency-Key echo + contract_version
 //   - GET /api/v1/jobs/:id/stream → text/event-stream content-type
+//
+// Phase 8 update: /api/v1/* is now JWT-protected; tests carry a mocked-jose
+// Bearer token + AppEnv bindings so the auth middleware admits the request and
+// the original 501 contract still exercises.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('jose', () => ({
+  createRemoteJWKSet: () => () => ({}),
+  jwtVerify: vi.fn(async () => ({ payload: { aud: 'http://localhost:3000', sub: 'u' } })),
+}));
 
 import { LAUNCH_CRITERIA } from '@mcpgen/contracts';
-import app from '../src/index.js';
+const app = (await import('../src/index.js')).default;
+
+const ENV = {
+  LOGTO_ENDPOINT: 'https://logto.test',
+  LOGTO_BASE_URL: 'http://localhost:3000',
+  LOGTO_M2M_RESOURCE_INDICATOR: 'https://api.mcpgen.dev/m2m',
+  HYPERDRIVE: {} as Hyperdrive,
+  SENTRY_DSN: '',
+  ENVIRONMENT: 'test',
+};
 
 describe('apps/api contract', () => {
   it('GET /health returns 200', async () => {
-    const res = await app.fetch(new Request('http://localhost/health'));
+    const res = await app.fetch(new Request('http://localhost/health'), ENV);
     expect(res.status).toBe(200);
   });
 
   it('GET /health/launch-criteria returns the runtime constants', async () => {
-    const res = await app.fetch(new Request('http://localhost/health/launch-criteria'));
+    const res = await app.fetch(new Request('http://localhost/health/launch-criteria'), ENV);
     expect(res.status).toBe(200);
     const body = (await res.json()) as typeof LAUNCH_CRITERIA;
     expect(body.F2_SMELL_MIN).toBe(LAUNCH_CRITERIA.F2_SMELL_MIN);
@@ -35,9 +53,11 @@ describe('apps/api contract', () => {
         headers: {
           'Idempotency-Key': TEST_ULID,
           'Content-Type': 'application/json',
+          Authorization: 'Bearer test-jwt',
         },
         body: JSON.stringify({ spec_url: 'https://example.com/spec.json' }),
       }),
+      ENV,
     );
     expect(res.status).toBe(501);
     const body = (await res.json()) as {
@@ -55,9 +75,10 @@ describe('apps/api contract', () => {
       new Request(
         'http://localhost/api/v1/jobs/gen_01HXAAAAAAAAAAAAAAAAAAAAA3/stream',
         {
-          headers: { 'Last-Event-ID': '01HXAAAAAAAAAAAAAAAAAAAAA0' },
+          headers: { 'Last-Event-ID': '01HXAAAAAAAAAAAAAAAAAAAAA0', Authorization: 'Bearer test-jwt' },
         },
       ),
+      ENV,
     );
     expect(res.headers.get('content-type')).toMatch(/text\/event-stream/);
   });

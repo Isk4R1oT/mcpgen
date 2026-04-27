@@ -22,6 +22,9 @@ __pycache__/
 # Build artifacts
 .wrangler/
 packages/ir/build/
+
+# Phase 8 — Local storage (LocalFsStorageAdapter; D-23 / CTRL-05)
+.local-storage/
 # Note: packages/ir/python/ is intentionally NOT ignored — it is committed
 # (Pydantic codegen output per CONTEXT specifics + D-02).
 

@@ -10,7 +10,10 @@
     "./generation-api": "./src/generation-api.ts",
     "./usage-event": "./src/usage-event.ts",
     "./launch-criteria": "./src/launch-criteria.ts",
-    "./idempotency": "./src/idempotency.ts"
+    "./idempotency": "./src/idempotency.ts",
+    "./db-schema": "./src/db-schema.ts",
+    "./billing-types": "./src/billing-types.ts",
+    "./inngest-functions": "./src/inngest-functions.ts"
   },
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json",

@@ -21,6 +21,7 @@
 import {
   boolean,
   customType,
+  date,
   index,
   integer,
   jsonb,
@@ -54,8 +55,11 @@ export const organizations = pgTable('organizations', {
   logto_org_id: text('logto_org_id').notNull().unique(),
   name: text('name').notNull(),
   plan_tier: text('plan_tier').notNull().default('free'), // free | pro | team | enterprise
-  stripe_customer_id: text('stripe_customer_id'),
+  stripe_customer_id: text('stripe_customer_id').unique(), // Phase 8: tightened to UNIQUE
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  // ─── Phase 8 additions ───────────────────────────────────────────
+  subscription_status: text('subscription_status'), // null | active | past_due | canceled | etc.
+  quota_period_start: timestamp('quota_period_start', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const users = pgTable('users', {
@@ -93,6 +97,8 @@ export const specs = pgTable(
     r2_key: text('r2_key'), // points at mcpgen-specs/<hash>
     endpoint_count: integer('endpoint_count').notNull(),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    // ─── Phase 8 additions ───────────────────────────────────────────
+    parsed_ir_jsonb: jsonb('parsed_ir_jsonb'), // cached Stage A IR for drift compare
   },
   (t) => ({
     projectIdHashIdx: uniqueIndex('specs_project_hash_idx').on(t.project_id, t.content_hash),
@@ -121,6 +127,10 @@ export const generations = pgTable('generations', {
   llm_cost_breakdown: jsonb('llm_cost_breakdown'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  // ─── Phase 8 additions ───────────────────────────────────────────
+  // CHECK constraint (triggered_by IN ('user', 'drift_auto', 'drift_manual')) lives in migration SQL.
+  cumulative_cost_usd: numeric('cumulative_cost_usd', { precision: 10, scale: 4 }).notNull().default('0'),
+  triggered_by: text('triggered_by').notNull().default('user'),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -142,6 +152,8 @@ export const deployments = pgTable('deployments', {
   auth_mode: text('auth_mode').notNull(), // passthrough | stored | oauth
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   local_port: integer('local_port'), // Phase 6: local-compute port (null for Phase-10 CF deploys)
+  // ─── Phase 8 additions ───────────────────────────────────────────
+  auto_regenerate_on_drift: boolean('auto_regenerate_on_drift').notNull().default(false),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -233,3 +245,100 @@ export const usage_events = pgTable(
     ),
   }),
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 8 — Billing
+//
+// Stripe webhook event log; idempotency via UNIQUE on stripe_event_id.
+// CHECK (status IN ('received', 'processed', 'error')) added in migration SQL.
+// ─────────────────────────────────────────────────────────────────────────────
+export const subscription_events = pgTable(
+  'subscription_events',
+  {
+    id: text('id').primaryKey(), // ULID
+    organization_id: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
+    event_type: text('event_type').notNull(),
+    stripe_event_id: text('stripe_event_id').notNull().unique(),
+    payload: jsonb('payload').notNull(),
+    received_at: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    processed_at: timestamp('processed_at', { withTimezone: true }),
+    status: text('status').notNull().default('received'),
+    error_message: text('error_message'),
+  },
+  (t) => ({
+    orgReceivedIdx: index('subscription_events_org_received_idx').on(t.organization_id, t.received_at),
+  }),
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 8 — Drift Watcher
+//
+// CHECK (status IN ('pending', 'reviewing', 'regenerating', 'resolved', 'dismissed'))
+// lives in migration SQL.
+// ─────────────────────────────────────────────────────────────────────────────
+export const drift_events = pgTable(
+  'drift_events',
+  {
+    id: text('id').primaryKey(), // ULID
+    deployment_id: uuid('deployment_id').notNull().references(() => deployments.id, { onDelete: 'cascade' }),
+    detected_at: timestamp('detected_at', { withTimezone: true }).notNull().defaultNow(),
+    diff_json: jsonb('diff_json').notNull(),
+    status: text('status').notNull().default('pending'),
+    resolved_at: timestamp('resolved_at', { withTimezone: true }),
+    resolved_by_generation_id: uuid('resolved_by_generation_id').references(() => generations.id, { onDelete: 'set null' }),
+  },
+  (t) => ({
+    deploymentDetectedIdx: index('drift_events_deployment_detected_idx').on(t.deployment_id, t.detected_at),
+  }),
+);
+
+// drift_email_log — one row per (tenant, ISO-week) for weekly digest dedup.
+export const drift_email_log = pgTable(
+  'drift_email_log',
+  {
+    tenant_id: uuid('tenant_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    week_start: date('week_start').notNull(), // ISO week starting Monday 00:00 UTC
+    sent_at: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+    drift_event_count: integer('drift_event_count').notNull().default(1),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.tenant_id, t.week_start] }) }),
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 8 — Usage outbox + reconciliation
+// ─────────────────────────────────────────────────────────────────────────────
+export const usage_events_outbox = pgTable('usage_events_outbox', {
+  id: text('id').primaryKey(), // ULID
+  deployment_id: uuid('deployment_id').notNull().references(() => deployments.id, { onDelete: 'cascade' }),
+  event_type: text('event_type').notNull(),
+  event_payload: jsonb('event_payload').notNull(),
+  idempotency_key: text('idempotency_key').notNull().unique(),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  sent_at: timestamp('sent_at', { withTimezone: true }),
+});
+
+export const reconciliation_log = pgTable(
+  'reconciliation_log',
+  {
+    id: text('id').primaryKey(), // ULID
+    reconciliation_date: date('reconciliation_date').notNull(),
+    event_type: text('event_type').notNull(),
+    tenant_id: uuid('tenant_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    timescale_count: integer('timescale_count').notNull(),
+    stripe_count: integer('stripe_count').notNull(),
+    drift_pct: numeric('drift_pct', { precision: 6, scale: 3 }).notNull(),
+    alerted: boolean('alerted').notNull().default(false),
+    run_at: timestamp('run_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({ uq: uniqueIndex('reconciliation_log_unique').on(t.reconciliation_date, t.event_type, t.tenant_id) }),
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 8 — Logto MAU sample
+// ─────────────────────────────────────────────────────────────────────────────
+export const mau_log = pgTable('mau_log', {
+  sample_date: date('sample_date').primaryKey(),
+  mau_count: integer('mau_count').notNull(),
+  alerted: boolean('alerted').notNull().default(false),
+  sampled_at: timestamp('sampled_at', { withTimezone: true }).notNull().defaultNow(),
+});

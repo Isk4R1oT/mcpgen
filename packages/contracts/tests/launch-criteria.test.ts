@@ -33,6 +33,14 @@ describe('LAUNCH_CRITERIA constants (D-13 / Pitfall #29)', () => {
     expect(LAUNCH_CRITERIA.COVERAGE_PCT_MIN).toBe(100);
   });
 
+  it('COST_CAP_FREE_USD === 0.50 (Phase 8 D-13)', () => {
+    expect(LAUNCH_CRITERIA.COST_CAP_FREE_USD).toBe(0.5);
+  });
+
+  it('COST_CAP_PRO_USD === 2.00 (Phase 8 D-13)', () => {
+    expect(LAUNCH_CRITERIA.COST_CAP_PRO_USD).toBe(2.0);
+  });
+
   it('values are readonly at the type level (`as const` assertion)', () => {
     // TS would error at compile-time on a mutation. Round-trip the value to
     // ensure the runtime object is also defensively shape-stable.
@@ -43,6 +51,8 @@ describe('LAUNCH_CRITERIA constants (D-13 / Pitfall #29)', () => {
     expect(snapshot).toContain('"WARN_KB":950');
     expect(snapshot).toContain('"FAIL_KB_EXCLUSIVE":950');
     expect(snapshot).toContain('"COVERAGE_PCT_MIN":100');
+    expect(snapshot).toContain('"COST_CAP_FREE_USD":0.5');
+    expect(snapshot).toContain('"COST_CAP_PRO_USD":2');
   });
 });
 
@@ -61,10 +71,12 @@ describe('Cross-doc consistency vs source-of-truth docs', () => {
   const REPO_ROOT = join(HERE, '..', '..', '..');
   const STAGE_F_DOC = join(REPO_ROOT, 'docs', 'mcpgen-stage-f-design.md');
   const CLAUDE_DOC = join(REPO_ROOT, 'CLAUDE.md');
+  const ARCHITECTURE_DOC = join(REPO_ROOT, 'docs', 'mcpgen-architecture.md');
 
   it('canonical docs are readable from the test runtime', () => {
     expect(() => readFileSync(STAGE_F_DOC, 'utf8')).not.toThrow();
     expect(() => readFileSync(CLAUDE_DOC, 'utf8')).not.toThrow();
+    expect(() => readFileSync(ARCHITECTURE_DOC, 'utf8')).not.toThrow();
   });
 
   it('Stage F design doc states F2 score ≥ 4.0', () => {
@@ -89,5 +101,17 @@ describe('Cross-doc consistency vs source-of-truth docs', () => {
     const text = readFileSync(CLAUDE_DOC, 'utf8');
     // Literal in CLAUDE.md: "pass rate ≥0.7".
     expect(/pass\s*rate\s*≥\s*0\.7/i.test(text)).toBe(true);
+  });
+
+  it('CLAUDE.md cites the same cost cap $0.50 free / $2.00 pro (Phase 8 D-13)', () => {
+    const text = readFileSync(CLAUDE_DOC, 'utf8');
+    // Literal in CLAUDE.md §11.7 / §3.4: "Cost cap: $0.50 free / $2.00 pro per generation".
+    expect(/\$0\.50\s+free\s*\/\s*\$2\.00\s+pro/i.test(text)).toBe(true);
+  });
+
+  it('mcpgen-architecture.md cites the same cost cap $0.50 free / $2.00 pro (Phase 8 D-13)', () => {
+    const text = readFileSync(ARCHITECTURE_DOC, 'utf8');
+    // Literal in architecture §10: "cost cap $0.50 free / $2.00 pro".
+    expect(/cost\s+cap\s+\$0\.50\s+free\s*\/\s*\$2\.00\s+pro/i.test(text)).toBe(true);
   });
 });

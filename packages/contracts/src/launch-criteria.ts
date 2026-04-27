@@ -18,12 +18,18 @@
 //   - F3 agent eval: success rate ≥ 70% on golden tasks for popular APIs
 //   - Bundle size: PASS ≤ 800 KB; WARN ≤ 950 KB; FAIL > 950 KB (CF Workers margin)
 //   - Coverage: 100% (Pass 1 must not lose endpoints)
+//   - Cost cap: $0.50 free / $2.00 pro per generation (docs/mcpgen-architecture.md §10;
+//     CLAUDE.md "Cost cap: $0.50 free / $2.00 pro per generation. Превышение → hard
+//     fail с partial result + bill"). Phase 8 D-13.
 //
 // References:
 //   - docs/mcpgen-implementation-plan.md §11.7 (launch criteria spec)
+//   - docs/mcpgen-architecture.md §10 (billing + cost cap canonical source)
 //   - .planning/phases/01-foundation/01-CONTEXT.md D-13 (runtime constants)
+//   - .planning/phases/08-auth-billing/08-CONTEXT.md D-13 (Phase 8 cost-cap)
 //   - .planning/phases/01-foundation/01-PATTERNS.md "launch-criteria.ts"
 //   - .pre-commit-hooks/launch-criteria-paired-decision.sh (paired-decision guard)
+//   - docs/decisions/2026-04-26-cost-cap-thresholds.md (Phase 8 D-13 paired entry)
 
 export const LAUNCH_CRITERIA = {
   F2_SMELL_MIN: 4.0,
@@ -34,6 +40,9 @@ export const LAUNCH_CRITERIA = {
     FAIL_KB_EXCLUSIVE: 950,
   },
   COVERAGE_PCT_MIN: 100,
+  // Phase 8 D-13 — paired with docs/decisions/2026-04-26-cost-cap-thresholds.md
+  COST_CAP_FREE_USD: 0.50,
+  COST_CAP_PRO_USD: 2.00,
 } as const;
 
 export type LaunchCriteria = typeof LAUNCH_CRITERIA;

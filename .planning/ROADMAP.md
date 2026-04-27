@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: Generation Engine — Validation (Stage F)** - F1 static + F2 smell scan (Qwen 5-shuffle) + F3 agent eval against golden tasks
 - [x] **Phase 6: Runtime Plane** - Dispatch Worker + tenant Workers + 3 auth modes + usage event pipeline with KV fallback (completed 2026-04-27 — see `06-PHASE-VERIFICATION.md`)
 - [ ] **Phase 7: Frontend Wire-Up** - Wire locked Claude-Design UI to Generation API + SSE + dashboard (NO visual changes)
-- [ ] **Phase 8: Auth + Billing** - Logto (email + GitHub) + Stripe Meters + quotas + cost cap + Drift Watcher with IR-diff
+- [x] **Phase 8: Auth + Billing** - Logto (email + GitHub) + Stripe Meters + quotas + cost cap + Drift Watcher with IR-diff (completed 2026-04-28)
 - [ ] **Phase 9: Observability & Polish** - Sentry/Langfuse/BetterStack integrated + cross-tenant fuzz + multi-client smoke + Inngest orphan audit
 - [ ] **Phase 10: Launch** - Quickstart docs validated externally + Privacy/ToS/Pricing + soft launch W7 → public W9
 
@@ -154,7 +154,12 @@ Plans:
   2. Drizzle migrations cover the full data model on Neon Postgres 16 + TimescaleDB + pgvector with Scale-tier compute (≥4 vCPU, 8GB) for production: organizations → users → projects → specs → generations → deployments → tools (with pgvector embedding); R2 holds three buckets (`mcpgen-specs`, `mcpgen-artifacts` 30-day TTL, `mcpgen-public-cache`) with no PII or credentials persisted
   3. Stripe products + prices + webhook handler wire Free / Pro / PAYG; per-generation cost cap is enforced server-side (engine + BFF + Stripe quota); cost cap exceeded → hard fail with partial result + bill, never silent overrun; quota enforcement uses TimescaleDB hourly aggregates as real-time quota truth with daily Stripe Meters reconciliation alerting on >2% drift
   4. Drift Watcher Inngest cron (daily 02:00 UTC) compares parsed IR (not raw spec content hash) and surfaces semantic diff (added / removed / changed endpoints / parameters) in the UI with manual-review / one-click-regenerate / auto-regenerate-toggle (auto = opt-in only); Resend per-recipient email rate-limit max 1 drift email/week
-**Plans**: TBD
+**Plans**: 5 plans across 5 waves
+- [x] 08-01-PLAN.md — Auth middleware + DB migration + Storage adapter + Outbox table + Inngest scaffold ✓ 2026-04-27
+- [x] 08-02-PLAN.md — Stripe products+webhook+outbox poller (mocked Stripe) ✓ 2026-04-27
+- [x] 08-03-PLAN.md — Real Stripe + Checkout + cost-cap + quota ✓ 2026-04-27
+- [x] 08-04-PLAN.md — Drift Watcher + reconciliation + MAU + Resend wiring ✓ 2026-04-28
+- [x] 08-05-PLAN.md — E2E billing flow + verifier-agent gates + phase-level summary (pre-Phase-6 path complete; post-Phase-6 re-verification deferred) ✓ 2026-04-28
 
 ### Phase 9: Observability & Polish
 **Workstream**: `main`
@@ -197,7 +202,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 | 5. Generation Engine — Validation (Stage F) | 0/TBD | Not started | - |
 | 6. Runtime Plane | 0/TBD | Not started | - |
 | 7. Frontend Wire-Up | 0/TBD | Not started | - |
-| 8. Auth + Billing | 0/TBD | Not started | - |
+| 8. Auth + Billing | 5/5 | Complete | 2026-04-28 |
 | 9. Observability & Polish | 0/TBD | Not started | - |
 | 10. Launch | 0/TBD | Not started | - |
 

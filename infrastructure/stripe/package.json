@@ -1,0 +1,16 @@
+{
+  "name": "@mcpgen/infrastructure-stripe",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "stripe": "^22.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^6.0.3"
+  }
+}
