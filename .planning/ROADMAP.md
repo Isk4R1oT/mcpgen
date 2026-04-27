@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Generation Engine — Author (Pass 2+3+4)** - Description authoring, parameter specification, annotations inference
 - [ ] **Phase 4: Generation Engine — Shape & Codegen (Pass 5 + Stage E)** - Response shaping + ~25–30-file deterministic Jinja2 codegen with bundle-size + DNS-rebinding gates
 - [ ] **Phase 5: Generation Engine — Validation (Stage F)** - F1 static + F2 smell scan (Qwen 5-shuffle) + F3 agent eval against golden tasks
-- [ ] **Phase 6: Runtime Plane** - Dispatch Worker + tenant Workers + 3 auth modes + usage event pipeline with KV fallback
+- [x] **Phase 6: Runtime Plane** - Dispatch Worker + tenant Workers + 3 auth modes + usage event pipeline with KV fallback (completed 2026-04-27 — see `06-PHASE-VERIFICATION.md`)
 - [ ] **Phase 7: Frontend Wire-Up** - Wire locked Claude-Design UI to Generation API + SSE + dashboard (NO visual changes)
 - [ ] **Phase 8: Auth + Billing** - Logto (email + GitHub) + Stripe Meters + quotas + cost cap + Drift Watcher with IR-diff
 - [ ] **Phase 9: Observability & Polish** - Sentry/Langfuse/BetterStack integrated + cross-tenant fuzz + multi-client smoke + Inngest orphan audit
@@ -118,7 +118,16 @@ Plans:
   3. Pass-through credentials (default) decrypt `X-Upstream-Auth` per request via HKDF-derived key, never persist; stored credentials (alt) use AES-256-GCM with per-tenant DEK in CF KV and require explicit user opt-in checkbox marked "less secure"; OAuth 2.1 mode wires `@cloudflare/workers-oauth-provider` with PKCE and Logto-managed tokens
   4. P99 over upstream stays <50ms on warm starts for the sample tenant Worker; cold starts are amortized via warm-keep cron every 5 min for active tenants; usage events emit via `ctx.waitUntil(queue.send(...))` with a KV fallback bucket on send failure; daily reconciliation job aligns TimescaleDB hypertable counts with Stripe Meters within 0.5%
   5. `mcpgen deploy` ships a generated server to CF Workers for Platforms (script-name = `{tenant}-{spec_slug}`) and returns a live URL; one-click Claude Desktop config block is generated with collision detection against existing config entries; CLI ships as Bun-compiled single binary on npm + GitHub releases for `bun-darwin-arm64`, `bun-darwin-x64`, `bun-linux-x64`, `bun-windows-x64`
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+- [x] 06-00-PLAN.md — Wave 0: 2 schema migrations (local_port + idempotency_key) + scaffolds for tenant-worker-runner / inngest-dev / tests/runtime + cross-package fixtures [BLOCKING] [Wave 0] ✓ 2026-04-27
+- [x] 06-01-PLAN.md — Dispatch routing + 6 middleware (host-header / auth / rate-limit / tenant-lookup / capability-gate / smart-ID fuzz) + multi-port forward (RUN-01) [Wave 1] ✓ 2026-04-27
+- [x] 06-02-PLAN.md — @mcpgen/runtime real implementations (11 frozen methods) + apps/tenant-worker-runner supervisor + apps/dispatch-sample wire-through (RUN-02) [Wave 2] ✓ 2026-04-27
+- [x] 06-03-PLAN.md — 3 auth modes (passthrough HKDF default + stored AES-256-GCM + OAuth stub) + Sentry redaction + PII leak audit (RUN-03 / RUN-04 / RUN-05) [Wave 3] ✓ 2026-04-27
+- [x] 06-04-PLAN.md — Usage event pipeline + 4 stable-id Inngest functions (usage-events-ingest-v1 / usage-fallback-drain-v1 / usage-reconciler-v1 / warm-keep-active-tenants-v1) (RUN-06 + CTRL-09) [Wave 4] ✓ 2026-04-27
+- [x] 06-05-PLAN.md — mcpgen deploy CLI + --cf exit-78 deferral + Claude Desktop config block with collision detection + 4-target Bun-compile binary CI matrix (CLI-02 + CLI-03 + RUN-07) [Wave 4] ✓ 2026-04-27
+- [x] 06-06-PLAN.md — P99 < 50ms load harness + warm-keep round-trip + Phase-6 acceptance E2E + runtime-ci.yml + 06-PHASE-VERIFICATION.md (RUN-02 closure) [Wave 5] ✓ 2026-04-27
 
 ### Phase 7: Frontend Wire-Up
 **Workstream**: `frontend`

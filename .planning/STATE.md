@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_plan
-stopped_at: "Completed 01-08-PLAN.md (modified scope: local Bun SSE spike PASS + fresh-clone E2E green + Phase-1 verification + phase-level SUMMARY). FND-15 complete; phase awaits verifier-agent run before marking complete."
-last_updated: "2026-04-26T15:45:53.791Z"
-last_activity: 2026-04-26
+status: executing
+stopped_at: Completed 06-06-PLAN.md
+last_updated: "2026-04-27T16:26:24.252Z"
+last_activity: 2026-04-27
 progress:
   total_phases: 10
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 9
-  percent: 20
+  total_plans: 15
+  completed_plans: 17
+  percent: 100
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-26)
 
 **Core value:** Generated MCP servers measurably outperform hand-written ones on agent task success rate — paste an OpenAPI URL → 60 seconds later you have a deployed MCP server that scores ≥4.0 on F2 smell rubric and ≥70% F3 agent task success on golden tasks for that API.
-**Current focus:** Phase 1 — Foundation
+**Current focus:** Phase 06 — runtime-plane
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-04-26
+Phase: 06 (runtime-plane) — EXECUTING
+Plan: 6 of 7
+Status: Ready to execute
+Last activity: 2026-04-27
 
 Progress: [██████████] 100%
 
@@ -60,6 +60,11 @@ Progress: [██████████] 100%
 | Phase 01 P06 | 13min | 3 tasks | 19 files |
 | Phase 01 P07 | 16min | 3 tasks | 36 files |
 | Phase 01-foundation P08 | 25 | 4 tasks | 5 files |
+| Phase 06 P02 | 25min | 3 tasks | 30 files |
+| Phase 06-runtime-plane P03 | 11 | 3 tasks | 14 files |
+| Phase 06 P05 | 10min | 3 tasks tasks | 11 files files |
+| Phase 06-runtime-plane P04 | 25min | 3 tasks | 18 files |
+| Phase 06-runtime-plane P06 | 25min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -108,6 +113,18 @@ Recent decisions affecting current work:
 - Plan 01-08: Phase-10 launch-criteria gate constants (real-CF SSE spike + Fly cold-start) NOT added to launch-criteria.ts in Phase 1 — adding them now would create false-valued constants gating every Phase 2-9 build; Phase 10 owns the addition + verification together (paired decision per T-1-03)
 - Plan 01-08: Rule-1 fix committed CLAUDE.md + RULES.md + 11× docs/mcpgen-*.md + claude-design-ui/ to git (commit 1de0589) — these were authored before any phase started but never landed in git, so packages/contracts/tests/launch-criteria.test.ts ENOENT'd on fresh clone breaking Phase-1 success criterion #1
 - Plan 01-08: phase-level 01-SUMMARY.md introduced as a distinct artifact from per-plan 01-NN-SUMMARY.md — phase-level holds scope rationale string + per-plan completion table + local port map + Phase-10 carry-forward; per-plan holds task commits + deviations
+- Wave 2 swap: smartIdFuzz uses @mcpgen/runtime/smart-id (single source of truth)
+- Tenant-worker-runner uses bun:test (Bun.spawn requires Bun runtime)
+- Switched @mcpgen/runtime test runner from vitest to bun test (bun:sqlite needs Bun runtime; Wave-2 precedent applied)
+- Split tests/runtime tests into vitest (Node) + bun test (Bun) buckets via subpath exports + vitest exclude
+- Plan 06-05: warn-and-continue collision contract — deploy succeeded already so config-emit failure is non-fatal (exit 0, stderr 'collision detected', --name override hint)
+- Plan 06-05: Bun cross-compile from single ubuntu-24.04 runner; verify --version on each native OS (matrix.os = ubuntu-latest/macos-13/macos-14/windows-latest)
+- Plan 06-05: deploy --cf exits 78 (EX_CONFIG) mirroring create-namespaces.sh — single Phase-10 deferral idiom across bash + TS
+- Plan 06-04: 3-column ON CONFLICT (deployment_id, idempotency_key, time) per docs/decisions/005 — TimescaleDB TS103 forces partitioning column into every UNIQUE index
+- Plan 06-04: Inngest 4.x createFunction uses single options-object signature (triggers inside config); plan body had stale v3 3-arg shape
+- Phase 06 P06: P99 harness gated via RUN_P99=1 (heavy 30s wall-clock); default fast-path test asserts well-formed constants
+- Phase 06 P06: Acceptance E2E omits tools/call per INFO-4 — credential round-trip covered by passthrough-credentials.test.ts (Plan 03), usage dedup by usage-events-pipeline.test.ts (Plan 04)
+- Phase 06 P06: 06-PHASE-VERIFICATION.md mirrors 01-PHASE-VERIFICATION.md shape exactly (5 SC + 9 REQs + 9 threats + 10 pitfalls + 8 Phase-10 carry-forwards)
 
 ### Pending Todos
 
@@ -134,8 +151,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-26T15:45:39.579Z
-Stopped at: Completed 01-08-PLAN.md (modified scope: local Bun SSE spike PASS + fresh-clone E2E green + Phase-1 verification + phase-level SUMMARY). FND-15 complete; phase awaits verifier-agent run before marking complete.
+Last session: 2026-04-27T16:26:24.238Z
+Stopped at: Completed 06-06-PLAN.md
 Resume file: None
 
-**Planned Phase:** 1 (Foundation) — 8 plans — 2026-04-26T12:01:12.473Z
+**Planned Phase:** 06 (runtime-plane) — 7 plans — 2026-04-27T06:36:15.907Z

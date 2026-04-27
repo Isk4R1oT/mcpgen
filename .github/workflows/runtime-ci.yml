@@ -1,20 +1,84 @@
-# D-06 entry point for runtime workstream. The actual runtime job runs in main-ci.yml
-# under the `runtime` job (conditional on `detect-changes.outputs.runtime == 'true'`).
-# This file exists for clarity (runtime ws contributors look here first) and as the
-# documentation anchor referenced from docs/mcpgen-gsd-sprint-plan.md §3.
+# Runtime workstream CI (Phase 6 Wave 5).
 #
-# Per docs/decisions/002-single-ci-workflow-with-paths-filter.md, all real work runs
-# in main-ci.yml; this entry point only emits a marker.
-name: Runtime CI (entrypoint — see main-ci.yml `runtime` job)
+# Phase-1 shipped this file as a D-06 marker pointing back at main-ci.yml.
+# Phase-6 hardens it into a real CI workflow that runs typecheck + lint + test
+# across every package in the runtime workstream on PRs touching runtime paths.
+#
+# Tests requiring DATABASE_URL (E2E pipeline tests at tests/runtime/) are gated
+# via `it.skipIf(!process.env.DATABASE_URL)` in the test files themselves — CI
+# without DB credentials skips those tests but the workflow still passes.
+#
+# Heavy gates not run by default:
+#   - P99 load harness (apps/tenant-worker-runner/tests/p99-load.test.ts) is
+#     gated by RUN_P99=1 and runs out-of-band on a nightly cron or on demand.
+name: runtime-ci
+
 on:
   pull_request:
     paths:
       - 'apps/dispatch/**'
-      - 'packages/runtime-sdk/**'
       - 'apps/dispatch-sample/**'
+      - 'apps/tenant-worker-runner/**'
+      - 'apps/inngest-dev/**'
+      - 'apps/cli/**'
+      - 'packages/runtime-sdk/**'
+      - 'tests/runtime/**'
+      - 'infrastructure/neon/migrations/**'
+      - '.github/workflows/runtime-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/dispatch/**'
+      - 'apps/dispatch-sample/**'
+      - 'apps/tenant-worker-runner/**'
+      - 'apps/inngest-dev/**'
+      - 'apps/cli/**'
+      - 'packages/runtime-sdk/**'
+      - 'tests/runtime/**'
+
+concurrency:
+  group: runtime-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  runtime-marker:
+  runtime:
     runs-on: ubuntu-24.04
     steps:
-      - run: echo "Runtime ws CI runs in main-ci.yml under the 'runtime' job; this entry point exists per D-06."
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.5'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: typecheck (runtime workstream)
+        run: |
+          pnpm --filter @mcpgen/dispatch typecheck
+          pnpm --filter @mcpgen/dispatch-sample typecheck
+          pnpm --filter @mcpgen/tenant-worker-runner typecheck
+          pnpm --filter @mcpgen/inngest-dev typecheck
+          pnpm --filter @mcpgen/cli typecheck
+          pnpm --filter @mcpgen/runtime typecheck
+          pnpm --filter @mcpgen/tests-runtime typecheck
+
+      - name: lint
+        run: |
+          pnpm --filter @mcpgen/dispatch lint
+          pnpm --filter @mcpgen/tenant-worker-runner lint
+          pnpm --filter @mcpgen/inngest-dev lint
+          pnpm --filter @mcpgen/cli lint
+
+      - name: test (no-DB-required tests)
+        run: |
+          pnpm --filter @mcpgen/dispatch test --run
+          pnpm --filter @mcpgen/tenant-worker-runner test --run
+          pnpm --filter @mcpgen/inngest-dev test --run
+          pnpm --filter @mcpgen/cli test --run
+          pnpm --filter @mcpgen/runtime test --run

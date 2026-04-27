@@ -129,6 +129,7 @@ export const generations = pgTable('generations', {
 // `cf_worker_name` is the script name in the dispatch namespace. The
 // `dispatch_namespace` column distinguishes prod / staging / sandbox per D-08
 // (only 3 namespaces total; never per-tenant).
+// Phase 6 adds local_port (nullable integer) — set for local Bun child-process deploys, NULL for Phase-10 CF deploys (RUN-01 / RESEARCH §"Open Question #1")
 // ─────────────────────────────────────────────────────────────────────────────
 export const deployments = pgTable('deployments', {
   id: uuid('id').primaryKey(),
@@ -140,6 +141,7 @@ export const deployments = pgTable('deployments', {
   url: text('url').notNull(),
   auth_mode: text('auth_mode').notNull(), // passthrough | stored | oauth
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  local_port: integer('local_port'), // Phase 6: local-compute port (null for Phase-10 CF deploys)
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -197,6 +199,14 @@ export const pending_callbacks = pgTable(
 // Drizzle declares the table; the `SELECT create_hypertable('usage_events', 'time')`
 // call lives in the migration SQL itself (Drizzle does not emit TimescaleDB
 // extension DDL natively).
+// Phase 6 adds idempotency_key (NOT NULL) + UNIQUE(deployment_id, idempotency_key, time) — closes contract-vs-DB drift surfaced in 06-RESEARCH §"Open Question #6" (FROZEN UsageEvent Zod schema declares idempotency_key but the migrated DB did not store it). Per OPS-02 cross-workstream test ownership, this is a chore(contracts):-class change with paired docs/decisions/005 entry.
+// `time` is required in the unique index because `usage_events` is a TimescaleDB
+// hypertable partitioned on `time`; TimescaleDB enforces (TS103, hard DDL constraint)
+// that every UNIQUE index on a hypertable contain the partitioning column. The dedup
+// semantic is preserved because `idempotency_key` already encodes the minute-bucket
+// timestamp (Phase-1 D-11 shape `${deployment_id}_${minute_bucket_iso}_${tool_name}`),
+// so two events with the same (deployment_id, idempotency_key) share the same `time`
+// bucket and adding `time` to the unique index does not change collision behaviour.
 // ─────────────────────────────────────────────────────────────────────────────
 export const usage_events = pgTable(
   'usage_events',
@@ -211,9 +221,15 @@ export const usage_events = pgTable(
     status: text('status').notNull(), // ok | error | rate_limited
     client_type: text('client_type'), // claude_desktop | cursor | cline | custom
     error_class: text('error_class'),
+    idempotency_key: text('idempotency_key').notNull(),
   },
   (t) => ({
     timeIdx: index('usage_events_time_idx').on(t.time),
     deploymentTimeIdx: index('usage_events_deployment_time_idx').on(t.deployment_id, t.time),
+    deploymentIdemUnique: uniqueIndex('usage_events_dep_idem_unique').on(
+      t.deployment_id,
+      t.idempotency_key,
+      t.time,
+    ),
   }),
 );

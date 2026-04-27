@@ -1,0 +1,28 @@
+{
+  "name": "@mcpgen/tenant-worker-runner",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "dev": "bun run src/index.ts",
+    "test": "bun test --pass-with-no-tests",
+    "lint": "echo \"no lint step in @mcpgen/tenant-worker-runner (covered by workspace eslint via pnpm -r lint)\""
+  },
+  "dependencies": {
+    "@mcpgen/contracts": "workspace:*",
+    "@mcpgen/runtime": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.15",
+    "ulid": "^3.0.2"
+  },
+  "devDependencies": {
+    "@mcpgen/shared-config": "workspace:*",
+    "@types/bun": "latest",
+    "typescript": "^6.0.3",
+    "vitest": "^1.6.0"
+  }
+}

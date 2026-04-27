@@ -16,6 +16,7 @@
 //   - docs/mcpgen-stage-e-design.md §6 (smart_id runtime)
 //   - docs/mcpgen-stage-e-design.md §7 (pagination/truncation runtime)
 //   - .planning/phases/01-foundation/01-PATTERNS.md "packages/runtime-sdk/src/index.ts"
+//   - .planning/phases/06-runtime-plane/06-CONTEXT.md D-06 / D-07 (Phase-6 bodies + smart-ID single source of truth)
 
 import type { UsageEvent } from '@mcpgen/contracts';
 import type { ResponseConfig } from '@mcpgen/ir';
@@ -49,6 +50,8 @@ export interface RuntimeContext {
 // ─────────────────────────────────────────────────────────────────────────────
 // Runtime — the core interface every tenant Worker consumes.
 // 11 methods: 2 smart-ID utilities + 6 universal-tool routes + 3 response shapers.
+// FROZEN signature — DO NOT change. CI runs `pnpm typecheck` against this.
+// Any change is a chore(contracts):-class change with paired docs/decisions/ entry.
 // ─────────────────────────────────────────────────────────────────────────────
 export interface Runtime {
   // Smart-ID utilities (Pass 1 design)
@@ -70,39 +73,55 @@ export interface Runtime {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// createStubRuntime — Phase-1 placeholder factory. Every method throws.
-// Used for IDE autocomplete, compile-time integration checks, and Phase 4
-// codegen template smoke tests. Phase 6 replaces this with real implementations
-// (RUN-01 = parseSmartId/makeSmartId; RUN-02 = routes; RUN-03 = response
-// shapers; RUN-04 = error teaching; RUN-05 = usage emit).
+// Phase 6 — REAL Runtime factory.
+// The 11 method bodies live in src/runtime/*; this file only composes them.
+// Phase-1 throw bodies are GONE — every method returns a real value.
 // ─────────────────────────────────────────────────────────────────────────────
-export function createStubRuntime(): Runtime {
-  const notImpl = (method: string): never => {
-    throw new Error(
-      `Runtime.${method}() is an interface-only stub in Phase 1; implementation lands in Phase 6 (RUN-01..05).`,
-    );
-  };
+import { applyFieldFilter } from './runtime/apply_field_filter.js';
+import { handleUpstreamError } from './runtime/handle_upstream_error.js';
+import { routeDelete } from './runtime/routes/delete.js';
+import { routeFetch } from './runtime/routes/fetch.js';
+import { routeListCollections } from './runtime/routes/list_collections.js';
+import { routeListObjects } from './runtime/routes/list_objects.js';
+import { routeSearch } from './runtime/routes/search.js';
+import { routeUpsert } from './runtime/routes/upsert.js';
+import { shapeResponse } from './runtime/shape_response.js';
+import { SMART_ID_REGEX, makeSmartId, parseSmartId } from './runtime/smart_id.js';
 
+export function createRuntime(): Runtime {
   return {
-    parseSmartId: () => notImpl('parseSmartId'),
-    makeSmartId: () => notImpl('makeSmartId'),
-    routeSearch: () => notImpl('routeSearch'),
-    routeFetch: () => notImpl('routeFetch'),
-    routeListCollections: () => notImpl('routeListCollections'),
-    routeListObjects: () => notImpl('routeListObjects'),
-    routeUpsert: () => notImpl('routeUpsert'),
-    routeDelete: () => notImpl('routeDelete'),
-    shapeResponse: () => notImpl('shapeResponse'),
-    applyFieldFilter: () => notImpl('applyFieldFilter'),
-    handleUpstreamError: () => notImpl('handleUpstreamError'),
+    parseSmartId,
+    makeSmartId,
+    routeSearch,
+    routeFetch,
+    routeListCollections,
+    routeListObjects,
+    routeUpsert,
+    routeDelete,
+    shapeResponse,
+    applyFieldFilter,
+    handleUpstreamError,
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Public type re-exports — single import surface for consumers.
-// (`export * from './types.js'` would also work; explicit list reads better
-// in IDE autocomplete and makes the "frozen" nature of the surface visible.)
+// createStubRuntime — Phase-6 backward-compat alias kept for apps/dispatch-sample's
+// existing import (line 21). The Phase-1 throw bodies have been replaced by
+// createRuntime(); the symbol stays bound to the real factory so existing imports
+// keep working without churn. Wave-2 not-stubbed.test.ts asserts no method throws
+// the old `/Phase 1/` error.
 // ─────────────────────────────────────────────────────────────────────────────
+export function createStubRuntime(): Runtime {
+  return createRuntime();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public re-exports — single import surface for consumers.
+// ─────────────────────────────────────────────────────────────────────────────
+export { SMART_ID_REGEX, makeSmartId, parseSmartId };
+export { hostHeaderValidation } from './runtime/host-header-validation.js';
+export { drainPending, waitUntil } from './runtime/wait_until.js';
+
 export type {
   AuthMode,
   DeleteOpts,

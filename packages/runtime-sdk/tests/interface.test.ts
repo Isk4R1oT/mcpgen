@@ -1,10 +1,18 @@
-// Interface compile-test + stub-runtime behavior.
+// Interface compile-test + factory surface check.
 // FND-06: tenant Workers import these signatures (Phase 4 codegen + Phase 5
 // hand-coded sample). Phase 6 implements the bodies.
+//
+// Wave-2 update (per BLOCKER-4): the Phase-1 `it(...)` blocks asserting every
+// stub method throws `/Phase 1/` are deleted because Wave 2 rebound
+// createStubRuntime to createRuntime (real bodies). The compile-time imports
+// test (Test 1) and the AuthMode discriminated-union test (Test 4) are
+// preserved verbatim. Per-method "is no longer a stub" assertions live in
+// not-stubbed.test.ts.
 
 import { describe, expect, it } from 'vitest';
 
 import {
+  createRuntime,
   createStubRuntime,
   type AuthMode,
   type OAuthAuth,
@@ -64,83 +72,15 @@ describe('Interface compiles (Test 1)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 2 — Every stub method throws the documented Phase-1 error.
+// Test 2 — Phase-6 surface: createRuntime is a callable factory that returns
+// a real Runtime (replaces the Phase-1 throw-assertion suite).
 // ─────────────────────────────────────────────────────────────────────────────
-describe('createStubRuntime() (Test 2)', () => {
-  const r = createStubRuntime();
-
-  // 11 methods listed by the Runtime interface; each must throw with the
-  // documented "Phase 1" error string.
-  it('parseSmartId() throws Phase-1 error', () => {
-    expect(() => r.parseSmartId('any:object:Charge:ch_x')).toThrow(/Phase 1/);
-  });
-
-  it('makeSmartId() throws', () => {
-    expect(() =>
-      r.makeSmartId({ server: 's', type: 'object', collection: 'C', identifier: 'i' }),
-    ).toThrow(/Phase 1/);
-  });
-
-  it('routeSearch() throws', async () => {
-    await expect(async () => r.routeSearch('q', {})).rejects.toThrow(/Phase 1/);
-  });
-
-  it('routeFetch() throws', async () => {
-    await expect(async () => r.routeFetch('id', {})).rejects.toThrow(/Phase 1/);
-  });
-
-  it('routeListCollections() throws', async () => {
-    await expect(async () => r.routeListCollections({})).rejects.toThrow(/Phase 1/);
-  });
-
-  it('routeListObjects() throws', async () => {
-    await expect(async () => r.routeListObjects({ collection: 'X' })).rejects.toThrow(/Phase 1/);
-  });
-
-  it('routeUpsert() throws', async () => {
-    await expect(async () => r.routeUpsert({ collection: 'X', data: {} })).rejects.toThrow(
-      /Phase 1/,
-    );
-  });
-
-  it('routeDelete() throws', async () => {
-    await expect(async () => r.routeDelete({ type: 'object', confirm: false })).rejects.toThrow(
-      /Phase 1/,
-    );
-  });
-
-  it('shapeResponse() throws', () => {
-    expect(() =>
-      r.shapeResponse(
-        {},
-        {
-          pagination: null,
-          field_filtering: null,
-          truncation: { threshold_tokens: 100, guidance_template: '' },
-          has_response_format_param: false,
-        },
-      ),
-    ).toThrow(/Phase 1/);
-  });
-
-  it('applyFieldFilter() throws', () => {
-    expect(() =>
-      r.applyFieldFilter({}, { always_include: [], opt_in: [], always_exclude: [] }),
-    ).toThrow(/Phase 1/);
-  });
-
-  it('handleUpstreamError() throws', () => {
-    expect(() =>
-      r.handleUpstreamError(new Error('boom'), { tool_name: 'x', upstream_status: 500 }),
-    ).toThrow(/Phase 1/);
-  });
-
-  it('error message points to RUN-01..05 in Phase 6', () => {
-    try {
-      r.parseSmartId('z');
-    } catch (e) {
-      expect(String(e)).toMatch(/Phase 6.*RUN-01/);
-    }
+describe('createRuntime (Test 2 — Phase 6)', () => {
+  it('createRuntime is callable and returns a Runtime', () => {
+    expect(typeof createRuntime).toBe('function');
+    const r = createRuntime();
+    expect(typeof r.parseSmartId).toBe('function');
+    expect(typeof r.makeSmartId).toBe('function');
   });
 });
 

@@ -8,7 +8,7 @@
     "build": "bun run build.ts",
     "dev": "bun src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"CLI tests deferred to Phase 2 (CLI-01)\"",
+    "test": "vitest --run",
     "lint": "echo \"no lint step in @mcpgen/cli (covered by workspace eslint via pnpm -r lint)\""
   },
   "dependencies": {
@@ -22,6 +22,7 @@
   "devDependencies": {
     "@mcpgen/shared-config": "workspace:*",
     "typescript": "^6.0.3",
-    "@types/bun": "^1.3.0"
+    "@types/bun": "^1.3.0",
+    "vitest": "^1.6.0"
   }
 }

@@ -1,0 +1,27 @@
+{
+  "name": "@mcpgen/inngest-dev",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "dev": "bun run src/index.ts",
+    "test": "bun test --pass-with-no-tests tests/",
+    "lint": "echo \"no lint step in @mcpgen/inngest-dev (covered by workspace eslint via pnpm -r lint)\""
+  },
+  "dependencies": {
+    "@mcpgen/contracts": "workspace:*",
+    "@mcpgen/runtime": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.15",
+    "inngest": "^4.2.4",
+    "@neondatabase/serverless": "^1.1.0"
+  },
+  "devDependencies": {
+    "@mcpgen/shared-config": "workspace:*",
+    "@types/bun": "latest",
+    "typescript": "^6.0.3",
+    "vitest": "^1.6.0"
+  }
+}

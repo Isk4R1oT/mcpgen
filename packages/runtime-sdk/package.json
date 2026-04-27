@@ -7,21 +7,31 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./auth": "./src/auth/index.ts",
+    "./auth/passthrough": "./src/auth/passthrough.ts",
+    "./auth/stored": "./src/auth/stored.ts",
+    "./auth/oauth-stub": "./src/auth/oauth-stub.ts",
+    "./usage": "./src/runtime/usage/index.ts",
+    "./observability": "./src/runtime/sentry-redaction.ts",
+    "./smart-id": "./src/runtime/smart_id.ts"
   },
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest --run",
+    "test": "bun test --pass-with-no-tests",
     "lint": "echo \"no lint step in @mcpgen/runtime (covered by workspace eslint via pnpm -r lint)\""
   },
   "dependencies": {
     "@mcpgen/contracts": "workspace:*",
     "@mcpgen/ir": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "hono": "^4.12.15",
+    "ulid": "^3.0.2"
   },
   "devDependencies": {
     "@mcpgen/shared-config": "workspace:*",
+    "@types/bun": "^1.3.13",
     "@types/node": "^22.10.5",
     "typescript": "^6.0.3",
     "vitest": "^1.6.0"

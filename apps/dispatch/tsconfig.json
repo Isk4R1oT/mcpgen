@@ -2,11 +2,18 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2023"],
-    "types": ["@cloudflare/workers-types"],
-    "outDir": "./dist",
-    "rootDir": "./",
+    // Phase 6: dispatch runs on Bun locally (D-01) and on CF Workers in Phase 10.
+    // Both runtime APIs are surfaced — Bun provides Node-compatible `process.env`,
+    // CF Workers provides `DispatchNamespace` / `Hyperdrive` types.
+    "types": ["@cloudflare/workers-types", "node"],
+    // rootDir widened to workspace root so test files can import shared
+    // Wave-0 fixtures from `tests/runtime/fixtures/*` (D-21 cross-workstream
+    // test ownership pattern). Production source remains under `src/`; tests
+    // remain under `tests/` — no production code crosses the boundary
+    // (smartIdFuzz.ts inlines the regex per Wave-1 plan §Task 2).
+    "rootDir": "../../",
     "noEmit": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "tests/**/*", "../../tests/runtime/fixtures/**/*", "vitest.config.ts"],
   "exclude": ["node_modules", "dist", ".wrangler"]
 }

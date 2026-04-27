@@ -8,18 +8,24 @@
     "build": "tsc --noEmit",
     "deploy": "wrangler deploy --upload-source-maps",
     "typecheck": "tsc --noEmit",
-    "test": "vitest --run --passWithNoTests",
+    "test": "vitest --passWithNoTests",
     "lint": "echo \"no lint step in @mcpgen/dispatch (covered by workspace eslint via pnpm -r lint)\""
   },
   "dependencies": {
-    "hono": "^4.12.15",
     "@mcpgen/contracts": "workspace:*",
-    "@sentry/cloudflare": "^10.50.0"
+    "@mcpgen/runtime": "workspace:*",
+    "@neondatabase/serverless": "^1.1.0",
+    "@sentry/cloudflare": "^10.50.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.15",
+    "ulid": "^3.0.2",
+    "unstorage": "^1.17.5"
   },
   "devDependencies": {
     "@mcpgen/shared-config": "workspace:*",
     "wrangler": "^4.85.0",
     "@cloudflare/workers-types": "^4.20240605.0",
+    "@types/node": "^22.10.5",
     "typescript": "^6.0.3",
     "vitest": "^1.6.0"
   }

@@ -1,13 +1,11 @@
 #!/usr/bin/env bun
 // apps/cli/src/index.ts
 //
-// Commander.js CLI skeleton. Phase 1 only ships the `--help` / `--version`
-// surface; the `init` and `deploy` commands return "Not implemented" stubs
-// because they land in Phase 2 (CLI-01) and Phase 6 (CLI-02) respectively.
-//
-// Reference: .planning/phases/01-foundation/01-PATTERNS.md `apps/cli/` row.
+// Phase 6 — Commander wiring. `init` stays a Phase-2 stub; `deploy` is real.
 
 import { Command } from 'commander';
+
+import { registerDeploy } from './commands/deploy.js';
 
 const program = new Command();
 
@@ -26,12 +24,6 @@ program
     process.exit(1);
   });
 
-program
-  .command('deploy')
-  .description('Deploy a generated MCP server (Phase 6 — CLI-02).')
-  .action(() => {
-    console.error('Not implemented in Phase 1. Deploy command ships in Phase 6.');
-    process.exit(1);
-  });
+registerDeploy(program);
 
 program.parse(process.argv);

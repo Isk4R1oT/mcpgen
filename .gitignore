@@ -45,3 +45,9 @@ Thumbs.db
 # Test output
 test-results/
 playwright-report/
+
+# Phase 6 stored-credentials local SQLite — never committed (D-09).
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm

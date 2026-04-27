@@ -58,13 +58,20 @@
 
 ### Runtime Plane (RUN) — Phase 6
 
-- [ ] **RUN-01**: Dispatch Worker on CF Workers for Platforms (single shared namespace) performs auth precheck, rate-limit, tenant lookup (CF KV cache 5-min TTL), client `protocolVersion` parsing during `initialize`, and capability-gated dispatch (omit `outputSchema` for clients <2025-06-18) [P0: pitfall #4]
-- [ ] **RUN-02**: Generated tenant Workers use `@modelcontextprotocol/sdk` + `@mcpgen/runtime` SDK and stay within P99 < 50ms over upstream API latency on warm starts; warm-keep cron every 5 min for active tenants [P1: pitfall #14]
-- [ ] **RUN-03**: Pass-through credential mode is default — tenant Worker decrypts `X-Upstream-Auth` per request via HKDF-derived key, forwards to upstream, never persists; outbound chokepoint scrubs credentials from any logging destination [P0: pitfall #12]
-- [ ] **RUN-04**: Stored credential mode (AES-256-GCM with per-tenant DEK in CF KV) is supported, marked "less secure" in UI, and requires explicit user opt-in checkbox
-- [ ] **RUN-05**: OAuth 2.1 mode for user-delegated APIs uses `@cloudflare/workers-oauth-provider` with PKCE; tokens managed via Logto
-- [ ] **RUN-06**: Each tool call emits a usage event via `ctx.waitUntil(queue.send(...))` with KV fallback bucket on send failure; CF Queue → Inngest → TimescaleDB hypertable + Stripe Meters API; `usage_event_id` UUID + UNIQUE `(tenant_id, tool_call_id)` for dedup; daily reconciliation job [P0: pitfall #13]
-- [ ] **RUN-07**: One-click Claude Desktop config block (or fallback copy-paste) is generated for each deployed server, with collision detection against existing config entries [P1: pitfall #30]
+- [x] **RUN-01
+**: Dispatch Worker on CF Workers for Platforms (single shared namespace) performs auth precheck, rate-limit, tenant lookup (CF KV cache 5-min TTL), client `protocolVersion` parsing during `initialize`, and capability-gated dispatch (omit `outputSchema` for clients <2025-06-18) [P0: pitfall #4]
+- [x] **RUN-02
+**: Generated tenant Workers use `@modelcontextprotocol/sdk` + `@mcpgen/runtime` SDK and stay within P99 < 50ms over upstream API latency on warm starts; warm-keep cron every 5 min for active tenants [P1: pitfall #14]
+- [x] **RUN-03
+**: Pass-through credential mode is default — tenant Worker decrypts `X-Upstream-Auth` per request via HKDF-derived key, forwards to upstream, never persists; outbound chokepoint scrubs credentials from any logging destination [P0: pitfall #12]
+- [x] **RUN-04
+**: Stored credential mode (AES-256-GCM with per-tenant DEK in CF KV) is supported, marked "less secure" in UI, and requires explicit user opt-in checkbox
+- [x] **RUN-05
+**: OAuth 2.1 mode for user-delegated APIs uses `@cloudflare/workers-oauth-provider` with PKCE; tokens managed via Logto
+- [x] **RUN-06
+**: Each tool call emits a usage event via `ctx.waitUntil(queue.send(...))` with KV fallback bucket on send failure; CF Queue → Inngest → TimescaleDB hypertable + Stripe Meters API; `usage_event_id` UUID + UNIQUE `(tenant_id, tool_call_id)` for dedup; daily reconciliation job [P0: pitfall #13]
+- [x] **RUN-07
+**: One-click Claude Desktop config block (or fallback copy-paste) is generated for each deployed server, with collision detection against existing config entries [P1: pitfall #30]
 
 ### Control Plane / Backend (CTRL) — Phases 1, 8, 9
 
@@ -77,13 +84,16 @@
 - [ ] **CTRL-06**: Stripe Billing + Meters API supports Free (1 F3 eval/mo), Pro (5/mo included), Pay-as-you-go ($0.50/eval), with per-generation cost cap ($0.50 free / $2.00 pro) enforced server-side
 - [ ] **CTRL-07**: Quota enforcement uses TimescaleDB hourly aggregates as quota truth (real-time) and Stripe Meters as billing eventual; daily reconciliation alerts on >2% drift; cost cap exceeded → hard fail with partial result + bill [P1: pitfall #16]
 - [ ] **CTRL-08**: Sentry (TS + Python with source maps), BetterStack (logs + uptime + CF Queue depth alert), Langfuse v4 (LLM tracing via OTel) wired across all components; Sentry `beforeSend` strips auth headers and spec content
-- [ ] **CTRL-09**: Inngest function IDs are stable strings (`drift-watcher-v1`, `usage-reconciler-v1`); orphan audit in Phase 9 [P2: pitfall #21]
+- [x] **CTRL-09
+**: Inngest function IDs are stable strings (`drift-watcher-v1`, `usage-reconciler-v1`); orphan audit in Phase 9 [P2: pitfall #21]
 
 ### CLI (CLI) — Phases 2, 6
 
 - [ ] **CLI-01**: `npx mcpgen init <openapi-url>` produces a working local MCP server file in <60 seconds (no signup required)
-- [ ] **CLI-02**: `mcpgen deploy` pushes the generated server to CF Workers for Platforms tenant namespace and returns a live URL
-- [ ] **CLI-03**: CLI ships as a Bun-compiled single binary on npm + GitHub releases (targets: `bun-darwin-arm64`, `bun-darwin-x64`, `bun-linux-x64`, `bun-windows-x64`)
+- [x] **CLI-02
+**: `mcpgen deploy` pushes the generated server to CF Workers for Platforms tenant namespace and returns a live URL
+- [x] **CLI-03
+**: CLI ships as a Bun-compiled single binary on npm + GitHub releases (targets: `bun-darwin-arm64`, `bun-darwin-x64`, `bun-linux-x64`, `bun-windows-x64`)
 
 ### Frontend (FE) — Phase 7 (UI is LOCKED in `claude-design-ui/MCP-Gen.zip`)
 
@@ -203,13 +213,13 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | GEN-11 | Phase 5 | Pending |
 | GEN-12 | Phase 2 | Pending |
 | GEN-13 | Phase 2 | Pending |
-| RUN-01 | Phase 6 | Pending |
-| RUN-02 | Phase 6 | Pending |
-| RUN-03 | Phase 6 | Pending |
-| RUN-04 | Phase 6 | Pending |
-| RUN-05 | Phase 6 | Pending |
-| RUN-06 | Phase 6 | Pending |
-| RUN-07 | Phase 6 | Pending |
+| RUN-01 | Phase 6 | Complete (06-01) |
+| RUN-02 | Phase 6 | Complete (06-02 + 06-04 + 06-06) |
+| RUN-03 | Phase 6 | Complete (06-03) |
+| RUN-04 | Phase 6 | Complete (06-03) |
+| RUN-05 | Phase 6 | Complete (06-03 stub; real provider Phase 10) |
+| RUN-06 | Phase 6 | Complete (06-00 + 06-04) |
+| RUN-07 | Phase 6 | Complete (06-05) |
 | CTRL-01 | Phase 1 | Complete (01-03) |
 | CTRL-02 | Phase 8 | Pending |
 | CTRL-03 | Phase 8 | Pending |
@@ -220,8 +230,8 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | CTRL-08 | Phase 9 | Pending |
 | CTRL-09 | Phase 9 | Pending |
 | CLI-01 | Phase 2 | Pending |
-| CLI-02 | Phase 6 | Pending |
-| CLI-03 | Phase 6 | Pending |
+| CLI-02 | Phase 6 | Complete (06-05; --cf real path Phase 10) |
+| CLI-03 | Phase 6 | Complete (06-05; signed binaries Phase 10) |
 | FE-01 | Phase 7 | Pending |
 | FE-02 | Phase 7 | Pending |
 | FE-03 | Phase 7 | Pending |

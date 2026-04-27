@@ -1,0 +1,89 @@
+name: cli-binary-matrix
+
+on:
+  pull_request:
+    paths:
+      - 'apps/cli/**'
+      - '.github/workflows/cli-binary-matrix.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/cli/**'
+  release:
+    types: [created]
+
+jobs:
+  build:
+    name: Cross-compile 4 targets on linux-x64
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.5'
+      - name: Install workspace
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.2 --activate
+          pnpm install --frozen-lockfile
+      - name: Build all 4 targets
+        working-directory: apps/cli
+        run: bun run build.ts --upload-dir=../../dist-binaries
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcpgen-binaries
+          path: dist-binaries/
+          if-no-files-found: error
+
+  verify:
+    name: Verify ${{ matrix.target }} on ${{ matrix.os }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: bun-linux-x64
+            os: ubuntu-latest
+            ext: ''
+          - target: bun-darwin-x64
+            os: macos-13
+            ext: ''
+          - target: bun-darwin-arm64
+            os: macos-14
+            ext: ''
+          - target: bun-windows-x64
+            os: windows-latest
+            ext: '.exe'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mcpgen-binaries
+          path: dist-binaries
+      - name: Make executable (non-Windows)
+        if: matrix.os != 'windows-latest'
+        run: chmod +x "dist-binaries/mcpgen-${{ matrix.target }}${{ matrix.ext }}"
+      - name: Verify --version (POSIX)
+        if: matrix.os != 'windows-latest'
+        run: ./dist-binaries/mcpgen-${{ matrix.target }}${{ matrix.ext }} --version
+      - name: Verify --version (Windows)
+        if: matrix.os == 'windows-latest'
+        run: .\dist-binaries\mcpgen-${{ matrix.target }}${{ matrix.ext }} --version
+
+  publish-release:
+    name: Attach binaries to GitHub release
+    needs: verify
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mcpgen-binaries
+          path: dist-binaries
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-binaries/*

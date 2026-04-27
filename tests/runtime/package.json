@@ -1,0 +1,24 @@
+{
+  "name": "@mcpgen/tests-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest --run --passWithNoTests && pnpm test:bun",
+    "test:bun": "bun test --pass-with-no-tests stored-credentials-aes.test.ts oauth-stub.test.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"no lint step in @mcpgen/tests-runtime (covered by workspace eslint via pnpm -r lint)\""
+  },
+  "dependencies": {
+    "@mcpgen/contracts": "workspace:*",
+    "@mcpgen/ir": "workspace:*",
+    "@mcpgen/runtime": "workspace:*",
+    "@neondatabase/serverless": "^1.1.0"
+  },
+  "devDependencies": {
+    "@mcpgen/shared-config": "workspace:*",
+    "@types/bun": "latest",
+    "typescript": "^6.0.3",
+    "vitest": "^1.6.0"
+  }
+}

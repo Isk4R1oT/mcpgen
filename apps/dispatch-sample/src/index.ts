@@ -18,7 +18,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { z } from 'zod';
 
 import type { Runtime } from '@mcpgen/runtime';
-import { createStubRuntime } from '@mcpgen/runtime';
+import { createRuntime } from '@mcpgen/runtime';
 
 import { authMiddleware } from './auth/middleware.js';
 import { chargesFetchHandler } from './tools/charges_fetch.js';
@@ -31,7 +31,7 @@ interface Env {
 }
 
 const server = new McpServer({ name: 'sample-stripe', version: '0.0.1' });
-const runtime: Runtime = createStubRuntime();
+const runtime: Runtime = createRuntime();
 
 server.tool(
   'customers_search',
