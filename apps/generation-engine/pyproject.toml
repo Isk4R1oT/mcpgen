@@ -18,11 +18,14 @@ dependencies = [
   "opentelemetry-exporter-otlp-proto-http>=1.27,<2.0",
   "prance[osv]>=23.6.21",
   "openapi-spec-validator>=0.7,<1.0",
+  "jsonschema>=4.26,<5.0",
   "jinja2>=3.1,<4.0",
   "psycopg[binary,pool]>=3.2,<4.0",
   "aioboto3>=13.2,<14.0",
   "mcpgen-ir",
   "python-ulid>=3.1.0",
+  "tiktoken>=0.7,<1",
+  "jsonschema>=4.26,<5",
 ]
 
 [dependency-groups]
@@ -84,6 +87,8 @@ ignore = [
 # Module-level *_PROMPT constants are LLM system prompts, not credentials.
 # S105 (hardcoded password) misfires on the "PASS"/"PROMPT" name prefix.
 "src/mcpgen_engine/passes/**/prompts.py" = ["S105"]
+"src/mcpgen_engine/passes/**/quality_gate.py" = ["S105"]
+"src/mcpgen_engine/passes/**/__init__.py" = ["S105"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -119,6 +124,7 @@ module = [
   "aioboto3.*",
   "yaml",
   "mcpgen_ir.*",
+  "jsonschema.*",
 ]
 ignore_missing_imports = true
 

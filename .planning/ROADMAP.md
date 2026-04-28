@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Monorepo, 5 frozen contracts, 8 Phase-1 refinements, sandbox CF namespace, fixtures shadow service (completed 2026-04-26)
 - [ ] **Phase 2: Generation Engine — Architect (Pass 0+1)** - Stage A parser + Pass 0 inventory + Pass 1 Six-Tool consolidation with tenant-prefixed smart IDs
-- [ ] **Phase 3: Generation Engine — Author (Pass 2+3+4)** - Description authoring, parameter specification, annotations inference
+- [x] **Phase 3: Generation Engine — Author (Pass 2+3+4)** - Description authoring, parameter specification, annotations inference (completed 2026-04-28)
 - [ ] **Phase 4: Generation Engine — Shape & Codegen (Pass 5 + Stage E)** - Response shaping + ~25–30-file deterministic Jinja2 codegen with bundle-size + DNS-rebinding gates
 - [ ] **Phase 5: Generation Engine — Validation (Stage F)** - F1 static + F2 smell scan (Qwen 5-shuffle) + F3 agent eval against golden tasks
 - [x] **Phase 6: Runtime Plane** - Dispatch Worker + tenant Workers + 3 auth modes + usage event pipeline with KV fallback (completed 2026-04-27 — see `06-PHASE-VERIFICATION.md`)
@@ -88,7 +88,20 @@ Plans:
   2. Pass 3 emits production-ready JSON Schema for every tool: 5-component MCP-Bundles parameter descriptions (what / format / when / example / default), naming normalization rules applied (`user → user_id`, `data → payload`, ambiguous `id`/`status`/`time` qualified), smart-ID `pattern` auto-generated from Pass 1 `SmartIdSchema`, and a deterministic filter-design selection (structured object / DSL / individual) consistent across all tools in one server
   3. Pass 4 emits all 4 MCP boolean hints + title for every tool with `openWorldHint=true` invariant always explicitly set; tool-type rules (Pass 1) + verb pattern matching cover ≥80% deterministically; workflow tools use conservative aggregation (worst-case across sub-operations: `readOnly`=AND, `destructive`=OR, `idempotent`=AND); consistency rules enforced (`readOnly=true → idempotent=true` auto-fix; `destructive=true → readOnly=false` auto-fix)
   4. End-to-end `Stage A → Pass 0 → Pass 1 → Pass 2 → Pass 3 → Pass 4` runs on Stripe + GitHub + Notion golden specs; output `FinalTool` objects pass JSON-schema validation and consistency checks with zero defaulted annotations
-**Plans**: TBD
+**Plans**: 12 plans
+Plans:
+- [x] 03-01-PLAN.md — Foundation: deps + IR additive description_hash + sampling profiles + cache key prompt_version + test scaffolding [Wave 1]
+- [x] 03-02-PLAN.md — Pass 2 prompt templates per tool type (4 system prompts) + spec sandbox + retry-prompt builder + classify [Wave 1]
+- [x] 03-03-PLAN.md — Pass 2 length budgets (tiktoken) + forbidden patterns regex catalogue + validation phase + render_description_markdown [Wave 1]
+- [x] 03-04-PLAN.md — Pass 2 authoring (4 Agent singletons + Sem 10 + 2-tier retry) + inline quality gate (single Qwen judge, 4-component rubric) + diff helper + run() orchestrator [Wave 1]
+- [x] 03-05-PLAN.md — Pass 3 deterministic extract phase (ParameterSpec + extract_params with universal hardcoded sigs + smart-ID/filter detection) [Wave 2]
+- [x] 03-06-PLAN.md — Pass 3 LLM enrichment (per-param Sem 20 pipeline-scoped + 2-tier retry + deterministic fallback after exhaustion) [Wave 2]
+- [x] 03-07-PLAN.md — Pass 3 filter design selection (FilterStrategy enum + D-18 decision tree + emit_filter_schema for A/B/C) [Wave 2]
+- [x] 03-08-PLAN.md — Pass 3 naming normalization + smart-ID pattern builder + standard parameter sets for 6 universal tools (D-21 + Pitfall #32 frozen) [Wave 2]
+- [x] 03-09-PLAN.md — Pass 3 cross-parameter validation (Pass3Error + 5 validators inc. additionalProperties + OpenAI compliance) + inline quality gate + run() orchestrator [Wave 3]
+- [x] 03-10-PLAN.md — Pass 4 deterministic rules (D-28 tool-type table + D-30 workflow aggregation) + verb pattern matching (D-29 Appendix B) + title generation (D-31) [Wave 3]
+- [x] 03-11-PLAN.md — Pass 4 selective Qwen judgment (medium-confidence verbs only, Sem 5, conservative fallback) + consistency validation with auto-fix + IR assembly with openWorldHint=true (D-27) + run() orchestrator [Wave 3]
+- [x] 03-12-PLAN.md — pipeline.py extension (chain Pass 2/3/4 + Stage C SSE events + L1 expansion) + CLI render_description.ts + render_stub.ts extension (5-arg) + 4 integration tests + 9 hand-tuned fixture JSONs (Stripe/GitHub/Notion × Pass 2/3/4) [Wave 4]
 
 ### Phase 4: Generation Engine — Shape & Codegen (Pass 5 + Stage E)
 **Workstream**: `engine`
@@ -208,7 +221,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 |-------|----------------|--------|-----------|
 | 1. Foundation | 9/8 | Complete    | 2026-04-26 |
 | 2. Generation Engine — Architect (Pass 0+1) | 0/TBD | Not started | - |
-| 3. Generation Engine — Author (Pass 2+3+4) | 0/TBD | Not started | - |
+| 3. Generation Engine — Author (Pass 2+3+4) | 0/12 | Not started | - |
 | 4. Generation Engine — Shape & Codegen (Pass 5 + Stage E) | 0/TBD | Not started | - |
 | 5. Generation Engine — Validation (Stage F) | 0/TBD | Not started | - |
 | 6. Runtime Plane | 0/TBD | Not started | - |

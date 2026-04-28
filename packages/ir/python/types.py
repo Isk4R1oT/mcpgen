@@ -47,6 +47,7 @@ class Descriptions(BaseModel):
     how_to_use: Optional[str] = None
     limitations: List[str]
     parameter_overview: constr(min_length=50, max_length=400)
+    description_hash: Optional[str] = None
 
 
 class AuthoredTools(BaseModel):
@@ -108,6 +109,7 @@ class Description(BaseModel):
     how_to_use: Optional[str] = None
     limitations: List[str]
     parameter_overview: constr(min_length=50, max_length=400)
+    description_hash: Optional[str] = None
 
 
 class Annotations(BaseModel):
@@ -864,6 +866,7 @@ class ToolDescription(BaseModel):
     how_to_use: Optional[str] = None
     limitations: List[str]
     parameter_overview: constr(min_length=50, max_length=400)
+    description_hash: Optional[str] = None
 
 
 class ToolPlan1(BaseModel):

@@ -1,0 +1,129 @@
+{
+  "descriptions": {
+    "search": {
+      "purpose": "Search Stripe charges, customers, and subscriptions by free-form query string and return ranked smart-id results.",
+      "when_to_use": [
+        "User asks to find a Stripe object by name, email, or descriptor without knowing its ID",
+        "Disambiguating between similarly-named entities before calling fetch()"
+      ],
+      "when_not_to_use": [
+        "Listing every object in a collection \u2014 use list_objects() with collection set",
+        "Fetching a known object by smart-id \u2014 use fetch() directly"
+      ],
+      "limitations": [
+        "Best-effort substring match across name, email, and metadata fields only",
+        "Returns at most 25 ranked results per call"
+      ],
+      "parameter_overview": "Required: query (free-form string). Returns: ranked array of smart-id results across charges, customers, and subscriptions.",
+      "description_hash": "b4fb4a7d04487585843873cc739e8a32668671f514b1727df8effa213d54f36d"
+    },
+    "fetch": {
+      "purpose": "Fetch a single Stripe object by smart-id and return its complete representation.",
+      "when_to_use": [
+        "Smart-id is already known from a prior search() or list_objects() call",
+        "Need full object payload including nested fields not surfaced in list views"
+      ],
+      "limitations": [
+        "Single-object fetch only; for batch reads use list_objects()",
+        "Returns 404 if smart-id refers to a deleted or expired object"
+      ],
+      "parameter_overview": "Required: id (smart-id of format stripe-api:{type}:{collection}:{identifier}). Returns: full upstream object.",
+      "description_hash": "7b1dba395d6674df95947653cce48cc91a2e7ced51a63f5cf6758e9859365079"
+    },
+    "list_collections": {
+      "purpose": "List the available Stripe object collections (Charge, Customer, Subscription, Refund) for discovery.",
+      "when_to_use": [
+        "Discovering what types of data this server exposes before issuing list_objects() calls",
+        "Building a collection picker in a UI"
+      ],
+      "limitations": [
+        "Returns only collection metadata (names + counts), not the objects themselves",
+        "Counts are upstream-best-effort \u2014 do not rely on exact accuracy for pagination math"
+      ],
+      "parameter_overview": "No required parameters. Returns: array of collection descriptors with name and approximate object count.",
+      "description_hash": "dfe36321ef128ac49ebad6a7aaf0aac6ede8d97ffef416687c98b8620c8201af"
+    },
+    "list_objects": {
+      "purpose": "List Stripe objects in a given collection with cursor-based pagination, optionally filtered.",
+      "when_to_use": [
+        "Browsing all charges, customers, or subscriptions in a collection",
+        "Walking large datasets via cursor pagination"
+      ],
+      "limitations": [
+        "Default page size is 25, max 100 per call",
+        "Cursor token expires within 24 hours of issuance"
+      ],
+      "parameter_overview": "Required: collection (one of Charge/Customer/Subscription/Refund). Optional: limit, cursor. Returns: paged array of smart-id results.",
+      "description_hash": "4bc4dba29cce9380d9457f1f538f160e162bd42e0df9914345a46977637fafef"
+    },
+    "upsert": {
+      "purpose": "Create a new Stripe object, or update an existing one when id is provided.",
+      "when_to_use": [
+        "Creating a new charge, customer, or subscription from collected data",
+        "Updating metadata or other mutable fields on an existing object by smart-id"
+      ],
+      "when_not_to_use": [
+        "Deleting an object \u2014 use delete() instead",
+        "Performing custom action verbs (capture, refund, cancel) \u2014 use the dedicated action tools"
+      ],
+      "limitations": [
+        "Upstream Stripe API may reject creates that violate account constraints (currency, region, KYC)",
+        "Partial updates merge into existing object; pass full nested objects to replace them"
+      ],
+      "parameter_overview": "Required: data (object payload). Optional: id (smart-id; presence triggers update path). Returns: created or updated object.",
+      "description_hash": "5f9fe382b1f777dfed9527361ced4f3ece1a10d2960aed115ff39e0a5a77dd57"
+    },
+    "delete": {
+      "purpose": "Permanently delete a Stripe customer object by smart-id.",
+      "when_to_use": [
+        "Purging a customer record after closing an account",
+        "GDPR right-to-erasure deletion of personal data"
+      ],
+      "limitations": [
+        "Only customer deletion is supported; charges and subscriptions cannot be hard-deleted",
+        "Deletion is irreversible; consider archiving via metadata first if rollback is needed"
+      ],
+      "parameter_overview": "Required: id (customer smart-id). Returns: confirmation envelope with the deleted object id.",
+      "description_hash": "1cf263faf83d4942e87dee8d636451e192e41e794cc32bd1ed22c13b9944da91"
+    },
+    "charges_capture": {
+      "purpose": "Capture a previously-authorized but uncaptured Stripe charge.",
+      "when_to_use": [
+        "Finalizing a two-step authorize-then-capture flow once goods ship or service starts",
+        "Capturing an authorization before the 7-day Stripe expiry"
+      ],
+      "limitations": [
+        "Charge MUST be in authorized but not yet captured state",
+        "Cannot capture more than the originally authorized amount"
+      ],
+      "parameter_overview": "Required: charge (smart-id of the authorized charge). Returns: the captured charge object.",
+      "description_hash": "6e0985966f611dd7c980a6e040953f6b4b59be9ca9d1874c969f2b3e36306c00"
+    },
+    "charges_refund": {
+      "purpose": "Issue a full or partial refund against a previously-captured Stripe charge.",
+      "when_to_use": [
+        "Customer requests refund for a paid charge",
+        "Reversing a captured charge after dispute resolution"
+      ],
+      "limitations": [
+        "Cannot refund more than the captured amount minus prior refunds",
+        "Refund processing is asynchronous; the returned object reflects pending status until upstream settles"
+      ],
+      "parameter_overview": "Required: charge (smart-id). Optional: amount (cents; full refund if omitted). Returns: refund object with status.",
+      "description_hash": "2d7c9406168556087cf3929533ef49873eca78d2c331408fc68011ef812cd1d4"
+    },
+    "subscriptions_cancel": {
+      "purpose": "Cancel a Stripe subscription, optionally at period end rather than immediately.",
+      "when_to_use": [
+        "Customer requests cancellation of an active subscription",
+        "Pruning subscriptions for a deleted account"
+      ],
+      "limitations": [
+        "Already-canceled subscriptions return their terminal state without further action",
+        "Default behaviour is immediate cancellation with proration"
+      ],
+      "parameter_overview": "Required: subscription_exposed_id (smart-id). Optional: at_period_end (boolean). Returns: canceled subscription object.",
+      "description_hash": "0430e15f3a1de55dae3a1cd921c7ba060ba8926e868ec7556708edd00b7a17da"
+    }
+  }
+}

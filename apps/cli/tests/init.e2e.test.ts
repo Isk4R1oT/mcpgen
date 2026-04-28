@@ -121,6 +121,39 @@ describe('mcpgen init E2E (T-2-F1)', () => {
       expect(pass1.coverage_pct).toBe(100);
       expect(pass1.tools.length).toBeGreaterThanOrEqual(6);
       expect(pass1.tools.length).toBeLessThanOrEqual(15);
+
+      // ─── Phase 3 acceptance: Pass 2/3/4 outputs visible in server.ts ────
+      const generatedServerTs = readFileSync(
+        join(specSlugDir, 'server.ts'),
+        'utf-8',
+      );
+
+      // Phase-2 placeholder text MUST NOT survive into Phase-3 server.ts.
+      expect(generatedServerTs).not.toContain(
+        'Pass 2 description authoring lands in Phase 3.',
+      );
+
+      // Pass 2 markdown components must appear in description args.
+      expect(generatedServerTs).toContain('## When to use');
+      expect(generatedServerTs).toContain('## Limitations');
+      expect(generatedServerTs).toContain('## Parameters');
+
+      // D-37: registerTool config-object form with title + annotations.
+      expect(generatedServerTs).toContain('server.registerTool(');
+      expect(generatedServerTs).toMatch(/title:\s*"[^"]+"/);
+      expect(generatedServerTs).toMatch(/annotations:\s*\{/);
+
+      // D-27 invariant: every annotation carries openWorldHint=true.
+      const annotationsBlocks
+        = generatedServerTs.match(/annotations:\s*\{[^}]*\}/g) ?? [];
+      expect(annotationsBlocks.length).toBeGreaterThan(0);
+      for (const block of annotationsBlocks) {
+        expect(block).toContain('"openWorldHint":true');
+      }
+
+      // Pass 3 D-22: every input schema (preserved as comment) carries
+      // additionalProperties:false.
+      expect(generatedServerTs).toContain('"additionalProperties":false');
     },
     180_000,
   );

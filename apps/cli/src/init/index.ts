@@ -17,7 +17,14 @@ import { intro, outro, spinner } from '@clack/prompts';
 import pc from 'picocolors';
 
 import { GenerationSseEvent } from '@mcpgen/contracts';
-import type { Pass0Output, Pass1Output, RawIR } from '@mcpgen/ir';
+import type {
+  Pass0Output,
+  Pass1Output,
+  Pass2Output,
+  Pass3Output,
+  Pass4Output,
+  RawIR,
+} from '@mcpgen/ir';
 
 import {
   ensureEngineRunning,
@@ -42,6 +49,12 @@ interface ArtifactsResponse {
   raw_ir: RawIR;
   pass_0_output: Pass0Output;
   pass_1_output: Pass1Output;
+  // Phase-3 additions per D-34. Optional during the transition window so
+  // older Phase-2 engine builds still validate; runInit fails fast below if
+  // any are missing.
+  pass_2_output?: Pass2Output;
+  pass_3_output?: Pass3Output;
+  pass_4_output?: Pass4Output;
 }
 
 interface RawCommanderOpts {
@@ -190,10 +203,30 @@ export async function runInit(
       'pass-1-output.json',
       `${JSON.stringify(artifacts.pass_1_output, null, 2)}\n`,
     );
+    // Phase-3 D-37: server.ts now consumes Pass 2/3/4 outputs. Fail fast if
+    // the engine returned an artifact bundle missing those fields (older
+    // Phase-2 build) — D-43 layout requires real descriptions / schemas /
+    // annotations in server.ts, no Phase-2 placeholders.
+    if (
+      artifacts.pass_2_output === undefined
+      || artifacts.pass_3_output === undefined
+      || artifacts.pass_4_output === undefined
+    ) {
+      throw new Error(
+        'engine returned artifacts missing Phase-3 outputs '
+          + '(pass_2_output / pass_3_output / pass_4_output) — upgrade engine to Phase 3',
+      );
+    }
     await writeOutputFile(
       outDir,
       'server.ts',
-      renderServerTs(specSlug, artifacts.pass_1_output),
+      renderServerTs(
+        specSlug,
+        artifacts.pass_1_output,
+        artifacts.pass_2_output,
+        artifacts.pass_3_output,
+        artifacts.pass_4_output,
+      ),
     );
     await writeOutputFile(outDir, 'package.json', renderPackageJson(specSlug));
     await writeOutputFile(

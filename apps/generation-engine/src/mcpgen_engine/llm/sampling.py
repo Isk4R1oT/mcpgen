@@ -73,3 +73,35 @@ PASS_1_SETTINGS: ModelSettings = ModelSettings(
     max_tokens=8192,
     extra_body=_PROVIDER_ROUTING,
 )
+
+# D-02: Pass 2 description authoring — creative, mild temperature.
+PASS_2_SETTINGS: ModelSettings = ModelSettings(
+    temperature=0.3,
+    top_p=0.9,
+    max_tokens=2048,
+    extra_body=_PROVIDER_ROUTING,
+)
+
+# D-02: Pass 3 per-parameter enrichment — slight creativity for descriptions.
+PASS_3_SETTINGS: ModelSettings = ModelSettings(
+    temperature=0.2,
+    top_p=0.9,
+    max_tokens=1024,
+    extra_body=_PROVIDER_ROUTING,
+)
+
+# D-02: Pass 4 selective annotation judgment — classification-grade, deterministic.
+PASS_4_SETTINGS: ModelSettings = ModelSettings(
+    temperature=0.0,
+    top_p=0.9,
+    max_tokens=512,
+    extra_body=_PROVIDER_ROUTING,
+)
+
+# D-02: Inline quality gate (Pass 2 + Pass 3) — judge mode, classification-grade.
+INLINE_GATE_SETTINGS: ModelSettings = ModelSettings(
+    temperature=0.0,
+    top_p=0.9,
+    max_tokens=512,
+    extra_body=_PROVIDER_ROUTING,
+)

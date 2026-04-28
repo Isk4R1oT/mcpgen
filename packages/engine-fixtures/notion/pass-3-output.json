@@ -1,0 +1,88 @@
+{
+  "input_schemas": {
+    "search": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Free-form query string matched against page and database titles."
+        }
+      },
+      "additionalProperties": false,
+      "required": ["query"]
+    },
+    "fetch": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Smart-id of the form notion-api:{type}:{collection}:{identifier}.",
+          "pattern": "^notion\\-api:(object|collection):(Page|Database):[a-zA-Z0-9_-]+$"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["id"]
+    },
+    "list_collections": {
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "description": "Optional substring filter on collection names (case-insensitive)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "list_objects": {
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Database smart-id whose rows should be listed.",
+          "pattern": "^notion\\-api:(object|collection):(Page|Database):[a-zA-Z0-9_-]+$"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Page size (default 25, max 100).",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 25
+        },
+        "cursor": {
+          "type": "string",
+          "description": "Opaque cursor token from a prior list_objects call."
+        }
+      },
+      "additionalProperties": false,
+      "required": ["collection"]
+    },
+    "upsert": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "description": "Page payload; on create requires parent + properties matching the parent database schema."
+        },
+        "id": {
+          "type": "string",
+          "description": "Optional smart-id; presence triggers update path instead of create.",
+          "pattern": "^notion\\-api:(object|collection):(Page|Database):[a-zA-Z0-9_-]+$"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["data"]
+    },
+    "delete": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Smart-id of the page to archive.",
+          "pattern": "^notion\\-api:(object|collection):(Page|Database):[a-zA-Z0-9_-]+$"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["id"]
+    }
+  }
+}

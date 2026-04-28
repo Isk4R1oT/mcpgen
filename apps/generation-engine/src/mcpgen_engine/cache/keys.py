@@ -62,22 +62,28 @@ def l2_key(
     pass_version: str,
     pass_input: dict[str, Any],
     sampling_profile_label: str,
+    prompt_version: str = "1",
 ) -> str:
     """L2 cache key: per-pass output.
 
-    Composition (D-37):
-    - ``pass_name`` — ``"pass_0"`` / ``"pass_1"``.
+    Composition (D-37 + Phase 3 D-35):
+    - ``pass_name`` — ``"pass_0"`` / ``"pass_1"`` / ``"pass_2"`` / ``"pass_3"`` / ``"pass_4"``.
     - ``pass_version`` — bumped manually when pass logic changes (start ``"1"``).
     - ``pass_input`` — canonical input dict (e.g., serialised RawIR for Pass 0).
-    - ``sampling_profile_label`` — ``"PASS_0_SETTINGS"`` / ``"PASS_1_SETTINGS"``;
+    - ``sampling_profile_label`` — ``"PASS_0_SETTINGS"`` / ``"PASS_1_SETTINGS"`` / etc.;
       ANY change to extra_body provider routing pin invalidates entries
       (defense-in-depth against Pitfall #2 quantization drift).
+    - ``prompt_version`` (Phase 3 D-35) — bumped manually whenever a prompt
+      template in ``passes/<pass>/prompts.py`` changes. Default ``"1"`` keeps
+      Pass 0/1 callers (Phase 2) backward-compatible — they don't pass the
+      kwarg and continue to produce the same hash. Mitigates Pitfall #7
+      (description drift between regenerations sharing the same spec hash).
     - Model id is hardcoded ``qwen/qwen3-coder`` — single-source-of-truth lock.
     """
     input_hash = _canonical_json_sha256(pass_input)
     raw = (
         f"l2:{_engine_version()}:{pass_name}:{pass_version}:"
-        f"qwen/qwen3-coder:{sampling_profile_label}:{input_hash}"
+        f"qwen/qwen3-coder:{sampling_profile_label}:{prompt_version}:{input_hash}"
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 

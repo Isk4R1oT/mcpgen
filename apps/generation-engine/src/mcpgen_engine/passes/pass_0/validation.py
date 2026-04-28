@@ -169,8 +169,7 @@ def enforce_caps(
     """
     if target_complexity not in _TIER_CAPS:
         raise Pass0Error(
-            f"INVALID_TARGET_COMPLEXITY: '{target_complexity}' must be one of "
-            f"{sorted(_TIER_CAPS)}",
+            f"INVALID_TARGET_COMPLEXITY: '{target_complexity}' must be one of {sorted(_TIER_CAPS)}",
         )
 
     effective_cap = _resolve_effective_cap(target_complexity, max_tools_override)

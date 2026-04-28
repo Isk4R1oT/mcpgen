@@ -14,7 +14,13 @@ import { join } from 'node:path';
 
 import { stripe as stripeFixture } from '@mcpgen/engine-fixtures';
 import { GEN_ID_REGEX } from '@mcpgen/contracts';
-import type { Pass1Output } from '@mcpgen/ir';
+import type {
+  Pass1Output,
+  Pass2Output,
+  Pass3Output,
+  Pass4Output,
+  ToolDescription,
+} from '@mcpgen/ir';
 
 import {
   buildEngineRequestBody,
@@ -30,6 +36,68 @@ import { renderReadme } from '../src/init/render_readme.js';
 import { renderServerTs } from '../src/init/render_stub.js';
 
 const stripePass1 = stripeFixture.pass1Output as Pass1Output;
+
+// ─── Phase-3 stub Pass 2/3/4 outputs covering every Stripe Pass 1 tool ────
+function makeStubDescription(name: string): ToolDescription {
+  return {
+    purpose: `Stub purpose for tool '${name}' covering 5+ rubric components.`,
+    when_to_use: [`finding ${name} via canonical pipeline`],
+    limitations: [`stub limitation entry for '${name}'`],
+    parameter_overview: `Stub parameter overview for ${name}; orchestrator-shape only.`,
+  };
+}
+
+const stripePass2: Pass2Output = {
+  descriptions: Object.fromEntries(
+    stripePass1.tools.map((t) => [t.name, makeStubDescription(t.name)]),
+  ),
+};
+
+const stripePass3: Pass3Output = {
+  input_schemas: Object.fromEntries(
+    stripePass1.tools.map((t) => {
+      const properties: Record<string, Record<string, unknown>> = {};
+      const required: string[] = [];
+      if (t.name === 'search') {
+        properties.query = { type: 'string', description: 'search query' };
+        required.push('query');
+      } else if (t.name === 'fetch') {
+        properties.id = { type: 'string', description: 'object id' };
+        required.push('id');
+      }
+      const schema: Record<string, unknown> = {
+        type: 'object',
+        properties,
+        additionalProperties: false,
+      };
+      if (required.length > 0) {
+        schema.required = required;
+      }
+      return [t.name, schema];
+    }),
+  ),
+};
+
+const stripePass4: Pass4Output = {
+  annotations: Object.fromEntries(
+    stripePass1.tools.map((t) => {
+      const readUniversal = new Set(['search', 'fetch', 'list_collections', 'list_objects']);
+      const isRead = readUniversal.has(t.name) || t.type === 'specialized';
+      return [
+        t.name,
+        {
+          readOnlyHint: isRead,
+          destructiveHint: t.name === 'delete',
+          idempotentHint: isRead || t.name === 'delete',
+          openWorldHint: true as const,
+        },
+      ];
+    }),
+  ),
+  titles: Object.fromEntries(
+    stripePass1.tools.map((t) => [t.name, t.name.replace(/_/g, ' ')]),
+  ),
+};
 
 // ─────────────────────────────── options ──────────────────────────────────
 
@@ -102,31 +170,103 @@ describe('options', () => {
 // ───────────────────────────── render_stub ────────────────────────────────
 
 describe('render_stub', () => {
-  test('emits MCP-SDK-v1 server.tool signature for all Pass 1 tools', () => {
-    const code = renderServerTs('stripe-api', stripePass1);
+  test('emits MCP-SDK-v1 registerTool config-object form for all Pass 1 tools (D-37)', () => {
+    const code = renderServerTs(
+      'stripe-api',
+      stripePass1,
+      stripePass2,
+      stripePass3,
+      stripePass4,
+    );
     expect(code).toContain('@modelcontextprotocol/sdk/server/mcp.js');
-    expect(code).toContain('server.tool(');
-    expect(code).not.toContain('registerTool'); // v2 — forbidden D-45
+    // Phase-3 D-37: registerTool config-object form (the only SDK v1 surface
+    // that supports description + inputSchema + annotations + title together).
+    expect(code).toContain('server.registerTool(');
     for (const tool of stripePass1.tools) {
       expect(code).toContain(JSON.stringify(tool.name));
     }
     expect(code).toContain('Stage E codegen lands in Phase 4'); // D-45 placeholder text
   });
 
-  test('search tool gets {query: z.string()} schema (D-30)', () => {
-    const code = renderServerTs('stripe-api', stripePass1);
-    expect(code).toMatch(/"search",[\s\S]*?\{ query: z\.string\(\) \}/);
+  test('search tool registration includes Pass 3 query schema in comment (D-30 OpenAI compliance)', () => {
+    const code = renderServerTs(
+      'stripe-api',
+      stripePass1,
+      stripePass2,
+      stripePass3,
+      stripePass4,
+    );
+    // Pass 3 JSON Schema preserved as comment for Stage E lifting.
+    expect(code).toMatch(/Pass 3 input schema.*"properties":\{"query":\{"type":"string"/);
+    // D-30 OpenAI compliance: runtime Zod shape stays single-string.
+    expect(code).toMatch(/"search",\s*\{[\s\S]*?inputSchema:\s*\{ query: z\.string\(\) \}/);
   });
 
-  test('fetch tool gets {id: z.string()} schema (D-30)', () => {
-    const code = renderServerTs('stripe-api', stripePass1);
-    expect(code).toMatch(/"fetch",[\s\S]*?\{ id: z\.string\(\) \}/);
+  test('fetch tool registration includes Pass 3 id schema in comment (D-30 OpenAI compliance)', () => {
+    const code = renderServerTs(
+      'stripe-api',
+      stripePass1,
+      stripePass2,
+      stripePass3,
+      stripePass4,
+    );
+    expect(code).toMatch(/Pass 3 input schema.*"properties":\{"id":\{"type":"string"/);
+    expect(code).toMatch(/"fetch",\s*\{[\s\S]*?inputSchema:\s*\{ id: z\.string\(\) \}/);
   });
 
-  test('non-search/fetch tools get empty schema shape (Pass 3 placeholder)', () => {
-    const code = renderServerTs('stripe-api', stripePass1);
-    expect(code).toMatch(/"upsert",[\s\S]*?\{\}/);
-    expect(code).toMatch(/"delete",[\s\S]*?\{\}/);
+  test('every tool registration carries title + annotations in config (D-37)', () => {
+    const code = renderServerTs(
+      'stripe-api',
+      stripePass1,
+      stripePass2,
+      stripePass3,
+      stripePass4,
+    );
+    const annotationsBlocks = code.match(/annotations:\s*\{[^}]*\}/g) ?? [];
+    expect(annotationsBlocks.length).toBe(stripePass1.tools.length);
+    expect(code).toContain('title:');
+  });
+
+  test('every annotation carries openWorldHint=true (Phase 3 D-27 invariant)', () => {
+    const code = renderServerTs(
+      'stripe-api',
+      stripePass1,
+      stripePass2,
+      stripePass3,
+      stripePass4,
+    );
+    const annotationsBlocks = code.match(/annotations:\s*\{[^}]*\}/g) ?? [];
+    expect(annotationsBlocks.length).toBeGreaterThan(0);
+    for (const block of annotationsBlocks) {
+      expect(block).toContain('"openWorldHint":true');
+    }
+  });
+
+  test('every Pass 3 schema is preserved as comment with additionalProperties:false (D-22)', () => {
+    const code = renderServerTs(
+      'stripe-api',
+      stripePass1,
+      stripePass2,
+      stripePass3,
+      stripePass4,
+    );
+    const additionalPropsBlocks = code.match(/"additionalProperties":false/g) ?? [];
+    expect(additionalPropsBlocks.length).toBe(stripePass1.tools.length);
+  });
+
+  test('descriptions render as Pass 2 markdown (## When to use / ## Limitations)', () => {
+    const code = renderServerTs(
+      'stripe-api',
+      stripePass1,
+      stripePass2,
+      stripePass3,
+      stripePass4,
+    );
+    expect(code).toContain('## When to use');
+    expect(code).toContain('## Limitations');
+    expect(code).toContain('## Parameters');
+    // Phase-2 placeholder text MUST NOT appear when Pass 2 outputs are present.
+    expect(code).not.toContain('Pass 2 description authoring lands in Phase 3.');
   });
 });
 

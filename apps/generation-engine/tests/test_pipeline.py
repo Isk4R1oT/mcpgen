@@ -1,15 +1,18 @@
-"""Full pipeline (Stage A → Pass 0 → Pass 1) integration tests.
+"""Full pipeline (Stage A → Pass 0 → Pass 1 → Pass 2 → Pass 3 → Pass 4) tests.
 
 VALIDATION rows:
 - T-2-C6: Stripe E2E final tool count 6-12 (asserted indirectly via the
   Stripe fixture in `test_pass_1_e2e.py`; this module covers full pipeline
   including Stage A + Pass 0 with a synthetic OpenAPI spec).
 - T-2-D1 / GEN-12 / D-41: second pipeline run on identical spec produces
-  ZERO LLM calls (L1 cache hit returns the architect output without
-  re-running Pass 0 or Pass 1).
+  ZERO LLM calls (L1 cache hit returns the architect+author output without
+  re-running Pass 0..4).
 
 The pipeline tests use a small synthetic OpenAPI 3.0 spec (3 endpoints) so
-Stage A parses in <1s. OpenRouter is mocked via ``pytest-httpx``.
+Stage A parses in <1s. OpenRouter is mocked via ``pytest-httpx`` for Pass
+0 / Pass 1; Pass 2 / 3 / 4 are monkeypatched at the orchestrator's import
+surface (the per-pass test modules cover their LLM-stack paths
+exhaustively).
 """
 
 from __future__ import annotations
@@ -19,8 +22,19 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from mcpgen_ir.types import (
+    Annotations,
+    Description,
+    Descriptions,
+    Pass1Output,
+    Pass2Output,
+    Pass3Output,
+    Pass4Output,
+    RawIR,
+)
 from pytest_httpx import HTTPXMock
 
+from mcpgen_engine import pipeline as pipeline_module
 from mcpgen_engine.cache import clear_l1, clear_l2
 from mcpgen_engine.passes.pass_0.filter import UserOptions
 from mcpgen_engine.pipeline import (
@@ -44,6 +58,93 @@ def _isolated_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     get_settings.cache_clear()
     clear_l1()
     clear_l2()
+
+
+@pytest.fixture(autouse=True)
+def _stub_stage_c_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bypass Pass 2/3/4 LLM stack at the orchestrator's import surface.
+
+    The pipeline-level integration tests assert orchestration shape (event
+    sequence, L1 cache contents, error wiring). Pass 2/3/4 internals have
+    their own dedicated test modules under `tests/passes/pass_*` that
+    exercise the real LLM mocks with httpx_mock. Stubbing here keeps these
+    tests fast and isolated from per-pass changes (Phase 2 invariant).
+    """
+
+    def _stub_description(name: str) -> Description:
+        return Description(
+            purpose=f"Stub purpose for tool '{name}' covering 5+ rubric components.",
+            when_to_use=[f"finding {name} via canonical pipeline"],
+            when_not_to_use=None,
+            how_to_use=None,
+            limitations=["test stub limitation entry — single bullet"],
+            parameter_overview=(
+                f"Stub parameter overview for {name}; "
+                "fields exist for orchestrator-shape validation only."
+            ),
+        )
+
+    async def _fake_pass_2(
+        pass_1_output: Pass1Output,
+        raw_ir: RawIR,  # noqa: ARG001 — signature parity
+    ) -> Pass2Output:
+        descriptions: dict[str, Descriptions] = {}
+        for tool in pass_1_output.tools:
+            base = _stub_description(tool.name)
+            descriptions[tool.name] = Descriptions.model_validate(
+                {**base.model_dump(), "description_hash": "0" * 64}
+            )
+        return Pass2Output(descriptions=descriptions)
+
+    async def _fake_pass_3(
+        pass_2_output: Pass2Output,  # noqa: ARG001
+        pass_1_output: Pass1Output,
+        raw_ir: RawIR,  # noqa: ARG001
+        spec_title: str | None = None,  # noqa: ARG001
+    ) -> Pass3Output:
+        input_schemas: dict[str, dict[str, Any]] = {}
+        for tool in pass_1_output.tools:
+            properties: dict[str, dict[str, Any]] = {}
+            if tool.name == "search":
+                properties["query"] = {"type": "string", "description": "search query"}
+                required = ["query"]
+            elif tool.name == "fetch":
+                properties["id"] = {"type": "string", "description": "object id"}
+                required = ["id"]
+            else:
+                required = []
+            schema: dict[str, Any] = {
+                "type": "object",
+                "properties": properties,
+                "additionalProperties": False,
+            }
+            if required:
+                schema["required"] = required
+            input_schemas[tool.name] = schema
+        return Pass3Output(input_schemas=input_schemas)
+
+    async def _fake_pass_4(
+        pass_3_output: Pass3Output,  # noqa: ARG001
+        pass_2_output: Pass2Output,  # noqa: ARG001
+        pass_1_output: Pass1Output,
+    ) -> Pass4Output:
+        annotations: dict[str, Annotations] = {}
+        titles: dict[str, str] = {}
+        read_universal = {"search", "fetch", "list_collections", "list_objects"}
+        for tool in pass_1_output.tools:
+            is_read = tool.name in read_universal or tool.type.value == "specialized"
+            annotations[tool.name] = Annotations(
+                readOnlyHint=is_read,
+                destructiveHint=tool.name == "delete",
+                idempotentHint=is_read or tool.name == "delete",
+                openWorldHint=True,
+            )
+            titles[tool.name] = tool.name.replace("_", " ").title()
+        return Pass4Output(annotations=annotations, titles=titles)
+
+    monkeypatch.setattr(pipeline_module, "pass_2_run", _fake_pass_2)
+    monkeypatch.setattr(pipeline_module, "pass_3_run", _fake_pass_3)
+    monkeypatch.setattr(pipeline_module, "pass_4_run", _fake_pass_4)
 
 
 # ────────────────────────── Mocked-LLM helpers ─────────────────────────────
@@ -206,17 +307,21 @@ def _job_id(suffix: str) -> str:
 # ───────────────────────────── Pipeline tests ──────────────────────────────
 
 
-async def test_full_pipeline_emits_phase_2_sse_sequence(httpx_mock: HTTPXMock) -> None:
-    """Cold pipeline emits the D-47 SSE sequence end-to-end.
+async def test_full_pipeline_emits_phase_3_sse_sequence(httpx_mock: HTTPXMock) -> None:
+    """Cold pipeline emits the Phase-3 D-33 SSE sequence end-to-end.
 
     Sequence:
       A:started → A:completed
       B:started (pass_0) → B:completed (pass_0)
-      B:started (pass_1) → B:completed (pass_1)
-      completed:completed
+      B:started (pass_1) → B:completed (pass_1, sub_status=architect_complete)
+      C:started (pass_2) → C:completed (pass_2)
+      C:started (pass_3) → C:completed (pass_3)
+      C:started (pass_4) → C:completed (pass_4)
+      completed:completed (phase=author_complete)
     """
     # Pass 0 mock (1 LLM call), Pass 1 mock (1 universal-synth call). No
-    # extras in this synthetic spec → no per-extra calls.
+    # extras in this synthetic spec → no per-extra calls. Pass 2/3/4 are
+    # stubbed by the autouse fixture.
     httpx_mock.add_response(
         method="POST",
         url=OPENROUTER_URL,
@@ -237,7 +342,7 @@ async def test_full_pipeline_emits_phase_2_sse_sequence(httpx_mock: HTTPXMock) -
     ):
         events.append(event)
 
-    # SSE sequence per D-47.
+    # D-33: full SSE sequence.
     seq = [(e.stage, e.status) for e in events]
     assert seq[0] == ("A", "started")
     assert ("A", "completed") in seq
@@ -266,6 +371,43 @@ async def test_full_pipeline_emits_phase_2_sse_sequence(httpx_mock: HTTPXMock) -
     coverage_pct = pass_1_done.partial_result["coverage_pct"]
     assert isinstance(coverage_pct, int | float)
     assert float(coverage_pct) == 100.0
+    # D-33 backward-compat: Phase-2 CLI consumers still find this string.
+    assert pass_1_done.partial_result.get("sub_status") == "architect_complete"
+
+    # Stage C fires THREE times (pass_2 / pass_3 / pass_4), once started + once
+    # completed each = 6 events.
+    c_started = [e for e in events if e.stage == "C" and e.status == "started"]
+    c_completed = [e for e in events if e.stage == "C" and e.status == "completed"]
+    assert len(c_started) == 3
+    assert len(c_completed) == 3
+    c_phases = [e.partial_result.get("phase") for e in c_completed if e.partial_result]
+    assert c_phases == ["pass_2", "pass_3", "pass_4"]
+
+    # Pass 2 emits tool_count.
+    pass_2_done = c_completed[0]
+    assert pass_2_done.partial_result is not None
+    tool_count = pass_2_done.partial_result["tool_count"]
+    assert isinstance(tool_count, int)
+    assert tool_count == 6
+
+    # Pass 3 emits param_count (search has 1 query, fetch has 1 id, others 0).
+    pass_3_done = c_completed[1]
+    assert pass_3_done.partial_result is not None
+    param_count = pass_3_done.partial_result["param_count"]
+    assert isinstance(param_count, int)
+    assert param_count == 2
+
+    # Pass 4 emits annotation_count for every tool.
+    pass_4_done = c_completed[2]
+    assert pass_4_done.partial_result is not None
+    annotation_count = pass_4_done.partial_result["annotation_count"]
+    assert isinstance(annotation_count, int)
+    assert annotation_count == 6
+
+    # D-33: terminal event carries phase=author_complete (NOT architect_complete).
+    final = events[-1]
+    assert final.partial_result is not None
+    assert final.partial_result.get("phase") == "author_complete"
 
 
 async def test_second_run_zero_llm_calls(httpx_mock: HTTPXMock) -> None:
@@ -330,7 +472,7 @@ async def test_second_run_zero_llm_calls(httpx_mock: HTTPXMock) -> None:
 
 
 async def test_pipeline_persists_full_architect_output_to_l1(httpx_mock: HTTPXMock) -> None:
-    """L1 stores ``{raw_ir, pass_0_output, pass_1_output}`` so reconstruction is lossless."""
+    """L1 stores 6 outputs per D-34 so reconstruction is lossless."""
     httpx_mock.add_response(
         method="POST",
         url=OPENROUTER_URL,
@@ -357,13 +499,35 @@ async def test_pipeline_persists_full_architect_output_to_l1(httpx_mock: HTTPXMo
     raw_ir = await stage_a.run(spec_url=None, spec_content=_synthetic_openapi_spec())
     cached = get_l1(l1_key(raw_ir.spec_hash))
     assert cached is not None
+    # D-34: L1 value layout — 6 keys.
+    assert set(cached.keys()) == {
+        "raw_ir",
+        "pass_0_output",
+        "pass_1_output",
+        "pass_2_output",
+        "pass_3_output",
+        "pass_4_output",
+    }
 
-    # Round-trip through `reconstruct_from_l1`.
-    raw_ir_2, pass_0_output, pass_1_output = reconstruct_from_l1(cached)
+    # Round-trip through `reconstruct_from_l1` returns 6-tuple.
+    (
+        raw_ir_2,
+        pass_0_output,
+        pass_1_output,
+        pass_2_output,
+        pass_3_output,
+        pass_4_output,
+    ) = reconstruct_from_l1(cached)
     assert raw_ir_2.spec_hash == raw_ir.spec_hash
     assert len(pass_0_output.tool_plans) == 3
     assert len(pass_1_output.tools) == 6
     assert pass_1_output.coverage_pct == 100.0
+    assert len(pass_2_output.descriptions) == 6
+    assert len(pass_3_output.input_schemas) == 6
+    assert len(pass_4_output.annotations) == 6
+    # D-27 invariant — every annotation has openWorldHint=True.
+    for ann in pass_4_output.annotations.values():
+        assert ann.openWorldHint is True
 
 
 async def test_pipeline_emits_failed_event_on_stage_a_error() -> None:

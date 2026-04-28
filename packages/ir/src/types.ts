@@ -36,6 +36,9 @@ export type ToolAnnotations = z.infer<typeof ToolAnnotations>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pass 2 — ToolDescription (5 of 6 paper rubric components in v0; Examples deferred)
+// `description_hash` (Phase 3 D-14 / D-40) is a sha256 of the rendered description
+// markdown — strictly-additive optional field used by the Pass 2 diff helper to
+// surface description drift between regenerations of the same spec (Pitfall #7).
 // ─────────────────────────────────────────────────────────────────────────────
 export const ToolDescription = z.object({
   purpose: z.string().min(20),
@@ -44,6 +47,7 @@ export const ToolDescription = z.object({
   how_to_use: z.string().optional(),
   limitations: z.array(z.string()),
   parameter_overview: z.string().min(50).max(400),
+  description_hash: z.string().optional(),
 });
 export type ToolDescription = z.infer<typeof ToolDescription>;
 

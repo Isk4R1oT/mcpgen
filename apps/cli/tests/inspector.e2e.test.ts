@@ -19,21 +19,100 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import { stripe as stripeFixture } from '@mcpgen/engine-fixtures';
-import type { Pass1Output } from '@mcpgen/ir';
+import type {
+  Pass1Output,
+  Pass2Output,
+  Pass3Output,
+  Pass4Output,
+  ToolDescription,
+} from '@mcpgen/ir';
 
 import { renderServerTs } from '../src/init/render_stub.js';
 
 const cliRoot = resolve(dirname(import.meta.path), '..');
 let serverDir = '';
 
+// Build Phase-3 stub Pass 2/3/4 outputs from the Pass 1 tool list — Phase 4
+// will replace this with hand-tuned fixtures from packages/engine-fixtures/.
+function makePhase3Stubs(pass1: Pass1Output): {
+  pass2: Pass2Output;
+  pass3: Pass3Output;
+  pass4: Pass4Output;
+} {
+  const stubDescription = (name: string): ToolDescription => ({
+    purpose: `Stub purpose for tool '${name}' covering 5+ rubric components.`,
+    when_to_use: [`finding ${name} via canonical pipeline`],
+    limitations: [`stub limitation entry for '${name}'`],
+    parameter_overview: `Stub parameter overview for ${name}; orchestrator-shape only.`,
+  });
+  const readUniversal = new Set([
+    'search',
+    'fetch',
+    'list_collections',
+    'list_objects',
+  ]);
+  return {
+    pass2: {
+      descriptions: Object.fromEntries(
+        pass1.tools.map((t) => [t.name, stubDescription(t.name)]),
+      ),
+    },
+    pass3: {
+      input_schemas: Object.fromEntries(
+        pass1.tools.map((t) => {
+          const properties: Record<string, Record<string, unknown>> = {};
+          const required: string[] = [];
+          if (t.name === 'search') {
+            properties.query = { type: 'string', description: 'search query' };
+            required.push('query');
+          } else if (t.name === 'fetch') {
+            properties.id = { type: 'string', description: 'object id' };
+            required.push('id');
+          }
+          const schema: Record<string, unknown> = {
+            type: 'object',
+            properties,
+            additionalProperties: false,
+          };
+          if (required.length > 0) {
+            schema.required = required;
+          }
+          return [t.name, schema];
+        }),
+      ),
+    },
+    pass4: {
+      annotations: Object.fromEntries(
+        pass1.tools.map((t) => {
+          const isRead = readUniversal.has(t.name) || t.type === 'specialized';
+          return [
+            t.name,
+            {
+              readOnlyHint: isRead,
+              destructiveHint: t.name === 'delete',
+              idempotentHint: isRead || t.name === 'delete',
+              openWorldHint: true as const,
+            },
+          ];
+        }),
+      ),
+      titles: Object.fromEntries(
+        pass1.tools.map((t) => [t.name, t.name.replace(/_/g, ' ')]),
+      ),
+    },
+  };
+}
+
 beforeAll(() => {
   serverDir = mkdtempSync(join(tmpdir(), 'mcpgen-inspector-'));
   // Link apps/cli/node_modules so `bun server.ts` can resolve
   // `@modelcontextprotocol/sdk` and `zod` directly without a fresh `npm install`.
   symlinkSync(join(cliRoot, 'node_modules'), join(serverDir, 'node_modules'));
+  const pass1 = stripeFixture.pass1Output as Pass1Output;
+  const stubs = makePhase3Stubs(pass1);
   writeFileSync(
     join(serverDir, 'server.ts'),
-    renderServerTs('stripe-api', stripeFixture.pass1Output as Pass1Output),
+    renderServerTs('stripe-api', pass1, stubs.pass2, stubs.pass3, stubs.pass4),
   );
   // package.json with `type: module` so .ts default resolution stays consistent.
   writeFileSync(

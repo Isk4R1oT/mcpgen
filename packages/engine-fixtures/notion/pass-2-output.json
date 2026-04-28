@@ -1,0 +1,86 @@
+{
+  "descriptions": {
+    "search": {
+      "purpose": "Search Notion pages and databases by free-form query string and return ranked smart-id results.",
+      "when_to_use": [
+        "User asks to find a page or database by title without knowing the UUID",
+        "Disambiguating between similarly-named pages across the workspace"
+      ],
+      "limitations": [
+        "Search index lags upstream by a few seconds for newly-created pages",
+        "Returns only pages and databases the integration has been granted access to"
+      ],
+      "parameter_overview": "Required: query (free-form string matched against page titles and database titles). Returns: ranked smart-id array.",
+      "description_hash": "b51b69d8f0970f222eed47a41047854d419562264fde6e5c9b7fc78f18e443bb"
+    },
+    "fetch": {
+      "purpose": "Fetch a single Notion page or database by smart-id and return its full representation.",
+      "when_to_use": [
+        "Smart-id already known from a prior search() or list_objects() call",
+        "Need full property values not surfaced in list views"
+      ],
+      "limitations": [
+        "Single-object fetch only; for batch reads use list_objects()",
+        "Returns 404 if smart-id refers to a trashed or revoked-access object"
+      ],
+      "parameter_overview": "Required: id (smart-id of format notion-api:{type}:{collection}:{identifier}). Returns: full upstream object.",
+      "description_hash": "cfcbeb1a8dd946a6ea874b886f36a48a7bd78b87b30635d3713e05f007af623a"
+    },
+    "list_collections": {
+      "purpose": "List the available Notion collections (Page, Database) for discovery.",
+      "when_to_use": [
+        "Discovering what types of data this server exposes before issuing list_objects() calls",
+        "Building a collection picker in a UI"
+      ],
+      "limitations": [
+        "Returns only collection metadata, not the objects themselves",
+        "Counts are upstream-best-effort and may exclude restricted-access pages"
+      ],
+      "parameter_overview": "No required parameters. Returns: array of collection descriptors with name and approximate object count.",
+      "description_hash": "6fbf2a71f52781cee01458bab4c7b6f87611799419368e8f4d8b79ee37b4ab43"
+    },
+    "list_objects": {
+      "purpose": "List Notion objects in a given collection (database query) with cursor-based pagination.",
+      "when_to_use": [
+        "Walking all rows of a Notion database",
+        "Building a paginated table view over a database"
+      ],
+      "limitations": [
+        "Only Database collections support list_objects (use search for top-level pages)",
+        "Default page size is 25, max 100 per call"
+      ],
+      "parameter_overview": "Required: collection (database smart-id). Optional: limit, cursor. Returns: paged smart-id array of database rows.",
+      "description_hash": "8cbf2c1000bdeb08f9a7fb0f10073d2483c2d136acea598c25e81bb2f2263a9f"
+    },
+    "upsert": {
+      "purpose": "Create a new Notion page (in a database or as a child) or update an existing page's properties.",
+      "when_to_use": [
+        "Adding a new row to a Notion database",
+        "Updating a page's status, tags, or other property values by smart-id"
+      ],
+      "when_not_to_use": [
+        "Archiving a page \u2014 use delete() to soft-delete via archived flag",
+        "Editing block content (paragraphs/headings); this server only manages page-level properties"
+      ],
+      "limitations": [
+        "data must conform to the parent database's property schema; mismatches return validation errors",
+        "Partial property updates merge; pass full nested objects to replace them"
+      ],
+      "parameter_overview": "Required: data (page payload with parent + properties). Optional: id (presence triggers update path). Returns: created or updated page.",
+      "description_hash": "0c3c36b5587dc7888da5b247f7ff8ab42bba7596c8fe28ec8c5665e957202c4d"
+    },
+    "delete": {
+      "purpose": "Soft-delete (archive) a Notion page by setting its archived flag via PATCH.",
+      "when_to_use": [
+        "Archiving a page that is no longer needed but should remain recoverable",
+        "Bulk-cleaning stale rows from a Notion database"
+      ],
+      "limitations": [
+        "Notion does not support hard delete via API; archive is the only deletion path",
+        "Archived pages remain in trash and count against workspace storage"
+      ],
+      "parameter_overview": "Required: id (page smart-id). Returns: archived page object.",
+      "description_hash": "2eb7c97d13b97685c6a6f8e6ea07ebdfc8cb7322ad69203b9b882f256e797970"
+    }
+  }
+}

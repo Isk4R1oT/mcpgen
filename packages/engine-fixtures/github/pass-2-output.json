@@ -1,0 +1,138 @@
+{
+  "descriptions": {
+    "search": {
+      "purpose": "Search GitHub issues by free-form qualifier query string and return ranked smart-id results.",
+      "when_to_use": [
+        "User asks to find issues by labels, state, or text without knowing the issue number",
+        "Disambiguating between similarly-titled issues across repositories"
+      ],
+      "limitations": [
+        "Search index lags upstream by up to 60 seconds",
+        "Returns at most 30 ranked results per call (GitHub Search API limit)"
+      ],
+      "parameter_overview": "Required: query (GitHub search qualifier string, e.g. 'is:issue label:bug'). Returns: ranked array of smart-id results.",
+      "description_hash": "c20fc6a2bfce7dae59c7002a8242f12d3b53b635fcba6cb66f6be93c893b8447"
+    },
+    "fetch": {
+      "purpose": "Fetch a single GitHub issue, pull request, or release by smart-id and return its full representation.",
+      "when_to_use": [
+        "Smart-id already known from a prior search() or list_objects() call",
+        "Need full body, labels, and timeline metadata not exposed in list views"
+      ],
+      "limitations": [
+        "Single-object fetch only; for batch reads use list_objects()",
+        "Returns 404 if the smart-id refers to a deleted resource"
+      ],
+      "parameter_overview": "Required: id (smart-id of format github-v3-rest-api:{type}:{collection}:{identifier}). Returns: full upstream object.",
+      "description_hash": "ec5b27dc0560fa114a86fee00fbc5bce4ea3d2124ba6db2d6ba83d0f657c8a47"
+    },
+    "list_collections": {
+      "purpose": "List the available GitHub collections (Issue, PullRequest, Release) for discovery.",
+      "when_to_use": [
+        "Discovering what types of data this server exposes before issuing list_objects() calls",
+        "Building a collection picker in a UI"
+      ],
+      "limitations": [
+        "Returns only collection metadata, not the objects themselves",
+        "Counts are upstream-best-effort; do not rely on exact accuracy"
+      ],
+      "parameter_overview": "No required parameters. Returns: array of collection descriptors with name and approximate object count.",
+      "description_hash": "e7eb060cd01c7f6e64718eaff1c5cfbb71cb787b3f1b95615d892e15e6be5a2b"
+    },
+    "list_objects": {
+      "purpose": "List GitHub objects in a given collection with page-number pagination, scoped to a repository.",
+      "when_to_use": [
+        "Browsing all issues, pull requests, or releases in a repo",
+        "Walking large datasets via per_page + page cursor"
+      ],
+      "limitations": [
+        "Default page size is 25, max 100 per call",
+        "Repo scope is mandatory; cross-repo listing is not supported by GitHub REST"
+      ],
+      "parameter_overview": "Required: collection (Issue/PullRequest/Release), owner, repo. Optional: limit, cursor (page number). Returns: paged smart-id results.",
+      "description_hash": "0842143d54528900c565f2cf526592c886324b0fbbe2aabbf6011378445170c3"
+    },
+    "upsert": {
+      "purpose": "Create a new GitHub issue, pull request, or release in a repository.",
+      "when_to_use": [
+        "Filing a new bug from collected user input",
+        "Opening a PR to merge a feature branch into main"
+      ],
+      "when_not_to_use": [
+        "Closing or merging an existing issue/PR \u2014 use issues_close or pull_requests_merge",
+        "Deleting a release \u2014 use delete()"
+      ],
+      "limitations": [
+        "Upstream rejects creates that violate branch protection or required-reviewer rules",
+        "PRs require head + base branches to exist already (use create_pr_from_branch workflow if branch needs lookup)"
+      ],
+      "parameter_overview": "Required: data (object payload), owner, repo. Returns: created object with smart-id.",
+      "description_hash": "24fdcc397a3c353d394da6fff9902790b749df4156868575e1726b27f1035d96"
+    },
+    "delete": {
+      "purpose": "Permanently delete a GitHub release by smart-id.",
+      "when_to_use": [
+        "Removing a draft release that was published in error",
+        "Cleaning up auto-generated releases from CI experiments"
+      ],
+      "limitations": [
+        "Only release deletion is supported; issues and PRs cannot be hard-deleted via REST",
+        "Deletion is irreversible; download counts are lost"
+      ],
+      "parameter_overview": "Required: id (release smart-id), owner, repo. Returns: confirmation envelope.",
+      "description_hash": "601ad6c108bf2f6d6239e3e516b4a42eb3b954d5252b9e120d7d49548ba95e96"
+    },
+    "issues_close": {
+      "purpose": "Close a GitHub issue by setting state=closed via PATCH.",
+      "when_to_use": [
+        "Resolving an issue after the underlying bug ships a fix",
+        "Bulk-closing stale issues during triage"
+      ],
+      "limitations": [
+        "Already-closed issues return their terminal state without further action",
+        "Locked issues cannot be re-closed; verify lock state first"
+      ],
+      "parameter_overview": "Required: owner, repo, issue_number, state. Returns: updated issue object.",
+      "description_hash": "0e0f6f823452bc203f1b92aa373b78b3481aa19674cf609543f7bbafab24e8cd"
+    },
+    "pull_requests_merge": {
+      "purpose": "Merge an open pull request using the specified merge method.",
+      "when_to_use": [
+        "Finalizing a reviewed and approved PR",
+        "Automating merges from CI on green checks"
+      ],
+      "limitations": [
+        "PR must be in mergeable state (no conflicts, required reviews satisfied)",
+        "merge_method must match repository policy (some repos enforce squash-only)"
+      ],
+      "parameter_overview": "Required: owner, repo, pull_number. Optional: merge_method (merge/squash/rebase). Returns: merge result.",
+      "description_hash": "7f23198ea9f2bee830e543ea1bcff9806ce65e4343d618104fe5ab27472cd5c1"
+    },
+    "releases_create": {
+      "purpose": "Create a new GitHub release for a given tag.",
+      "when_to_use": [
+        "Publishing a new versioned release after a successful CI build",
+        "Cutting a draft release for upcoming changelog work"
+      ],
+      "limitations": [
+        "tag_name must already exist in the repo or be specified as a target_commitish",
+        "Cannot recreate a release for a tag that already has one"
+      ],
+      "parameter_overview": "Required: owner, repo, data (with tag_name). Returns: created release object.",
+      "description_hash": "28410a3d98a30d538108d6a7c0fc0bbebc3f19eba096d6f54648b468ceff4331"
+    },
+    "create_pr_from_branch": {
+      "purpose": "Resolve a branch SHA and open a pull request against the target base in a single workflow.",
+      "when_to_use": [
+        "Opening a PR when only the branch name is known and the head SHA must be looked up first",
+        "Automating the resolve+open flow from CI/scripts"
+      ],
+      "limitations": [
+        "Branch must exist on the repo; resolution returns 404 otherwise",
+        "Reports partial failure if PR creation fails after SHA resolution succeeds"
+      ],
+      "parameter_overview": "Required: owner, repo, branch (head). Returns: opened PR object on success; partial-failure envelope on PR open error.",
+      "description_hash": "21a65bc5bbbcacf515d9472bc2d2de6c59508fee3e7e60c1582f31cacb5b1897"
+    }
+  }
+}

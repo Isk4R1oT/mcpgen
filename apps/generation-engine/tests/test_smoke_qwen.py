@@ -77,8 +77,7 @@ SETTINGS = ModelSettings(temperature=0.3, top_p=0.9, max_tokens=256)
 @pytest.mark.requires_openrouter
 @pytest.mark.skipif(
     not _HAS_REAL_KEY,
-    reason="OPENROUTER_API_KEY not set (or set to sandbox placeholder); "
-    "Day-1 smoke test skipped",
+    reason="OPENROUTER_API_KEY not set (or set to sandbox placeholder); Day-1 smoke test skipped",
 )
 async def test_qwen3_coder_structured_output() -> None:
     agent = _build_agent()

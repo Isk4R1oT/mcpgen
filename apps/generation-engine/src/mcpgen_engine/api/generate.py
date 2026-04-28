@@ -79,9 +79,7 @@ def _validate_idempotency_key(key: str) -> None:
     if not GEN_ID_REGEX.match(key):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"invalid {IDEMPOTENCY_KEY_HEADER}: expected gen_<26-char ULID> " f"(got {key!r})"
-            ),
+            detail=(f"invalid {IDEMPOTENCY_KEY_HEADER}: expected gen_<26-char ULID> (got {key!r})"),
         )
 
 
@@ -195,14 +193,28 @@ async def stream(job_id: str, request: Request) -> StreamingResponse:
 
 @router.get("/api/v1/generate/{job_id}/artifacts")
 async def artifacts(job_id: str) -> dict[str, Any]:
-    """Return the L1-cached ``{raw_ir, pass_0_output, pass_1_output}`` triple.
+    """Return the L1-cached architect+author bundle for ``job_id``.
 
-    Phase 2 surface for the CLI: after consuming the SSE stream to its
-    ``completed`` event, the CLI fetches this endpoint to materialise the
-    output directory (D-43). Because Pipeline persists to L1 keyed by
+    Phase 3 surface for the CLI (D-34): after consuming the SSE stream to
+    its ``completed`` event, the CLI fetches this endpoint to materialise
+    the output directory. Because Pipeline persists to L1 keyed by
     ``raw_ir.spec_hash``, we re-derive the spec hash from the stored job
     parameters — Stage A is fully deterministic so this is cheap on a
     warm filesystem cache.
+
+    Returned keys mirror the L1 layout per D-34::
+
+        {
+          "raw_ir":         <serialised RawIR>,
+          "pass_0_output":  <serialised Pass0Output>,
+          "pass_1_output":  <serialised Pass1Output>,
+          "pass_2_output":  <serialised Pass2Output>,
+          "pass_3_output":  <serialised Pass3Output>,
+          "pass_4_output":  <serialised Pass4Output>,
+        }
+
+    The Pass 2/3/4 keys are present from Phase 3 onward; Phase 2 callers
+    that only consumed the first 3 keys keep working unchanged.
 
     404 if the job_id is unknown OR the L1 entry is missing (e.g. cache
     eviction between SSE completion and this call).
@@ -228,11 +240,18 @@ async def artifacts(job_id: str) -> dict[str, Any]:
                 "(eviction or pipeline not yet complete)"
             ),
         )
-    return {
+    payload: dict[str, Any] = {
         "raw_ir": cached["raw_ir"],
         "pass_0_output": cached["pass_0_output"],
         "pass_1_output": cached["pass_1_output"],
     }
+    # Phase 3 additions (D-34) — present from this version onward; older L1
+    # entries written by a Phase-2 engine won't have them, in which case we
+    # omit the key (CLI consumers feature-test on presence).
+    for key in ("pass_2_output", "pass_3_output", "pass_4_output"):
+        if key in cached:
+            payload[key] = cached[key]
+    return payload
 
 
 # ─────────────────────────── SSE wire generator ────────────────────────────

@@ -1,0 +1,134 @@
+{
+  "input_schemas": {
+    "search": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Free-form query string to match against name, email, and metadata fields across charges, customers, and subscriptions."
+        }
+      },
+      "additionalProperties": false,
+      "required": ["query"]
+    },
+    "fetch": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Smart-id of the form stripe-api:{type}:{collection}:{identifier}.",
+          "pattern": "^stripe\\-api:(object|collection):(Charge|Customer|Subscription|Refund):[a-zA-Z0-9_-]+$"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["id"]
+    },
+    "list_collections": {
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "description": "Optional substring filter matched against collection names (case-insensitive)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "list_objects": {
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection name to enumerate.",
+          "enum": ["Charge", "Customer", "Subscription", "Refund"]
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Page size (default 25, max 100).",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 25
+        },
+        "cursor": {
+          "type": "string",
+          "description": "Opaque cursor token returned by a prior list_objects call. Omit for the first page."
+        }
+      },
+      "additionalProperties": false,
+      "required": ["collection"]
+    },
+    "upsert": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "description": "Object payload to create or merge. Required fields depend on collection (e.g. Charge requires amount + currency)."
+        },
+        "id": {
+          "type": "string",
+          "description": "Optional smart-id; when present, triggers update path instead of create.",
+          "pattern": "^stripe\\-api:(object|collection):(Charge|Customer|Subscription|Refund):[a-zA-Z0-9_-]+$"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["data"]
+    },
+    "delete": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Smart-id of the customer object to delete.",
+          "pattern": "^stripe\\-api:(object|collection):(Charge|Customer|Subscription|Refund):[a-zA-Z0-9_-]+$"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["id"]
+    },
+    "charges_capture": {
+      "type": "object",
+      "properties": {
+        "charge": {
+          "type": "string",
+          "description": "Smart-id of the authorized charge to capture.",
+          "pattern": "^stripe\\-api:(object|collection):(Charge|Customer|Subscription|Refund):[a-zA-Z0-9_-]+$"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["charge"]
+    },
+    "charges_refund": {
+      "type": "object",
+      "properties": {
+        "charge": {
+          "type": "string",
+          "description": "Smart-id of the captured charge to refund.",
+          "pattern": "^stripe\\-api:(object|collection):(Charge|Customer|Subscription|Refund):[a-zA-Z0-9_-]+$"
+        },
+        "amount": {
+          "type": "integer",
+          "description": "Refund amount in the smallest currency unit (e.g. cents). Omit for full refund.",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": ["charge"]
+    },
+    "subscriptions_cancel": {
+      "type": "object",
+      "properties": {
+        "subscription_exposed_id": {
+          "type": "string",
+          "description": "Smart-id of the subscription to cancel.",
+          "pattern": "^stripe\\-api:(object|collection):(Charge|Customer|Subscription|Refund):[a-zA-Z0-9_-]+$"
+        },
+        "at_period_end": {
+          "type": "boolean",
+          "description": "If true, defer cancellation until the end of the current billing period; default false (immediate).",
+          "default": false
+        }
+      },
+      "additionalProperties": false,
+      "required": ["subscription_exposed_id"]
+    }
+  }
+}

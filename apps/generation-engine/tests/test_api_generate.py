@@ -36,6 +36,102 @@ def _isolated_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _reset_job_table()
 
 
+@pytest.fixture(autouse=True)
+def _stub_stage_c_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bypass Pass 2/3/4 LLM stack at the orchestrator's import surface.
+
+    Same pattern as `tests/test_pipeline.py::_stub_stage_c_passes` — this
+    keeps the API tests focused on SSE wire-format + endpoint shape; per-pass
+    LLM behaviour is exercised in `tests/passes/pass_*` modules.
+    """
+    from mcpgen_ir.types import (
+        Annotations,
+        Description,
+        Descriptions,
+        Pass1Output,
+        Pass2Output,
+        Pass3Output,
+        Pass4Output,
+        RawIR,
+    )
+
+    from mcpgen_engine import pipeline as pipeline_module
+
+    def _stub_description(name: str) -> Description:
+        return Description(
+            purpose=f"Stub purpose for tool '{name}' covering 5+ rubric components.",
+            when_to_use=[f"finding {name} via canonical pipeline"],
+            when_not_to_use=None,
+            how_to_use=None,
+            limitations=["test stub limitation entry"],
+            parameter_overview=(
+                f"Stub parameter overview for {name}; "
+                "fields exist for orchestrator-shape validation only."
+            ),
+        )
+
+    async def _fake_pass_2(
+        pass_1_output: Pass1Output,
+        raw_ir: RawIR,  # noqa: ARG001
+    ) -> Pass2Output:
+        descriptions: dict[str, Descriptions] = {}
+        for tool in pass_1_output.tools:
+            base = _stub_description(tool.name)
+            descriptions[tool.name] = Descriptions.model_validate(
+                {**base.model_dump(), "description_hash": "0" * 64}
+            )
+        return Pass2Output(descriptions=descriptions)
+
+    async def _fake_pass_3(
+        pass_2_output: Pass2Output,  # noqa: ARG001
+        pass_1_output: Pass1Output,
+        raw_ir: RawIR,  # noqa: ARG001
+        spec_title: str | None = None,  # noqa: ARG001
+    ) -> Pass3Output:
+        input_schemas: dict[str, dict[str, Any]] = {}
+        for tool in pass_1_output.tools:
+            properties: dict[str, dict[str, Any]] = {}
+            required: list[str] = []
+            if tool.name == "search":
+                properties["query"] = {"type": "string", "description": "search query"}
+                required = ["query"]
+            elif tool.name == "fetch":
+                properties["id"] = {"type": "string", "description": "object id"}
+                required = ["id"]
+            schema: dict[str, Any] = {
+                "type": "object",
+                "properties": properties,
+                "additionalProperties": False,
+            }
+            if required:
+                schema["required"] = required
+            input_schemas[tool.name] = schema
+        return Pass3Output(input_schemas=input_schemas)
+
+    async def _fake_pass_4(
+        pass_3_output: Pass3Output,  # noqa: ARG001
+        pass_2_output: Pass2Output,  # noqa: ARG001
+        pass_1_output: Pass1Output,
+    ) -> Pass4Output:
+        annotations: dict[str, Annotations] = {}
+        titles: dict[str, str] = {}
+        read_universal = {"search", "fetch", "list_collections", "list_objects"}
+        for tool in pass_1_output.tools:
+            is_read = tool.name in read_universal or tool.type.value == "specialized"
+            annotations[tool.name] = Annotations(
+                readOnlyHint=is_read,
+                destructiveHint=tool.name == "delete",
+                idempotentHint=is_read or tool.name == "delete",
+                openWorldHint=True,
+            )
+            titles[tool.name] = tool.name.replace("_", " ").title()
+        return Pass4Output(annotations=annotations, titles=titles)
+
+    monkeypatch.setattr(pipeline_module, "pass_2_run", _fake_pass_2)
+    monkeypatch.setattr(pipeline_module, "pass_3_run", _fake_pass_3)
+    monkeypatch.setattr(pipeline_module, "pass_4_run", _fake_pass_4)
+
+
 @pytest.fixture(name="client")
 def fastapi_client() -> TestClient:
     from mcpgen_engine.main import app
@@ -222,11 +318,11 @@ def test_stream_unknown_job_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_sse_stream_emits_phase_2_stage_sequence(
+def test_sse_stream_emits_phase_3_stage_sequence(
     client: TestClient,
     httpx_mock: HTTPXMock,
 ) -> None:
-    """D-47: SSE stream emits A:started → A:completed → B:* → completed.
+    """D-33: SSE stream emits A → B (x2) → C (x3) → completed (author_complete).
 
     Also verifies the wire format ``id:\\nevent:\\ndata:\\n\\n`` per Phase-1 D-09.
     """
@@ -261,7 +357,16 @@ def test_sse_stream_emits_phase_2_stage_sequence(
     assert ("A", "completed") in stages_seen
     assert ("B", "started") in stages_seen
     assert ("B", "completed") in stages_seen
+    # D-33: Stage C fires 3 times (Pass 2/3/4) — once started + once completed each.
+    assert ("C", "started") in stages_seen
+    assert ("C", "completed") in stages_seen
+    c_started_count = sum(1 for s in stages_seen if s == ("C", "started"))
+    c_completed_count = sum(1 for s in stages_seen if s == ("C", "completed"))
+    assert c_started_count == 3
+    assert c_completed_count == 3
     assert stages_seen[-1] == ("completed", "completed")
+    # D-33: terminal phase is `author_complete`, not `architect_complete`.
+    assert events[-1]["data"]["partial_result"]["phase"] == "author_complete"
 
     # Wire-format compliance: every event has id, event, and data fields.
     for ev in events:
