@@ -135,6 +135,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
   "requires_openrouter: tests that need OPENROUTER_API_KEY (Day-1 smoke test)",
+  "requires_node_modules: tests that need packages/codegen-templates/node_modules (wrangler binary)",
   "slow: tests that take > 5s",
 ]
 addopts = [

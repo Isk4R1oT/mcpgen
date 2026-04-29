@@ -1,0 +1,963 @@
+{
+  "tools": [
+    {
+      "name": "search",
+      "type": "universal",
+      "description": {
+        "purpose": "Search Slack messages, channels, and users by free-text query and return ranked smart IDs.",
+        "when_to_use": [
+          "When the user wants to find a message by partial text or sender.",
+          "When locating a channel by partial name or topic without knowing the exact id."
+        ],
+        "when_not_to_use": [
+          "When the channel id is already known and you want every message \u2014 use `list_objects` with `collection=<channel_id>`.",
+          "When the user id is already known \u2014 use `fetch` with the smart user ID."
+        ],
+        "how_to_use": null,
+        "limitations": [
+          "Returns at most 25 results per call (Slack search.messages cap with cursor).",
+          "Search index lag of up to 60s for newly posted messages.",
+          "Free-tier workspaces only retain 90 days of message history searchable."
+        ],
+        "parameter_overview": "Single `query` string supporting Slack search modifiers (e.g. `from:@alice in:#general`); ranked results returned as smart IDs of the form slack-prod-slack:object:Message:C0123:1700000000.000100 or slack-prod-slack:object:Channel:C0123.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Free-text search query, optionally with Slack search modifiers (`from:`, `in:`, `before:`, `after:`)."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "preview": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "score"
+              ]
+            }
+          }
+        },
+        "required": [
+          "results"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": {
+          "style": "cursor",
+          "default_limit": 25,
+          "max_limit": 100
+        },
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "type",
+            "score",
+            "preview"
+          ],
+          "opt_in": [
+            "permalink",
+            "blocks"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 10000,
+          "guidance_template": "Showing {N} of {Total} matches. Use `cursor` to paginate or refine your query (e.g. add `from:@user` modifier)."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "GET /api/search.messages",
+        "GET /api/conversations.list",
+        "GET /api/users.list"
+      ]
+    },
+    {
+      "name": "fetch",
+      "type": "universal",
+      "description": {
+        "purpose": "Fetch the full Slack object addressed by a smart ID (Message, Channel, or User).",
+        "when_to_use": [
+          "When you have a smart ID returned by `search` or `list_objects`.",
+          "When you need the full message blocks, channel topic, or user profile."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Message blocks may be large \u2014 request without blocks via `properties` projection if size matters.",
+          "Returns 404 (not_found) if the message was deleted, the channel archived, or the user deactivated."
+        ],
+        "parameter_overview": "Single `id` string in the smart-ID format `slack-prod-slack:object:{Message|Channel|User}:{slack_id}`; for Message the slack_id encodes both channel and timestamp (`C0123:1700000000.000100`).",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Smart ID, e.g. `slack-prod-slack:object:Channel:C0123ABC` or `slack-prod-slack:object:Message:C0123ABC:1700000000.000100`.",
+            "pattern": "^[a-z0-9-]+:object:(Message|Channel|User):[A-Za-z0-9_:.]+$"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "object"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "type",
+            "ts",
+            "user",
+            "channel"
+          ],
+          "opt_in": [
+            "blocks",
+            "attachments",
+            "reactions",
+            "thread_replies"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 20000,
+          "guidance_template": "Object exceeded {threshold} tokens; {N} fields included. Re-call with `properties` projection (drop `blocks` for very long messages)."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "GET /api/conversations.info",
+        "GET /api/users.info",
+        "GET /api/conversations.history (single ts)"
+      ]
+    },
+    {
+      "name": "list_collections",
+      "type": "universal",
+      "description": {
+        "purpose": "List the Slack channels (public + private the bot is in) and DMs the integration has access to.",
+        "when_to_use": [
+          "At session start to discover what channels the bot can read.",
+          "When mapping a free-text request to a specific channel id."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Only channels the bot is a member of are visible (private channels require explicit invite).",
+          "Returns metadata only \u2014 use `list_objects` to enumerate messages within a channel."
+        ],
+        "parameter_overview": "Optional `pattern` (glob on channel name) and `types` (csv: public_channel, private_channel, mpim, im); defaults return all channels and dms the bot can see.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "types": {
+            "type": "string",
+            "default": "public_channel,private_channel"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "collections": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "collections"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": {
+          "style": "cursor",
+          "default_limit": 100,
+          "max_limit": 1000
+        },
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "name",
+            "is_private",
+            "is_archived",
+            "num_members"
+          ],
+          "opt_in": [
+            "topic",
+            "purpose",
+            "creator"
+          ],
+          "always_exclude": []
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Listed {N} channels. Use `pattern` to narrow by name or `types` to filter by channel kind."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "GET /api/conversations.list"
+      ]
+    },
+    {
+      "name": "list_objects",
+      "type": "universal",
+      "description": {
+        "purpose": "List Slack messages within a chosen channel with time-range filter, projection, and cursor pagination.",
+        "when_to_use": [
+          "When enumerating messages in a known channel.",
+          "When server-side filter by time range (`oldest`/`latest` ts) is needed."
+        ],
+        "when_not_to_use": [
+          "When you have an explicit message ts \u2014 use `fetch`.",
+          "When the channel id is unknown \u2014 use `search` or `list_collections` first."
+        ],
+        "how_to_use": null,
+        "limitations": [
+          "Cursor pagination only; max 1000 messages per call (Slack hard cap).",
+          "Filter expressions limited to time-range (`oldest`/`latest`); for content filters use `search`.",
+          "Sort is implicit by ts descending (newest first); cannot reverse via parameter."
+        ],
+        "parameter_overview": "`collection` (channel id) + `filter` (`{property:'ts',operator:'between',value:[oldest,latest]}`) + `properties` projection + `limit`/`cursor`.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "type": "string"
+          },
+          "filter": {
+            "type": "object",
+            "properties": {
+              "property": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "eq",
+                  "between",
+                  "gt",
+                  "lt"
+                ]
+              },
+              "value": {}
+            }
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100
+          },
+          "cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "collection"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "objects"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": {
+          "style": "cursor",
+          "default_limit": 100,
+          "max_limit": 1000
+        },
+        "field_filtering": {
+          "always_include": [
+            "ts",
+            "user",
+            "type",
+            "text"
+          ],
+          "opt_in": [
+            "blocks",
+            "attachments",
+            "reactions",
+            "thread_ts"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 15000,
+          "guidance_template": "Returned {N} of approximately {Total} messages. Use `cursor` to paginate or `properties` to project fewer fields (drop `blocks` first)."
+        },
+        "has_response_format_param": true
+      },
+      "source_endpoints": [
+        "GET /api/conversations.history"
+      ]
+    },
+    {
+      "name": "upsert",
+      "type": "universal",
+      "description": {
+        "purpose": "Create a new Slack message or edit an existing one (smart routing by message ts presence).",
+        "when_to_use": [
+          "When posting a new message to a channel from an automation.",
+          "When patching the text or blocks of a previously posted message."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Cannot upsert into Channel or User \u2014 only Message objects. Use `channels_archive` or admin tools for those.",
+          "Required field on create: `data.channel` and either `data.text` or `data.blocks`.",
+          "Re-posting the same content creates a duplicate message \u2014 Slack has no deduplication on text equality."
+        ],
+        "parameter_overview": "`collection` is the channel id. Provide `data.text` (and optional `data.blocks`) for create; `id` (channel:ts smart ID) + `data` for edit.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "collection",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "object"
+          },
+          "created": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "object",
+          "created"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "ts",
+            "channel",
+            "user",
+            "text"
+          ],
+          "opt_in": [
+            "blocks",
+            "permalink"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "{action} succeeded for message {ts} in {channel}. Refetch with `fetch` if full payload was truncated."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /api/chat.postMessage",
+        "POST /api/chat.update"
+      ]
+    },
+    {
+      "name": "delete",
+      "type": "universal",
+      "description": {
+        "purpose": "Delete a Slack message. For channel removal use `channels_archive` instead \u2014 Slack does not allow channel deletion.",
+        "when_to_use": [
+          "When removing a posted message that was sent by mistake.",
+          "When sweeping bot-posted messages older than a retention window."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Can only delete messages posted by the bot itself unless the token has `chat:write.public` admin scope.",
+          "Re-deleting an already-deleted message returns `message_not_found` (no-op via idempotent retry).",
+          "Cannot delete a Channel object \u2014 Slack only supports `channels_archive`."
+        ],
+        "parameter_overview": "`type: 'object'` + `id` (smart ID of Message: `Message:C0123:1700000000.000100`) + `confirm: true`. Batch delete supported via `ids` array.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "object",
+              "objects"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confirm": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "type",
+          "confirm"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "deleted_count": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "deleted_count"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "deleted_count",
+            "failed"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Deleted {deleted_count} of {requested} messages. Failures listed in `failed` array (most often: `message_not_found` or `cant_delete_message`)."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /api/chat.delete"
+      ]
+    },
+    {
+      "name": "messages_send",
+      "type": "action",
+      "description": {
+        "purpose": "Send a message to a Slack channel or DM with optional thread reply, blocks, and attachments. Distinct from `upsert`: this is the ergonomic single-purpose action for posting (no edit smart-routing overhead).",
+        "when_to_use": [
+          "When the agent wants to post a one-off notification or response.",
+          "When threading a reply under a known parent message via `thread_ts`."
+        ],
+        "when_not_to_use": [
+          "When editing an existing message \u2014 use `upsert` with `id`.",
+          "When sending many messages in batch \u2014 call `messages_send` per channel; Slack rate limits are per-channel."
+        ],
+        "how_to_use": null,
+        "limitations": [
+          "Subject to per-channel posting rate limit (~1 message/second sustained).",
+          "Re-running with same `text` produces a duplicate (not idempotent).",
+          "`blocks` field is mutually exclusive with plain `text` for rich layout."
+        ],
+        "parameter_overview": "Required: `channel` (channel id or `#channel-name`), one of `text` or `blocks`. Optional: `thread_ts` (parent message ts), `unfurl_links` (bool, default true), `mrkdwn` (bool, default true).",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "thread_ts": {
+            "type": "string"
+          },
+          "unfurl_links": {
+            "type": "boolean",
+            "default": true
+          },
+          "mrkdwn": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "channel"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "ts": {
+            "type": "string"
+          },
+          "message": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "ok",
+          "ts"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "ok",
+            "channel",
+            "ts"
+          ],
+          "opt_in": [
+            "message"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Message sent to {channel} at ts={ts}. Reply in thread by passing `thread_ts={ts}` on next send."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /api/chat.postMessage"
+      ]
+    },
+    {
+      "name": "messages_edit",
+      "type": "action",
+      "description": {
+        "purpose": "Edit a previously posted Slack message identified by channel+ts. Distinct from `upsert`: ergonomic single-purpose action for edits with no smart-id parsing overhead.",
+        "when_to_use": [
+          "When updating the text or blocks of a previously posted message.",
+          "When marking an automation message as 'completed' by patching the body."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Can only edit messages posted by the bot itself.",
+          "Edits within 5 minutes do not show 'edited' badge; later edits do (Slack policy).",
+          "Re-applying the same edit is a no-op idempotent (Slack returns same envelope)."
+        ],
+        "parameter_overview": "Required: `channel` (channel id), `ts` (message timestamp), and one of `text` or `blocks`. Optional: `as_user` (bool).",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string"
+          },
+          "ts": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "as_user": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "channel",
+          "ts"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "ts": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "ts"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "ok",
+            "channel",
+            "ts",
+            "text"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Message edited at {channel}:{ts}. Re-edit with same content is no-op."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /api/chat.update"
+      ]
+    },
+    {
+      "name": "channels_archive",
+      "type": "action",
+      "description": {
+        "purpose": "Archive a Slack channel (Slack's canonical removal \u2014 channels cannot be hard-deleted).",
+        "when_to_use": [
+          "When closing out a project channel after completion.",
+          "When sweeping inactive channels older than a retention policy."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Re-archiving an archived channel returns `already_archived` (idempotent).",
+          "The default `#general` channel cannot be archived (Slack platform constraint).",
+          "Archived channels remain queryable via `list_collections` with `types` including archived."
+        ],
+        "parameter_overview": "Required: `channel` (channel id). Archives the channel; members are notified by Slack platform.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "channel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "ok",
+            "channel"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Channel {channel} archived. Restore via `conversations.unarchive` (admin only)."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /api/conversations.archive"
+      ]
+    },
+    {
+      "name": "send_with_thread_followup",
+      "type": "workflow",
+      "description": {
+        "purpose": "Two-step coherent task: post a message, then post a follow-up reply in the same thread once an external trigger fires (or after a fixed delay).",
+        "when_to_use": [
+          "When announcing a long-running job and threading status updates under the parent message.",
+          "When confirming an action by acknowledging immediately and updating with the result."
+        ],
+        "when_not_to_use": [
+          "When the parent and follow-up are unrelated \u2014 call `messages_send` twice.",
+          "When you need more than 2 sequential messages \u2014 orchestrate via `messages_send` with `thread_ts`."
+        ],
+        "how_to_use": null,
+        "limitations": [
+          "Atomicity is best-effort: if step 2 fails, the parent message remains posted (partial-failure strategy: `report`).",
+          "Delay between step 1 and step 2 capped at 30s (for longer waits, schedule externally).",
+          "Subject to per-channel posting rate limit (~1 message/second sustained)."
+        ],
+        "parameter_overview": "Coarse parameters per Pass 3 design: `channel`, `parent_text` (initial message), `followup_text` (threaded reply), and optional `delay_ms` (default 0).",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string"
+          },
+          "parent_text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "followup_text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "delay_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30000,
+            "default": 0
+          }
+        },
+        "required": [
+          "channel",
+          "parent_text",
+          "followup_text"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "parent_ts": {
+            "type": "string"
+          },
+          "followup_ts": {
+            "type": "string"
+          },
+          "step1_ok": {
+            "type": "boolean"
+          },
+          "step2_ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step1_ok",
+          "step2_ok"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "parent_ts",
+            "followup_ts",
+            "step1_ok",
+            "step2_ok"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 15000,
+          "guidance_template": "Posted parent {parent_ts}; followup {followup_ts}. If step2_ok=false, retry with `messages_send(thread_ts=parent_ts)`."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /api/chat.postMessage (parent)",
+        "POST /api/chat.postMessage (with thread_ts)"
+      ]
+    }
+  ],
+  "flags": null
+}

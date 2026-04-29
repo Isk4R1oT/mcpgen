@@ -22,6 +22,7 @@ Plus the Phase-3 plan additions (checker W3 + D-43 + D-44):
 from __future__ import annotations
 
 import json
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -136,12 +137,120 @@ def _stub_passes_from_fixtures(
     async def _fake_stage_a(*, spec_url: str | None, spec_content: str | None) -> RawIR:  # noqa: ARG001
         return raw_ir_fix
 
+    # Phase 4 D-33 — Pass 5 + Stage E run after Pass 4 in the canonical
+    # pipeline. We stub them with deterministic shapes so the test stays
+    # focused on the architect+author SSE sequence + structural-equivalence
+    # asserts the Phase-3 plan introduced. Pass 5 runs the real algorithm
+    # in `tests/integration/test_phase_4_e2e.py`; Stage E gets dedicated
+    # coverage in `tests/stages/stage_e/test_run_e2e.py`.
+    from datetime import datetime
+    from hashlib import sha256
+
+    from mcpgen_ir.types import (
+        Annotations,
+        Description,
+        FieldFiltering,
+        Pagination2,
+        Pass5Output,
+        ResponseConfig2,
+        StageEManifest,
+        Style,
+        Tool2,
+        Truncation,
+    )
+    from mcpgen_ir.types import File as ManifestFile
+
+    async def _fake_pass_5(
+        pass_4_output: Pass4Output,
+        pass_3_output: Pass3Output,
+        pass_2_output: Pass2Output,
+        pass_1_output: Pass1Output,
+        raw_ir: RawIR,  # noqa: ARG001
+    ) -> Pass5Output:
+        tools: list[Tool2] = []
+        for t in pass_1_output.tools:
+            input_schema = pass_3_output.input_schemas.get(
+                t.name, {"type": "object", "additionalProperties": False}
+            )
+            desc_src = pass_2_output.descriptions.get(t.name)
+            if desc_src is None:
+                description = Description(
+                    purpose=f"Stub purpose for {t.name} (pipeline test).",
+                    when_to_use=["use case"],
+                    limitations=["stub"],
+                    parameter_overview="x" * 60,
+                )
+            else:
+                description = Description.model_validate(desc_src.model_dump())
+            ann_src = pass_4_output.annotations.get(t.name)
+            if ann_src is None:
+                annotations = Annotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                )
+            else:
+                annotations = Annotations.model_validate(ann_src.model_dump())
+            tools.append(
+                Tool2(
+                    name=t.name,
+                    type=t.type,
+                    description=description,
+                    inputSchema=input_schema,
+                    outputSchema={
+                        "type": "object",
+                        "additionalProperties": True,
+                    },
+                    annotations=annotations,
+                    response_config=ResponseConfig2(
+                        pagination=Pagination2(style=Style.none, default_limit=25, max_limit=100),
+                        field_filtering=FieldFiltering(
+                            always_include=[],
+                            opt_in=[],
+                            always_exclude=[],
+                        ),
+                        truncation=Truncation(
+                            threshold_tokens=15000,
+                            guidance_template="Showing partial results.",
+                        ),
+                        has_response_format_param=False,
+                    ),
+                    source_endpoints=[],
+                )
+            )
+        return Pass5Output(tools=tools)
+
+    async def _fake_stage_e(**kwargs: Any) -> StageEManifest:
+        out_dir = kwargs["output_dir"]
+        out_dir.mkdir(parents=True, exist_ok=True)
+        placeholder = "// stub server.ts emitted by test_pipeline_e2e fixture\n"
+        (out_dir / "src").mkdir(parents=True, exist_ok=True)
+        (out_dir / "src" / "server.ts").write_text(placeholder, encoding="utf-8")
+        return StageEManifest(
+            files=[
+                ManifestFile(
+                    relative_path="src/server.ts",
+                    sha256_content_hash=sha256(placeholder.encode("utf-8")).hexdigest(),
+                    render_template="server.ts.j2",
+                    render_inputs_hash="0" * 64,
+                )
+            ],
+            bundle_size_kb=0.0,
+            ts_compile_passed=True,
+            ts_compile_warning_count=0,
+            template_version="1",
+            generated_at=datetime.now(UTC),
+        )
+
     monkeypatch.setattr(pipeline_module.stage_a, "run", _fake_stage_a)
     monkeypatch.setattr(pipeline_module, "pass_0_run", _fake_pass_0)
     monkeypatch.setattr(pipeline_module, "pass_1_run", _fake_pass_1)
     monkeypatch.setattr(pipeline_module, "pass_2_run", _fake_pass_2)
     monkeypatch.setattr(pipeline_module, "pass_3_run", _fake_pass_3)
     monkeypatch.setattr(pipeline_module, "pass_4_run", _fake_pass_4)
+    monkeypatch.setattr(pipeline_module, "pass_5_run", _fake_pass_5)
+    monkeypatch.setattr(pipeline_module, "stage_e_run", _fake_stage_e)
 
     return p2, p3, p4
 
@@ -207,10 +316,22 @@ async def test_full_pipeline_stripe_author_complete(
     # C fires three times (pass_2 + pass_3 + pass_4).
     assert sum(1 for s in seq if s == ("C", "started")) == 3
     assert sum(1 for s in seq if s == ("C", "completed")) == 3
-    # Final event carries phase=author_complete (D-33 verbatim).
+    # Final event carries phase=shape_codegen_complete (Phase 4 D-33).
+    # Phase 3 author_complete survives as a sub_status on C:completed (pass_4).
     final = events[-1]
     assert final.partial_result is not None
-    assert final.partial_result.get("phase") == "author_complete"
+    assert final.partial_result.get("phase") == "shape_codegen_complete"
+    # Pass 4 C:completed retains sub_status=author_complete for Phase-3 CLI.
+    pass_4_done = next(
+        e
+        for e in events
+        if e.stage == "C"
+        and e.status == "completed"
+        and e.partial_result is not None
+        and e.partial_result.get("phase") == "pass_4"
+    )
+    assert pass_4_done.partial_result is not None
+    assert pass_4_done.partial_result.get("sub_status") == "author_complete"
     # Pass 1 B:completed retains sub_status=architect_complete for Phase-2 CLI.
     pass_1_done = next(
         e

@@ -223,3 +223,24 @@ describe('Header constants', () => {
     expect(LAST_EVENT_ID_HEADER).toBe('Last-Event-ID');
   });
 });
+
+// ──────────────── Plan 04-14 — GenerationOptions dev_local field ─────────────
+
+import { GenerationOptions } from '../src/generation-api.js';
+
+describe('GenerationOptions dev_local field (Plan 04-14 D-3)', () => {
+  it('parses dev_local: true', () => {
+    const result = GenerationOptions.parse({ dev_local: true });
+    expect(result.dev_local).toBe(true);
+  });
+
+  it('defaults dev_local to false when field is absent', () => {
+    const result = GenerationOptions.parse({});
+    expect(result.dev_local).toBe(false);
+  });
+
+  it('REJECTS non-boolean dev_local', () => {
+    const result = GenerationOptions.safeParse({ dev_local: 'yes' });
+    expect(result.success).toBe(false);
+  });
+});

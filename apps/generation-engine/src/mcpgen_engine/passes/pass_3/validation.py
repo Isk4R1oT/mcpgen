@@ -198,7 +198,7 @@ def validate_smart_id_pattern(
         actual_pattern = prop_schema.get("pattern")
         if actual_pattern != expected_pattern:
             mismatches.append(
-                f"{prop_name}: expected pattern {expected_pattern!r} got {actual_pattern!r}"
+                f"{prop_name}: expected pattern {expected_pattern!r} " f"got {actual_pattern!r}"
             )
     if mismatches:
         raise Pass3Error(
@@ -244,6 +244,6 @@ def validate_filter_consistency(
             drifts.append(f"{tool_name}: filter param present under INDIVIDUAL_PARAMS strategy")
     if drifts:
         raise Pass3Error(
-            f"FILTER_INCONSISTENT: chosen={chosen_strategy.value}; {'; '.join(drifts)}",
+            f"FILTER_INCONSISTENT: chosen={chosen_strategy.value}; " f"{'; '.join(drifts)}",
             violations=drifts,
         )

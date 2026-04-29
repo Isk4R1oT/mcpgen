@@ -40,10 +40,22 @@ import {
 import { ensureSafeOutputDir, writeOutputFile } from './output_dir.js';
 import { renderPackageJson } from './render_package_json.js';
 import { renderReadme } from './render_readme.js';
-import { renderServerTs } from './render_stub.js';
 import { consumeSse } from './sse_consumer.js';
+import {
+  writeStageEOutput,
+  type StageEManifestFile,
+} from './write_stage_e_output.js';
 
 const ENGINE_BASE_URL = 'http://localhost:8000';
+
+interface StageEManifestPayload {
+  files: StageEManifestFile[];
+  bundle_size_kb: number;
+  ts_compile_passed: boolean;
+  ts_compile_warning_count: number;
+  template_version: string;
+  generated_at: string;
+}
 
 interface ArtifactsResponse {
   raw_ir: RawIR;
@@ -55,6 +67,10 @@ interface ArtifactsResponse {
   pass_2_output?: Pass2Output;
   pass_3_output?: Pass3Output;
   pass_4_output?: Pass4Output;
+  // Phase-4 additions per D-34 + D-47. Optional during transition; runInit
+  // falls back to the legacy 6-file output when stage_e_manifest is absent.
+  pass_5_output?: unknown;
+  stage_e_manifest?: StageEManifestPayload;
 }
 
 interface RawCommanderOpts {
@@ -62,6 +78,8 @@ interface RawCommanderOpts {
   complexity: string;
   include: string[];
   exclude: string[];
+  /** Plan 04-14 D-3: Commander auto-camelCases --dev-local → devLocal. */
+  devLocal?: boolean;
 }
 
 /**
@@ -80,6 +98,11 @@ export function registerInitCommand(program: Command): void {
     )
     .option('--include <glob...>', 'explicit include patterns', collectStrings, [])
     .option('--exclude <glob...>', 'explicit exclude patterns', collectStrings, [])
+    .option(
+      '--dev-local',
+      'enable dev-local build mode (substitutes tenant placeholder + relaxes ALLOWED_HOSTS for wrangler dev — DO NOT deploy)',
+      false,
+    )
     .action(async (specUrl: string, rawOpts: RawCommanderOpts) => {
       const complexity: ComplexityLevel = parseComplexity(rawOpts.complexity);
       const opts: CliInitOptions = {
@@ -87,6 +110,7 @@ export function registerInitCommand(program: Command): void {
         complexity,
         include: rawOpts.include,
         exclude: rawOpts.exclude,
+        devLocal: rawOpts.devLocal === true,
       };
       await runInit(specUrl, opts);
     });
@@ -217,17 +241,30 @@ export async function runInit(
           + '(pass_2_output / pass_3_output / pass_4_output) — upgrade engine to Phase 3',
       );
     }
-    await writeOutputFile(
-      outDir,
-      'server.ts',
-      renderServerTs(
-        specSlug,
-        artifacts.pass_1_output,
-        artifacts.pass_2_output,
-        artifacts.pass_3_output,
-        artifacts.pass_4_output,
-      ),
-    );
+    // Phase 4 D-37/D-47: when the engine carries `stage_e_manifest`, the
+    // canonical 25-30 file output tree is fetched from the new
+    // `GET /api/v1/generate/{job_id}/output/{relative_path}` endpoint.
+    // Falls back to the legacy 3-file output (server.ts + package.json +
+    // README.md) when the engine is older than Phase 4.
+    if (artifacts.stage_e_manifest !== undefined) {
+      await writeStageEOutput(
+        jobId,
+        artifacts.stage_e_manifest.files,
+        outDir,
+        ENGINE_BASE_URL,
+      );
+    } else {
+      throw new Error(
+        'engine returned artifacts missing Phase-4 output '
+          + '(stage_e_manifest absent) — upgrade engine to Phase 4',
+      );
+    }
+    // package.json + README.md are still rendered client-side for the
+    // CLI-friendly Claude Desktop snippet (renderReadme needs the
+    // outDir-resolved server.ts path); the engine's `package.json` from
+    // Stage E ships an MCP-server-only manifest, while `renderPackageJson`
+    // ships a more useful CLI-helper manifest. Both are co-existing during
+    // the Phase 4 transition.
     await writeOutputFile(outDir, 'package.json', renderPackageJson(specSlug));
     await writeOutputFile(
       outDir,

@@ -160,17 +160,23 @@ async def test_warm_run_zero_qwen_calls(monkeypatch: pytest.MonkeyPatch) -> None
         "pass_4": 0,
     }, f"GEN-12 violation: warm run invoked passes {delta}"
 
-    # Warm-run terminal event carries cache=l1_hit AND author_complete phase.
+    # Warm-run terminal event carries cache=l1_hit AND
+    # shape_codegen_complete phase (Phase 4 D-33). The Phase-3
+    # `author_complete` survives as a sub_status on C:completed (pass_4)
+    # for backward compat with Phase-2/3 CLI consumers.
     final = warm_events[-1]
     assert final.stage == "completed"
     assert final.partial_result is not None
     assert final.partial_result.get("cache") == "l1_hit"
-    assert final.partial_result.get("phase") == "author_complete"
+    assert final.partial_result.get("phase") == "shape_codegen_complete"
 
-    # Warm run emits the FULL Phase-3 SSE sequence (D-34: every event
+    # Warm run emits the FULL Phase-4 SSE sequence (D-34: every event
     # carries cache=l1_hit so CLI can show the warm path).
     warm_seq = [(e.stage, e.status) for e in warm_events]
     assert sum(1 for s in warm_seq if s == ("C", "completed")) == 3
+    # Phase 4 adds Stage D + Stage E exactly once each.
+    assert sum(1 for s in warm_seq if s == ("D", "completed")) == 1
+    assert sum(1 for s in warm_seq if s == ("E", "completed")) == 1
     for ev in warm_events:
         if ev.partial_result is not None:
             # Every event during the warm fast-path carries cache=l1_hit.
@@ -238,6 +244,7 @@ async def test_warm_run_outputs_bit_identical(monkeypatch: pytest.MonkeyPatch) -
 
     cached = get_l1(l1_key(raw_ir_fix.spec_hash))
     assert cached is not None
+    # Phase 4 D-34: 8-tuple now includes pass_5_output + stage_e_manifest.
     (
         _raw_ir_2,
         _pass_0_2,
@@ -245,6 +252,8 @@ async def test_warm_run_outputs_bit_identical(monkeypatch: pytest.MonkeyPatch) -
         pass_2_2,
         pass_3_2,
         pass_4_2,
+        _pass_5_2,
+        _stage_e_manifest_2,
     ) = reconstruct_from_l1(cached)
 
     assert pass_1_2.model_dump() == p1.model_dump()

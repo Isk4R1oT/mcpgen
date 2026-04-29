@@ -33,71 +33,22 @@ import {
 } from '../src/init/output_dir.js';
 import { renderPackageJson } from '../src/init/render_package_json.js';
 import { renderReadme } from '../src/init/render_readme.js';
-import { renderServerTs } from '../src/init/render_stub.js';
+// `renderServerTs` was retired in Phase 4 D-37; the engine's Stage E now
+// emits server.ts directly via the codegen-templates pipeline, and the
+// CLI fetches it via the new `GET /output/{relative_path}` endpoint
+// (`writeStageEOutput`). Phase-3 tests for `renderServerTs` are gone.
 
 const stripePass1 = stripeFixture.pass1Output as Pass1Output;
 
-// ─── Phase-3 stub Pass 2/3/4 outputs covering every Stripe Pass 1 tool ────
-function makeStubDescription(name: string): ToolDescription {
-  return {
-    purpose: `Stub purpose for tool '${name}' covering 5+ rubric components.`,
-    when_to_use: [`finding ${name} via canonical pipeline`],
-    limitations: [`stub limitation entry for '${name}'`],
-    parameter_overview: `Stub parameter overview for ${name}; orchestrator-shape only.`,
-  };
-}
-
-const stripePass2: Pass2Output = {
-  descriptions: Object.fromEntries(
-    stripePass1.tools.map((t) => [t.name, makeStubDescription(t.name)]),
-  ),
-};
-
-const stripePass3: Pass3Output = {
-  input_schemas: Object.fromEntries(
-    stripePass1.tools.map((t) => {
-      const properties: Record<string, Record<string, unknown>> = {};
-      const required: string[] = [];
-      if (t.name === 'search') {
-        properties.query = { type: 'string', description: 'search query' };
-        required.push('query');
-      } else if (t.name === 'fetch') {
-        properties.id = { type: 'string', description: 'object id' };
-        required.push('id');
-      }
-      const schema: Record<string, unknown> = {
-        type: 'object',
-        properties,
-        additionalProperties: false,
-      };
-      if (required.length > 0) {
-        schema.required = required;
-      }
-      return [t.name, schema];
-    }),
-  ),
-};
-
-const stripePass4: Pass4Output = {
-  annotations: Object.fromEntries(
-    stripePass1.tools.map((t) => {
-      const readUniversal = new Set(['search', 'fetch', 'list_collections', 'list_objects']);
-      const isRead = readUniversal.has(t.name) || t.type === 'specialized';
-      return [
-        t.name,
-        {
-          readOnlyHint: isRead,
-          destructiveHint: t.name === 'delete',
-          idempotentHint: isRead || t.name === 'delete',
-          openWorldHint: true as const,
-        },
-      ];
-    }),
-  ),
-  titles: Object.fromEntries(
-    stripePass1.tools.map((t) => [t.name, t.name.replace(/_/g, ' ')]),
-  ),
-};
+// Phase-3 stub Pass 2/3/4 fixtures used to live here; they powered the
+// (now retired) `renderServerTs` tests. Phase 4 emits server.ts via the
+// engine's Stage E pipeline (D-37) — coverage moved to
+// `tests/test_write_stage_e_output.test.ts` + `tests/init.e2e.test.ts`.
+// The `Pass2Output / Pass3Output / Pass4Output / ToolDescription` imports
+// remain only because `Pass1Output` lives in the same barrel.
+void undefined satisfies (
+  Pass2Output | Pass3Output | Pass4Output | ToolDescription | undefined
+);
 
 // ─────────────────────────────── options ──────────────────────────────────
 
@@ -123,6 +74,7 @@ describe('options', () => {
         complexity: 'minimal',
         include: ['/v1/*'],
         exclude: ['/v1/test_helpers/*'],
+        devLocal: false,
       },
     );
     expect(body).toMatchObject({
@@ -143,6 +95,7 @@ describe('options', () => {
         complexity: 'standard',
         include: [],
         exclude: [],
+        devLocal: false,
       }),
     ).toThrow();
     expect(() =>
@@ -151,6 +104,7 @@ describe('options', () => {
         complexity: 'standard',
         include: [],
         exclude: [],
+        devLocal: false,
       }),
     ).toThrow();
   });
@@ -168,107 +122,11 @@ describe('options', () => {
 });
 
 // ───────────────────────────── render_stub ────────────────────────────────
-
-describe('render_stub', () => {
-  test('emits MCP-SDK-v1 registerTool config-object form for all Pass 1 tools (D-37)', () => {
-    const code = renderServerTs(
-      'stripe-api',
-      stripePass1,
-      stripePass2,
-      stripePass3,
-      stripePass4,
-    );
-    expect(code).toContain('@modelcontextprotocol/sdk/server/mcp.js');
-    // Phase-3 D-37: registerTool config-object form (the only SDK v1 surface
-    // that supports description + inputSchema + annotations + title together).
-    expect(code).toContain('server.registerTool(');
-    for (const tool of stripePass1.tools) {
-      expect(code).toContain(JSON.stringify(tool.name));
-    }
-    expect(code).toContain('Stage E codegen lands in Phase 4'); // D-45 placeholder text
-  });
-
-  test('search tool registration includes Pass 3 query schema in comment (D-30 OpenAI compliance)', () => {
-    const code = renderServerTs(
-      'stripe-api',
-      stripePass1,
-      stripePass2,
-      stripePass3,
-      stripePass4,
-    );
-    // Pass 3 JSON Schema preserved as comment for Stage E lifting.
-    expect(code).toMatch(/Pass 3 input schema.*"properties":\{"query":\{"type":"string"/);
-    // D-30 OpenAI compliance: runtime Zod shape stays single-string.
-    expect(code).toMatch(/"search",\s*\{[\s\S]*?inputSchema:\s*\{ query: z\.string\(\) \}/);
-  });
-
-  test('fetch tool registration includes Pass 3 id schema in comment (D-30 OpenAI compliance)', () => {
-    const code = renderServerTs(
-      'stripe-api',
-      stripePass1,
-      stripePass2,
-      stripePass3,
-      stripePass4,
-    );
-    expect(code).toMatch(/Pass 3 input schema.*"properties":\{"id":\{"type":"string"/);
-    expect(code).toMatch(/"fetch",\s*\{[\s\S]*?inputSchema:\s*\{ id: z\.string\(\) \}/);
-  });
-
-  test('every tool registration carries title + annotations in config (D-37)', () => {
-    const code = renderServerTs(
-      'stripe-api',
-      stripePass1,
-      stripePass2,
-      stripePass3,
-      stripePass4,
-    );
-    const annotationsBlocks = code.match(/annotations:\s*\{[^}]*\}/g) ?? [];
-    expect(annotationsBlocks.length).toBe(stripePass1.tools.length);
-    expect(code).toContain('title:');
-  });
-
-  test('every annotation carries openWorldHint=true (Phase 3 D-27 invariant)', () => {
-    const code = renderServerTs(
-      'stripe-api',
-      stripePass1,
-      stripePass2,
-      stripePass3,
-      stripePass4,
-    );
-    const annotationsBlocks = code.match(/annotations:\s*\{[^}]*\}/g) ?? [];
-    expect(annotationsBlocks.length).toBeGreaterThan(0);
-    for (const block of annotationsBlocks) {
-      expect(block).toContain('"openWorldHint":true');
-    }
-  });
-
-  test('every Pass 3 schema is preserved as comment with additionalProperties:false (D-22)', () => {
-    const code = renderServerTs(
-      'stripe-api',
-      stripePass1,
-      stripePass2,
-      stripePass3,
-      stripePass4,
-    );
-    const additionalPropsBlocks = code.match(/"additionalProperties":false/g) ?? [];
-    expect(additionalPropsBlocks.length).toBe(stripePass1.tools.length);
-  });
-
-  test('descriptions render as Pass 2 markdown (## When to use / ## Limitations)', () => {
-    const code = renderServerTs(
-      'stripe-api',
-      stripePass1,
-      stripePass2,
-      stripePass3,
-      stripePass4,
-    );
-    expect(code).toContain('## When to use');
-    expect(code).toContain('## Limitations');
-    expect(code).toContain('## Parameters');
-    // Phase-2 placeholder text MUST NOT appear when Pass 2 outputs are present.
-    expect(code).not.toContain('Pass 2 description authoring lands in Phase 3.');
-  });
-});
+// Retired in Phase 4 D-37 — server.ts is now emitted by the engine's Stage E
+// (codegen-templates pipeline) and fetched by the CLI through the new
+// `GET /api/v1/generate/{job_id}/output/{relative_path}` endpoint
+// (`writeStageEOutput`). Coverage for the new flow lives in
+// `tests/test_write_stage_e_output.test.ts` + `tests/init.e2e.test.ts`.
 
 // ──────────────────────────── render_package_json ─────────────────────────
 
@@ -354,5 +212,42 @@ describe('output_dir', () => {
     await writeOutputFile(tmp, 'hello.txt', 'world\n');
     const entries = readdirSync(tmp);
     expect(entries).toContain('hello.txt');
+  });
+});
+
+// ──────────────── Plan 04-14 — --dev-local CLI flag (D-3) ────────────────────
+
+describe('--dev-local CLI flag (Plan 04-14 D-3)', () => {
+  test('--dev-local flag plumbs dev_local: true into engine request body', () => {
+    const body = buildEngineRequestBody(
+      'https://example.com/openapi.json',
+      null,
+      {
+        outputDir: './x',
+        complexity: 'standard',
+        include: [],
+        exclude: [],
+        devLocal: true,
+      },
+    );
+    // Type assertion since EngineGenerationRequest.options must carry dev_local
+    const opts = body.options as Record<string, unknown>;
+    expect(opts['dev_local']).toBe(true);
+  });
+
+  test('absent --dev-local defaults dev_local: false in engine request body', () => {
+    const body = buildEngineRequestBody(
+      'https://example.com/openapi.json',
+      null,
+      {
+        outputDir: './x',
+        complexity: 'standard',
+        include: [],
+        exclude: [],
+        devLocal: false,
+      },
+    );
+    const opts = body.options as Record<string, unknown>;
+    expect(opts['dev_local']).toBe(false);
   });
 });

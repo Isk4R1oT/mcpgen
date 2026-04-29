@@ -318,11 +318,45 @@ export type Pass4Output = z.infer<typeof Pass4Output>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pass 5 — Pass5Output (final tools)
+// `flags` is a strictly-additive optional bag for Pass 5 to surface
+// per-server diagnostics (e.g. `server_pagination_strategy`,
+// `prompt_injection_warnings_count`) consumed by the SSE pipeline (CONTEXT D-12,
+// pipeline orchestrator extension Code Example 9). Optional so pre-Phase-4
+// fixtures continue to validate without the field.
 // ─────────────────────────────────────────────────────────────────────────────
 export const Pass5Output = z.object({
   tools: z.array(FinalTool),
+  flags: z.record(z.string(), z.unknown()).optional(),
 });
 export type Pass5Output = z.infer<typeof Pass5Output>;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stage E — StageEFileEntry / StageEManifest (Phase 4 — RESEARCH Open Q1 closure)
+// Phase 1 D-02 missed the StageEManifest type even though CONTEXT D-34
+// (L1-cached value) and D-43 (fixture MANIFEST.json) reference it. Adding here
+// strictly-additively — no consumer reads StageEManifest pre-Phase-4.
+// ─────────────────────────────────────────────────────────────────────────────
+export const StageEFileEntry = z.object({
+  relative_path: z.string(),
+  sha256_content_hash: z.string().regex(/^[a-f0-9]{64}$/),
+  render_template: z.string(),
+  render_inputs_hash: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type StageEFileEntry = z.infer<typeof StageEFileEntry>;
+
+// `ts_compile_passed` semantics: "no `tsc --noEmit` ERRORS (warnings allowed)".
+// `ts_compile_warning_count` is informational; only Stripe + GitHub + Notion
+// fixtures gate on `count == 0` per CONTEXT D-43.5 zero-warning gate. Linear /
+// Slack assert `passed=true` only; warning count surfaces in observability.
+export const StageEManifest = z.object({
+  files: z.array(StageEFileEntry),
+  bundle_size_kb: z.number().nonnegative(),
+  ts_compile_passed: z.boolean(),
+  ts_compile_warning_count: z.number().int().nonnegative().default(0),
+  template_version: z.string(),
+  generated_at: z.string().datetime(),
+});
+export type StageEManifest = z.infer<typeof StageEManifest>;
 
 export const CompleteServerSpec = z.object({
   server_name: z.string(),
@@ -392,6 +426,11 @@ export const F3AgentEvalReport = z.object({
 });
 export type F3AgentEvalReport = z.infer<typeof F3AgentEvalReport>;
 
+// `bundle_size_kb` and `pipeline_versions` are strictly-additive optional
+// fields per CONTEXT D-42 — Phase 4 fills them via Stage E `validate.py`
+// (Plan 04-11) and the per-pass version stamps; pre-Phase-4 generations leave
+// them null. Drift Watcher (Phase 8) consumes `pipeline_versions` to decide
+// whether to trigger regeneration when an upstream pass version bumps.
 export const QualityReport = z.object({
   spec_hash: z.string().regex(/^[a-f0-9]{64}$/),
   f1_static: F1StaticReport,
@@ -399,5 +438,7 @@ export const QualityReport = z.object({
   f3_agent_eval: F3AgentEvalReport.nullable(),
   overall_score: z.number().min(0).max(5),
   quality_badge: QualityBadge,
+  bundle_size_kb: z.number().int().nonnegative().nullable().optional(),
+  pipeline_versions: z.record(z.string(), z.string()).nullable().optional(),
 });
 export type QualityReport = z.infer<typeof QualityReport>;

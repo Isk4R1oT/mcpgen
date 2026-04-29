@@ -39,7 +39,8 @@ from typing import Any
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
+from mcpgen_ir.types import StageEManifest
 
 from mcpgen_engine.cache import get_l1, l1_key
 from mcpgen_engine.passes.pass_0.filter import UserOptions
@@ -107,11 +108,20 @@ def _build_user_options(raw: dict[str, Any]) -> UserOptions:
             )
         max_tools_override = max_tools_override_raw
 
+    dev_local_raw = raw.get("dev_local", False)
+    if not isinstance(dev_local_raw, bool):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="options.dev_local must be a boolean",
+        )
+    dev_local: bool = dev_local_raw
+
     return UserOptions(
         target_complexity=target_complexity,
         max_tools_override=max_tools_override,
         explicit_includes=raw.get("explicit_includes") or [],
         explicit_excludes=raw.get("explicit_excludes") or [],
+        dev_local=dev_local,
     )
 
 
@@ -248,10 +258,168 @@ async def artifacts(job_id: str) -> dict[str, Any]:
     # Phase 3 additions (D-34) — present from this version onward; older L1
     # entries written by a Phase-2 engine won't have them, in which case we
     # omit the key (CLI consumers feature-test on presence).
-    for key in ("pass_2_output", "pass_3_output", "pass_4_output"):
+    for key in (
+        "pass_2_output",
+        "pass_3_output",
+        "pass_4_output",
+        "pass_5_output",
+        "stage_e_manifest",
+    ):
         if key in cached:
             payload[key] = cached[key]
     return payload
+
+
+# ─────────────────────────── Stage E output endpoint ───────────────────────
+
+
+# File extensions that should be served as text. Anything else is treated as
+# binary (application/octet-stream) — Stage E currently only emits text
+# files, so the binary branch is effectively unreachable in v1.
+_TEXT_EXTENSIONS: frozenset[str] = frozenset(
+    {".ts", ".tsx", ".js", ".json", ".jsonc", ".yaml", ".yml", ".md", ".toml", ".html", ".txt"}
+)
+
+
+def _validate_relative_path(relative_path: str) -> None:
+    """Reject path-traversal attempts BEFORE touching disk (T-04-12-output-endpoint-traversal).
+
+    A safe relative path:
+    - is non-empty.
+    - does not contain ``..`` as a path segment.
+    - does not start with ``/`` (no absolute paths).
+    - does not contain backslashes (no Windows-style traversal).
+    - does not contain NUL bytes.
+    """
+    if not relative_path:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="relative_path must be non-empty",
+        )
+    if relative_path.startswith("/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="relative_path must not start with '/'",
+        )
+    if "\\" in relative_path or "\x00" in relative_path:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="relative_path must not contain '\\' or NUL bytes",
+        )
+    # Reject `..` as a literal path segment — covers `../etc/passwd`,
+    # `foo/../../bar`, and `..` alone. We split on both `/` (POSIX) and check
+    # the raw string for the segment to catch any URL-decoder quirk.
+    parts = relative_path.split("/")
+    for part in parts:
+        if part == "..":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="relative_path must not contain '..' segments",
+            )
+
+
+@router.get("/api/v1/generate/{job_id}/output/{relative_path:path}")
+async def output_file(job_id: str, relative_path: str) -> Response:
+    """Stream a single Stage-E generated file by ``relative_path`` (D-47).
+
+    The CLI calls this once per file in ``stage_e_manifest.files`` after
+    SSE has reached ``shape_codegen_complete``.  We re-render the file
+    deterministically from the cached manifest entry — the actual generated
+    bytes are NOT in L1 (D-34); the manifest carries
+    ``{relative_path, render_template, render_inputs_hash, sha256_content_hash}``
+    and Stage E re-renders identically because Jinja2 + StrictUndefined +
+    deterministic input data produces bit-identical output (GEN-12 / D-36).
+
+    Pre-conditions:
+      - Job exists in ``_JOB_TABLE`` (created by ``POST /api/v1/generate``).
+      - L1 entry exists for the spec_hash AND contains ``stage_e_manifest``
+        (i.e. pipeline has reached ``shape_codegen_complete``).
+      - ``relative_path`` is in the manifest's file list.
+
+    Returns:
+      ``200 + Response(body, media_type=text/plain | octet-stream)``.
+
+    Failure modes:
+      - 400 — path traversal attempt.
+      - 404 — unknown job, no L1 entry, no Stage E manifest, or file not
+        listed in the manifest.
+      - 500 — re-render failed (Stage E template error after L1 hit; should
+        never happen because the manifest's render_template was just used to
+        produce the cached sha256).
+    """
+    _validate_relative_path(relative_path)
+
+    job = _JOB_TABLE.get(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"unknown job: {job_id}",
+        )
+
+    # Re-derive spec_hash from the stored job parameters (Stage A is fully
+    # deterministic so this is cheap on a warm filesystem cache).
+    raw_ir = await stage_a.run(
+        spec_url=job["spec_url"],
+        spec_content=job["spec_content"],
+    )
+    cache_key = l1_key(raw_ir.spec_hash)
+    cached = get_l1(cache_key)
+    if cached is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"output for job {job_id} not in L1 cache (eviction or pipeline not yet complete)"
+            ),
+        )
+    if "stage_e_manifest" not in cached:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"job {job_id} has not reached shape_codegen_complete — "
+                "no stage_e_manifest in L1 entry"
+            ),
+        )
+
+    manifest = StageEManifest.model_validate(cached["stage_e_manifest"])
+    file_entry = next(
+        (f for f in manifest.files if f.relative_path == relative_path),
+        None,
+    )
+    if file_entry is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(f"file {relative_path!r} not listed in stage_e_manifest for job {job_id}"),
+        )
+
+    # Re-render from the on-disk Stage E output dir produced during the
+    # original `run_pipeline` call. The dir is at
+    # `${MCPGEN_OUTPUT_DIR or /tmp/mcpgen-engine-output}/<job_id>` per
+    # `pipeline.resolve_output_dir`. Stage E writes files atomically there
+    # before this endpoint can be called (the SSE caller waits for
+    # `shape_codegen_complete` first), so a simple read is correct.
+    from mcpgen_engine.pipeline import resolve_output_dir
+
+    output_dir = resolve_output_dir(job_id)
+    file_path = output_dir / relative_path
+    # Defense in depth: resolve and re-check containment in case symlink
+    # shenanigans somehow slipped past _validate_relative_path.
+    try:
+        resolved = file_path.resolve(strict=True)
+        resolved.relative_to(output_dir.resolve(strict=True))
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"file {relative_path!r} missing from output dir "
+                f"(re-render required); reason: {exc}"
+            ),
+        ) from exc
+
+    body = file_path.read_bytes()
+    suffix = file_path.suffix.lower()
+    if suffix in _TEXT_EXTENSIONS or file_path.name.startswith("."):
+        return Response(content=body, media_type="text/plain; charset=utf-8")
+    return Response(content=body, media_type="application/octet-stream")
 
 
 # ─────────────────────────── SSE wire generator ────────────────────────────

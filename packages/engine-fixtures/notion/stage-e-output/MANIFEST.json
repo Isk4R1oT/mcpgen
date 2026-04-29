@@ -1,0 +1,183 @@
+{
+  "files": [
+    {
+      "relative_path": "package.json",
+      "sha256_content_hash": "0b46eda865cccef989868e432c56a9f1cc48cda9fbc2552ecb49bed207bb411b",
+      "render_template": "package.json.j2",
+      "render_inputs_hash": "ef25b23be56d6a2b2869e77ed9241c698788ab8ff8d5cc37735b4bf82447d6ca"
+    },
+    {
+      "relative_path": "wrangler.toml",
+      "sha256_content_hash": "a664fc87df82f8b305064e5fe420e55a6db84e088fa9486d1b5699195887af73",
+      "render_template": "wrangler.toml.j2",
+      "render_inputs_hash": "ef25b23be56d6a2b2869e77ed9241c698788ab8ff8d5cc37735b4bf82447d6ca"
+    },
+    {
+      "relative_path": "tsconfig.json",
+      "sha256_content_hash": "fee4b5906e3770726f75c05b8005005fe6ee365be34ce4b5c64a84d0af346156",
+      "render_template": "tsconfig.json.j2",
+      "render_inputs_hash": "ef25b23be56d6a2b2869e77ed9241c698788ab8ff8d5cc37735b4bf82447d6ca"
+    },
+    {
+      "relative_path": "README.md",
+      "sha256_content_hash": "63900f354d1605a85c733ac967f94421395e4502077ce3c7d83a41214b359f44",
+      "render_template": "README.md.j2",
+      "render_inputs_hash": "ef25b23be56d6a2b2869e77ed9241c698788ab8ff8d5cc37735b4bf82447d6ca"
+    },
+    {
+      "relative_path": ".mcpgen.yaml",
+      "sha256_content_hash": "37f72504ef08cb714977eeea1a5aedd60ba64a9fee9cc8687ad2dcff9715201c",
+      "render_template": "mcpgen.yaml.j2",
+      "render_inputs_hash": "ef25b23be56d6a2b2869e77ed9241c698788ab8ff8d5cc37735b4bf82447d6ca"
+    },
+    {
+      "relative_path": ".gitignore",
+      "sha256_content_hash": "d2f9f1789ba1a1604249f53541fa47dd38ba694ced7a4c615f4bddf15c838787",
+      "render_template": "gitignore.j2",
+      "render_inputs_hash": "ef25b23be56d6a2b2869e77ed9241c698788ab8ff8d5cc37735b4bf82447d6ca"
+    },
+    {
+      "relative_path": "src/index.ts",
+      "sha256_content_hash": "c9ad4c8cb72aba6ab7abf1bddc1f99e95d569161a8c526f1cfac48e98dfbbbfb",
+      "render_template": "index.ts.j2",
+      "render_inputs_hash": "ef25b23be56d6a2b2869e77ed9241c698788ab8ff8d5cc37735b4bf82447d6ca"
+    },
+    {
+      "relative_path": "src/server.ts",
+      "sha256_content_hash": "a47ec20bb46f468cdb28547da0ce5553470e4db38bf2445be9dbd52350a8c921",
+      "render_template": "server.ts.j2",
+      "render_inputs_hash": "ef25b23be56d6a2b2869e77ed9241c698788ab8ff8d5cc37735b4bf82447d6ca"
+    },
+    {
+      "relative_path": "src/config.ts",
+      "sha256_content_hash": "0b46cb7f701bc2ee5ec4ce69fd4919fee75efa4ed6af0d2e94991847b9ef75dd",
+      "render_template": "config.ts.j2",
+      "render_inputs_hash": "ef25b23be56d6a2b2869e77ed9241c698788ab8ff8d5cc37735b4bf82447d6ca"
+    },
+    {
+      "relative_path": "src/schemas/inputs.ts",
+      "sha256_content_hash": "dcb8d9b19c896b8d2ad4054511debbe220c04335d42a718cc6013c15292ddcd4",
+      "render_template": "inputs.ts.j2",
+      "render_inputs_hash": "75383be023576fd4f7da9903db5662cc18d2793987386c0403dff11595b30177"
+    },
+    {
+      "relative_path": "src/schemas/outputs.ts",
+      "sha256_content_hash": "9d9686b753fc7e4fbe2eb7566a31b1d443ad64318e3cef6ea6db3f6b20017d02",
+      "render_template": "outputs.ts.j2",
+      "render_inputs_hash": "75383be023576fd4f7da9903db5662cc18d2793987386c0403dff11595b30177"
+    },
+    {
+      "relative_path": "src/schemas/routing.ts",
+      "sha256_content_hash": "2e5598c8a721ef755ca634368a1d23e5b7badaa8ec2767e053a118fdb59ef45b",
+      "render_template": "routing.ts.j2",
+      "render_inputs_hash": "157ef0ab75afdb7c3abe271e0e6545eefc07060d2a67be4526bf7358beed4e06"
+    },
+    {
+      "relative_path": "src/runtime/smart_id.ts",
+      "sha256_content_hash": "2ec46b7d0066859b7185539bccd9e00e4825b14828cc84a117a59e8636b434a4",
+      "render_template": "smart_id.ts.j2",
+      "render_inputs_hash": "35badcdd344a0313e657ac8336eacf8a8cc1490fc7e21960cb5e896ece5f58e5"
+    },
+    {
+      "relative_path": "src/runtime/pagination.ts",
+      "sha256_content_hash": "a781966c1a3d6f7e03c60d2e644e31bf81571d0ded1d9a23841d66f85f8628ce",
+      "render_template": "pagination.ts.j2",
+      "render_inputs_hash": "35badcdd344a0313e657ac8336eacf8a8cc1490fc7e21960cb5e896ece5f58e5"
+    },
+    {
+      "relative_path": "src/runtime/truncation.ts",
+      "sha256_content_hash": "387b3b45150ea05408509534d6ed420ae877db16c260776aebd15d09b2969474",
+      "render_template": "truncation.ts.j2",
+      "render_inputs_hash": "35badcdd344a0313e657ac8336eacf8a8cc1490fc7e21960cb5e896ece5f58e5"
+    },
+    {
+      "relative_path": "src/runtime/upstream.ts",
+      "sha256_content_hash": "e333d618d21a7fa532eab6233dfcba8bedf9f13cf3e4fc0b6f389c9d9aabe81f",
+      "render_template": "upstream.ts.j2",
+      "render_inputs_hash": "35badcdd344a0313e657ac8336eacf8a8cc1490fc7e21960cb5e896ece5f58e5"
+    },
+    {
+      "relative_path": "src/runtime/response_shaping.ts",
+      "sha256_content_hash": "d63d40ff2cbdbc1097736c7d801eca4c12c1a73e19de6db97a250742171f155c",
+      "render_template": "response_shaping.ts.j2",
+      "render_inputs_hash": "35badcdd344a0313e657ac8336eacf8a8cc1490fc7e21960cb5e896ece5f58e5"
+    },
+    {
+      "relative_path": "src/runtime/errors.ts",
+      "sha256_content_hash": "c5e83a7f3bbf71214bc979f557b7563790255b7b455b006827a056915e1c7bb2",
+      "render_template": "errors.ts.j2",
+      "render_inputs_hash": "35badcdd344a0313e657ac8336eacf8a8cc1490fc7e21960cb5e896ece5f58e5"
+    },
+    {
+      "relative_path": "src/runtime/capability.ts",
+      "sha256_content_hash": "7cde5c6aaaa3a06272a459186279bccb6782c2c590123d9b11bbd11b4bbb4e83",
+      "render_template": "capability.ts.j2",
+      "render_inputs_hash": "35badcdd344a0313e657ac8336eacf8a8cc1490fc7e21960cb5e896ece5f58e5"
+    },
+    {
+      "relative_path": "src/runtime/sentry_redact.ts",
+      "sha256_content_hash": "769016543d4bb097cd875f9f267a5f7b865b774749bb53825ce384d50c487e43",
+      "render_template": "sentry_redact.ts.j2",
+      "render_inputs_hash": "35badcdd344a0313e657ac8336eacf8a8cc1490fc7e21960cb5e896ece5f58e5"
+    },
+    {
+      "relative_path": "src/auth/middleware.ts",
+      "sha256_content_hash": "3235e29f4b30fd338ebf3b132ed8cd330ddd10c6ab6f217f097c8c9d5e8ed92e",
+      "render_template": "auth_middleware.ts.j2",
+      "render_inputs_hash": "a8754bde8266c2ff2bf159502fb6e432471b6d629d73bde55adce218a1087c26"
+    },
+    {
+      "relative_path": "src/auth/credentials.ts",
+      "sha256_content_hash": "a9cb30ebb57e937025ff6315a0d4b29aba8665eb40d3b86bd1733cf5a63ddcf2",
+      "render_template": "auth_credentials.ts.j2",
+      "render_inputs_hash": "a8754bde8266c2ff2bf159502fb6e432471b6d629d73bde55adce218a1087c26"
+    },
+    {
+      "relative_path": "src/tools/search.ts",
+      "sha256_content_hash": "751103b16290ebe0b8183b08004356e0a4a5ac099d555e3d3027578ad61d1eb3",
+      "render_template": "tool_search.ts.j2",
+      "render_inputs_hash": "4bdad6dc3e9c3df336cb60bca3713572824db38911c0f6f1376636d8f23bcd6f"
+    },
+    {
+      "relative_path": "src/tools/fetch.ts",
+      "sha256_content_hash": "5b6eb2609dd0a955b4b06055e1655fe9b9aec988edfb45ddc005b1be6ee90e48",
+      "render_template": "tool_fetch.ts.j2",
+      "render_inputs_hash": "785ebcc186f169da84017863e8bc3a0c76b93f7f5fe77f6c5b93c1a99334f429"
+    },
+    {
+      "relative_path": "src/tools/list_collections.ts",
+      "sha256_content_hash": "ed77b6dc2ab0420e2d700341c1a71f48a03d5ea81183e81065127951e5ecc106",
+      "render_template": "tool_list_collections.ts.j2",
+      "render_inputs_hash": "34068e212cbb90e90d005853ef4e80d5ec4638f454dc63c06aae48c7b11b873e"
+    },
+    {
+      "relative_path": "src/tools/list_objects.ts",
+      "sha256_content_hash": "9ea8d04a2a9399bdccb1e2a172485f407f2c65612ab1989dd27282d934d4a69d",
+      "render_template": "tool_list_objects.ts.j2",
+      "render_inputs_hash": "72133f3324f3ba6adc8b1740c133cd9b46836d5c9937ba12dbe23e0bd1f60409"
+    },
+    {
+      "relative_path": "src/tools/upsert.ts",
+      "sha256_content_hash": "4c5740b3f961c3cc1be6e5caa198cbd1c587fc2dd09b312c71db430937f98b20",
+      "render_template": "tool_upsert.ts.j2",
+      "render_inputs_hash": "55bc95b357906b6b9c860bab10452d86934b6225c0e6c8b160baa986e111dc1e"
+    },
+    {
+      "relative_path": "src/tools/delete.ts",
+      "sha256_content_hash": "dbf05503973fc5e5d7a61c7c55aff64afb02583f8d3e674bb1f8eabd18f24d26",
+      "render_template": "tool_delete.ts.j2",
+      "render_inputs_hash": "ed332647ac0288a1f797f6da408d0621969b26329d13fd4ddc31296084558c29"
+    },
+    {
+      "relative_path": "src/tools/index.ts",
+      "sha256_content_hash": "f941f81a2960eb6d7b354326ef298c276bd5bb445edd3f3aa0064e809b5f4d99",
+      "render_template": "tools_index.ts.j2",
+      "render_inputs_hash": "fe3525be67cdfa2e48d35aee169ee5eddd59ff5205a6c06d32343b3c97244862"
+    }
+  ],
+  "bundle_size_kb": 246.57,
+  "ts_compile_passed": true,
+  "ts_compile_warning_count": 0,
+  "template_version": "1",
+  "generated_at": "2026-04-28T20:47:46.185986Z"
+}

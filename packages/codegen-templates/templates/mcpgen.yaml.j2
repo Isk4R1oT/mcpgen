@@ -1,0 +1,26 @@
+# mcpgen project config — consumed by Phase 8 Drift Watcher.
+# Compare `spec_hash` + `pipeline_versions` against the latest engine
+# state to decide whether to trigger regeneration.
+#
+# CONTEXT D-29 — every required field present.
+
+spec_url: "{{ spec_url }}"
+spec_hash: "{{ spec_hash }}"
+generated_at: "{{ generated_at }}"
+engine_version: "{{ engine_version }}"
+pipeline_versions:
+  pass_0: "{{ pipeline_versions.pass_0 }}"
+  pass_1: "{{ pipeline_versions.pass_1 }}"
+  pass_2: "{{ pipeline_versions.pass_2 }}"
+  pass_3: "{{ pipeline_versions.pass_3 }}"
+  pass_4: "{{ pipeline_versions.pass_4 }}"
+  pass_5: "{{ pipeline_versions.pass_5 }}"
+  stage_e: "{{ pipeline_versions.stage_e }}"
+server_name_template: "{{ tenant_short_id_placeholder }}-{{ spec_slug }}"
+spec_slug: "{{ spec_slug }}"
+auth_mode: "{{ auth_mode }}"
+mcp_protocol_version: "{{ mcp_protocol_version }}"
+# bundle_size_kb is filled by Stage E phase 6 (Plan 04-11) after
+# `wrangler deploy --dry-run`. Phase 4 emits a placeholder of 0.
+bundle_size_kb: 0
+tool_count: {{ tool_count }}

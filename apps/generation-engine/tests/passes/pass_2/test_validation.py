@@ -43,7 +43,8 @@ def _make_description(
     how_to_use: str | None = None,
     limitations: list[str] | None = None,
     parameter_overview: str = (
-        "Accepts a free-form query string; returns ranked smart-id results with object summaries."
+        "Accepts a free-form query string; returns ranked smart-id results "
+        "with object summaries."
     ),
 ) -> Description:
     return Description(

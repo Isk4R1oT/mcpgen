@@ -13,13 +13,13 @@ MCPGen ships in 10 phases over ~6 calendar weeks via 4–5 parallel workstreams 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Monorepo, 5 frozen contracts, 8 Phase-1 refinements, sandbox CF namespace, fixtures shadow service (completed 2026-04-26)
-- [ ] **Phase 2: Generation Engine — Architect (Pass 0+1)** - Stage A parser + Pass 0 inventory + Pass 1 Six-Tool consolidation with tenant-prefixed smart IDs
+- [x] **Phase 2: Generation Engine — Architect (Pass 0+1)** - Stage A parser + Pass 0 inventory + Pass 1 Six-Tool consolidation with tenant-prefixed smart IDs (completed 2026-04-28)
 - [x] **Phase 3: Generation Engine — Author (Pass 2+3+4)** - Description authoring, parameter specification, annotations inference (completed 2026-04-28)
-- [ ] **Phase 4: Generation Engine — Shape & Codegen (Pass 5 + Stage E)** - Response shaping + ~25–30-file deterministic Jinja2 codegen with bundle-size + DNS-rebinding gates
+- [x] **Phase 4: Generation Engine — Shape & Codegen (Pass 5 + Stage E)** - Response shaping + ~25–30-file deterministic Jinja2 codegen with bundle-size + DNS-rebinding gates (completed 2026-04-29; all 4 deviations drained per 04-13-INSPECTOR-EVIDENCE.md re-run #3)
 - [ ] **Phase 5: Generation Engine — Validation (Stage F)** - F1 static + F2 smell scan (Qwen 5-shuffle) + F3 agent eval against golden tasks
-- [x] **Phase 6: Runtime Plane** - Dispatch Worker + tenant Workers + 3 auth modes + usage event pipeline with KV fallback (completed 2026-04-27 — see `06-PHASE-VERIFICATION.md`)
+- [x] **Phase 6: Runtime Plane** - Dispatch Worker + tenant Workers + 3 auth modes + usage event pipeline with KV fallback (completed 2026-04-27 — runtime workstream)
 - [ ] **Phase 7: Frontend Wire-Up** - Wire locked Claude-Design UI to Generation API + SSE + dashboard (NO visual changes)
-- [x] **Phase 8: Auth + Billing** - Logto (email + GitHub) + Stripe Meters + quotas + cost cap + Drift Watcher with IR-diff (completed 2026-04-28)
+- [x] **Phase 8: Auth + Billing** - Logto (email + GitHub) + Stripe Meters + quotas + cost cap + Drift Watcher with IR-diff (completed 2026-04-27 — ops workstream)
 - [ ] **Phase 9: Observability & Polish** - Sentry/Langfuse/BetterStack integrated + cross-tenant fuzz + multi-client smoke + Inngest orphan audit
 - [ ] **Phase 10: Launch** - Quickstart docs validated externally + Privacy/ToS/Pricing + soft launch W7 → public W9
 
@@ -115,8 +115,23 @@ Plans:
   3. Every generated Worker passes `tsc --noEmit`, installs `hostHeaderValidation` middleware (DNS rebinding), and installs Sentry `beforeSend` redaction for `X-Upstream-Auth`, `Authorization`, `Cookie`, and every auth header declared in the source spec
   4. `wrangler deploy --dry-run` bundle size is captured into QualityReport for every generation; bundles >950KB hard-fail with a multi-server-split suggestion; the generated repo includes a `.mcpgen.yaml` project config and is MCP Inspector compatible
   5. Generated Stripe MCP can be invoked manually via `npx @modelcontextprotocol/inspector` and returns dual `content` + `structuredContent` per MCP 2025-06-18
-**Plans**: TBD
-
+**Plans**: 13 plans
+Plans:
+- [x] 04-01-PLAN.md — Pass 5 Phase 1 deterministic pagination strategy detection (cursor/offset/page-number/none precedence per D-08) [Wave 1] ✓ 2026-04-28
+- [x] 04-02-PLAN.md — Pass 5 Phase 2 deterministic outputSchema extraction + per-universal-tool envelope branches + metadata wrapper [Wave 1] ✓ 2026-04-28
+- [x] 04-03-PLAN.md — Pass 5 Phase 3 Qwen field-importance ranking ‖ Sem 10 + heuristic pre-ranking + 1-retry-then-deterministic fallback (D-09/D-11) [Wave 2] ✓ 2026-04-28
+- [x] 04-04-PLAN.md — Pass 5 Phase 4 truncation guidance templates (D-07 frozen table + Pitfall #5 anti-loop wording + search-no-cursor invariant) [Wave 2] ✓ 2026-04-28
+- [x] 04-05-PLAN.md — Pass 5 Phase 5 response_format enum gate (D-10) + cross-tool consistency validators + final assembly + run() orchestrator [Wave 2] ✓ 2026-04-28
+- [x] 04-06-PLAN.md — Stage E scaffold templates (9 project-level Jinja2) + IR additive bumps (StageEManifest + bundle_size_kb + pipeline_versions) + codegen-templates package skeleton [Wave 3] ✓ 2026-04-28
+- [x] 04-07-PLAN.md — Stage E schemas templates (inputs.ts + outputs.ts dual-export + routing.ts) + Pitfall #33 conservative-format fallback [Wave 3] ✓ 2026-04-28
+- [x] 04-08-PLAN.md — Stage E runtime modules (smart_id + pagination + truncation + upstream + response_shaping + errors + capability + sentry_redact) + Pitfall #4 + #12 mitigations [Wave 3] ✓ 2026-04-28
+- [x] 04-09-PLAN.md — Stage E auth middleware (3 modes per D-21: passthrough/stored/OAuth) + Pitfall #15 DNS rebinding via SDK transport + workers-oauth-provider 0.2.x pin verification [Wave 3] ✓ 2026-04-28
+- [x] 04-10-PLAN.md — Stage E per-tool-type handler templates (9 tool_*.ts.j2 + tools_index.ts.j2) per D-31 + MCP SDK v1 5-arg form + Pitfall #5 search-no-cursor at handler level [Wave 4] ✓ 2026-04-28
+- [x] 04-11-PLAN.md — Stage E Phase 6 validation (tsc --noEmit + wrangler deploy --dry-run bundle-size capture per D-27/D-28) + run() orchestrator chaining 6 phases + node_modules pre-warm [Wave 4] ✓ 2026-04-29
+- [x] 04-12-PLAN.md — pipeline.py extension (Stage D + E SSE events + L1 expansion per D-33/D-34) + cache template_version (D-35) + new GET /output endpoint (D-47) + CLI write_stage_e_output.ts replacing render_stub.ts + 4 integration tests + 10 hand-tuned fixtures (5×pass-5-output.json + 5×stage-e-output/MANIFEST.json) [Wave 5] ✓ 2026-04-29
+- [x] 04-13-PLAN.md — Manual MCP Inspector verification gate per D-30 (Stripe MCP returns dual content+structuredContent against test-mode credentials; capability/bundle/DNS/Sentry spot-checks) [Wave 5] ✅ 2026-04-29 PASSED (initial gate found D-1+D-2+D-3 → drained by Plan 04-14; re-run #2 found D-4 → drained by Plan 04-15; re-run #3 confirmed all 4 deviations drained — outputSchema 9/9 in tools/list — see 04-PHASE-DEVIATIONS.md + 04-13-INSPECTOR-EVIDENCE.md re-run #3)
+- [x] 04-14-PLAN.md — Template-fix follow-up draining D-1+D-2+D-3 (registerAllTools call + stateless transport + dev_local build mode) + Wave-0 paired handshake test against real wrangler dev [Wave 6] ✓ 2026-04-29
+- [x] 04-15-PLAN.md — Template-fix follow-up draining D-4 (SDK v1 5-arg server.tool() → McpServer.registerTool config-object form) + json_schema_to_zod Jinja2 filter Rule-1 auto-fix + Wave-0 outputSchema handshake test against real wrangler dev + amend CONTEXT D-04 invariant + new ADR docs/decisions/2026-04-29-stage-e-registertool-migration.md [Wave 7] ✓ 2026-04-29
 ### Phase 5: Generation Engine — Validation (Stage F)
 **Workstream**: `engine`
 **Goal**: F1 static validation maps every failure to a specific upstream-pass retry; F2 smell scan via single Qwen3-Coder with 5-shuffle prompt averaging + temperature variance reaches the launch-criterion threshold ≥4.0 with between-tool σ ≥0.4 discrimination; F3 agent eval drives a real Sonnet 4.7 agent against golden tasks for top-10 APIs in real sandbox with mocked clients (Cursor / Claude Desktop / ChatGPT Deep Research) and reaches ≥0.7 server pass rate.
@@ -142,16 +157,7 @@ Plans:
   3. Pass-through credentials (default) decrypt `X-Upstream-Auth` per request via HKDF-derived key, never persist; stored credentials (alt) use AES-256-GCM with per-tenant DEK in CF KV and require explicit user opt-in checkbox marked "less secure"; OAuth 2.1 mode wires `@cloudflare/workers-oauth-provider` with PKCE and Logto-managed tokens
   4. P99 over upstream stays <50ms on warm starts for the sample tenant Worker; cold starts are amortized via warm-keep cron every 5 min for active tenants; usage events emit via `ctx.waitUntil(queue.send(...))` with a KV fallback bucket on send failure; daily reconciliation job aligns TimescaleDB hypertable counts with Stripe Meters within 0.5%
   5. `mcpgen deploy` ships a generated server to CF Workers for Platforms (script-name = `{tenant}-{spec_slug}`) and returns a live URL; one-click Claude Desktop config block is generated with collision detection against existing config entries; CLI ships as Bun-compiled single binary on npm + GitHub releases for `bun-darwin-arm64`, `bun-darwin-x64`, `bun-linux-x64`, `bun-windows-x64`
-**Plans**: 7 plans
-
-Plans:
-- [x] 06-00-PLAN.md — Wave 0: 2 schema migrations (local_port + idempotency_key) + scaffolds for tenant-worker-runner / inngest-dev / tests/runtime + cross-package fixtures [BLOCKING] [Wave 0] ✓ 2026-04-27
-- [x] 06-01-PLAN.md — Dispatch routing + 6 middleware (host-header / auth / rate-limit / tenant-lookup / capability-gate / smart-ID fuzz) + multi-port forward (RUN-01) [Wave 1] ✓ 2026-04-27
-- [x] 06-02-PLAN.md — @mcpgen/runtime real implementations (11 frozen methods) + apps/tenant-worker-runner supervisor + apps/dispatch-sample wire-through (RUN-02) [Wave 2] ✓ 2026-04-27
-- [x] 06-03-PLAN.md — 3 auth modes (passthrough HKDF default + stored AES-256-GCM + OAuth stub) + Sentry redaction + PII leak audit (RUN-03 / RUN-04 / RUN-05) [Wave 3] ✓ 2026-04-27
-- [x] 06-04-PLAN.md — Usage event pipeline + 4 stable-id Inngest functions (usage-events-ingest-v1 / usage-fallback-drain-v1 / usage-reconciler-v1 / warm-keep-active-tenants-v1) (RUN-06 + CTRL-09) [Wave 4] ✓ 2026-04-27
-- [x] 06-05-PLAN.md — mcpgen deploy CLI + --cf exit-78 deferral + Claude Desktop config block with collision detection + 4-target Bun-compile binary CI matrix (CLI-02 + CLI-03 + RUN-07) [Wave 4] ✓ 2026-04-27
-- [x] 06-06-PLAN.md — P99 < 50ms load harness + warm-keep round-trip + Phase-6 acceptance E2E + runtime-ci.yml + 06-PHASE-VERIFICATION.md (RUN-02 closure) [Wave 5] ✓ 2026-04-27
+**Plans**: TBD
 
 ### Phase 7: Frontend Wire-Up
 **Workstream**: `frontend`
@@ -178,12 +184,7 @@ Plans:
   2. Drizzle migrations cover the full data model on Neon Postgres 16 + TimescaleDB + pgvector with Scale-tier compute (≥4 vCPU, 8GB) for production: organizations → users → projects → specs → generations → deployments → tools (with pgvector embedding); R2 holds three buckets (`mcpgen-specs`, `mcpgen-artifacts` 30-day TTL, `mcpgen-public-cache`) with no PII or credentials persisted
   3. Stripe products + prices + webhook handler wire Free / Pro / PAYG; per-generation cost cap is enforced server-side (engine + BFF + Stripe quota); cost cap exceeded → hard fail with partial result + bill, never silent overrun; quota enforcement uses TimescaleDB hourly aggregates as real-time quota truth with daily Stripe Meters reconciliation alerting on >2% drift
   4. Drift Watcher Inngest cron (daily 02:00 UTC) compares parsed IR (not raw spec content hash) and surfaces semantic diff (added / removed / changed endpoints / parameters) in the UI with manual-review / one-click-regenerate / auto-regenerate-toggle (auto = opt-in only); Resend per-recipient email rate-limit max 1 drift email/week
-**Plans**: 5 plans across 5 waves
-- [x] 08-01-PLAN.md — Auth middleware + DB migration + Storage adapter + Outbox table + Inngest scaffold ✓ 2026-04-27
-- [x] 08-02-PLAN.md — Stripe products+webhook+outbox poller (mocked Stripe) ✓ 2026-04-27
-- [x] 08-03-PLAN.md — Real Stripe + Checkout + cost-cap + quota ✓ 2026-04-27
-- [x] 08-04-PLAN.md — Drift Watcher + reconciliation + MAU + Resend wiring ✓ 2026-04-28
-- [x] 08-05-PLAN.md — E2E billing flow + verifier-agent gates + phase-level summary (pre-Phase-6 path complete; post-Phase-6 re-verification deferred) ✓ 2026-04-28
+**Plans**: TBD
 
 ### Phase 9: Observability & Polish
 **Workstream**: `main`
@@ -222,11 +223,11 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 | 1. Foundation | 9/8 | Complete    | 2026-04-26 |
 | 2. Generation Engine — Architect (Pass 0+1) | 0/TBD | Not started | - |
 | 3. Generation Engine — Author (Pass 2+3+4) | 0/12 | Not started | - |
-| 4. Generation Engine — Shape & Codegen (Pass 5 + Stage E) | 0/TBD | Not started | - |
+| 4. Generation Engine — Shape & Codegen (Pass 5 + Stage E) | 0/13 | Not started | - |
 | 5. Generation Engine — Validation (Stage F) | 0/TBD | Not started | - |
 | 6. Runtime Plane | 0/TBD | Not started | - |
 | 7. Frontend Wire-Up | 0/TBD | Not started | - |
-| 8. Auth + Billing | 5/5 | Complete | 2026-04-28 |
+| 8. Auth + Billing | 0/TBD | Not started | - |
 | 9. Observability & Polish | 0/TBD | Not started | - |
 | 10. Launch | 0/TBD | Not started | - |
 

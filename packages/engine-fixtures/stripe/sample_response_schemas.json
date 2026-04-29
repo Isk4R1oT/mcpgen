@@ -1,0 +1,45 @@
+{
+  "_comment": "Synthetic response-schema fixture for Pass 5 outputSchema extraction tests. The real Stripe ir.json fixture (packages/engine-fixtures/stripe/ir.json) only carries `description` in `endpoints[*].responses[200]` — no `schema` payload — so this file ships realistic response schemas for unit-test inputs. Schemas mirror the public Stripe API response surface (Charge / Customer / List / Delete confirmation) without reproducing copyrighted text. Used by apps/generation-engine/tests/passes/pass_5/test_output_schema.py.",
+  "Charge": {
+    "type": "object",
+    "properties": {
+      "id": {"type": "string"},
+      "amount": {"type": "integer"},
+      "currency": {"type": "string"},
+      "status": {"type": "string", "enum": ["pending", "succeeded", "failed"]},
+      "created": {"type": "integer", "format": "unix-timestamp"},
+      "metadata": {"type": "object", "additionalProperties": {"type": "string"}}
+    },
+    "required": ["id", "amount", "currency", "status"]
+  },
+  "ChargeList": {
+    "type": "object",
+    "properties": {
+      "object": {"type": "string", "enum": ["list"]},
+      "data": {"type": "array", "items": {"$ref": "#/components/schemas/Charge"}},
+      "has_more": {"type": "boolean"},
+      "next_cursor": {"type": "string"}
+    },
+    "required": ["object", "data", "has_more"]
+  },
+  "Customer": {
+    "type": "object",
+    "properties": {
+      "id": {"type": "string"},
+      "email": {"type": "string", "format": "email"},
+      "name": {"type": "string"}
+    },
+    "required": ["id"]
+  },
+  "EmptyAdditional": {
+    "type": "object",
+    "additionalProperties": true
+  },
+  "DeleteResponse": {
+    "type": "object",
+    "properties": {
+      "deleted": {"type": "boolean"},
+      "id": {"type": "string"}
+    }
+  }
+}

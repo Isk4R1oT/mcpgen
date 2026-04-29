@@ -1,0 +1,936 @@
+{
+  "tools": [
+    {
+      "name": "search",
+      "type": "universal",
+      "description": {
+        "purpose": "Search across GitHub issues and pull requests by free-text query and return ranked smart IDs.",
+        "when_to_use": [
+          "When the user wants to find an issue or PR by partial title, body keyword, or label.",
+          "When the exact issue/PR number is unknown."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Returns at most 30 results per call (GitHub API page size).",
+          "Search index lag of up to 60s for newly created items.",
+          "No code search included \u2014 use the GitHub web UI for code-text matches."
+        ],
+        "parameter_overview": "Single `query` string supporting GitHub search qualifiers (e.g. `is:open author:alice`); ranked results returned as smart IDs of the form gh-prod-github:object:Issue:owner/repo#42.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Free-text search query, optionally with GitHub qualifiers."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "preview": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "results"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": {
+          "style": "cursor",
+          "default_limit": 25,
+          "max_limit": 100
+        },
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "type",
+            "score"
+          ],
+          "opt_in": [
+            "preview",
+            "labels"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 10000,
+          "guidance_template": "Showing {N} of {Total} matches. Refine with GitHub qualifiers (e.g., `is:open`, `author:`) or use `cursor` to paginate."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "GET /search/issues"
+      ]
+    },
+    {
+      "name": "fetch",
+      "type": "universal",
+      "description": {
+        "purpose": "Fetch the full GitHub object addressed by a smart ID (Issue, PullRequest, or Release).",
+        "when_to_use": [
+          "When you have a smart ID returned by `search` or `list_objects`.",
+          "When the full object payload is required (e.g., body, comments, mergeability)."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Returns full object including potentially large body markdown \u2014 consider `properties` projection.",
+          "404 if the object was deleted; PRs converted from issues retain their number."
+        ],
+        "parameter_overview": "Single `id` string in the smart-ID format `gh-prod-github:object:{Issue|PullRequest|Release}:{owner/repo#number}` for issues/PRs or `:rel_id` for Releases.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+:object:(Issue|PullRequest|Release):[A-Za-z0-9_/#-]+$"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "object"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "number",
+            "title",
+            "state"
+          ],
+          "opt_in": [
+            "body",
+            "labels",
+            "assignees",
+            "comments"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 20000,
+          "guidance_template": "Object exceeded {threshold} tokens; {N} fields included. Re-call with `properties: ['title','state']` to project."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "GET /repos/{owner}/{repo}/issues/{issue_number}",
+        "GET /repos/{owner}/{repo}/pulls/{pull_number}",
+        "GET /repos/{owner}/{repo}/releases/{release_id}"
+      ]
+    },
+    {
+      "name": "list_collections",
+      "type": "universal",
+      "description": {
+        "purpose": "List the available top-level GitHub object collections (Issue, PullRequest, Release) for discovery.",
+        "when_to_use": [
+          "At session start to discover what data the GitHub MCP exposes.",
+          "When mapping a user request to the right object type."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Returns metadata only \u2014 use `list_objects` to enumerate within a collection."
+        ],
+        "parameter_overview": "Optional `pattern` (glob) and `include_schema` (bool); defaults return all collections without schema.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "include_schema": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "collections": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "collections"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": {
+          "style": "none",
+          "default_limit": 100,
+          "max_limit": 100
+        },
+        "field_filtering": {
+          "always_include": [
+            "name",
+            "count_estimate"
+          ],
+          "opt_in": [
+            "schema"
+          ],
+          "always_exclude": []
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Listed {N} collections. Use `pattern` to narrow."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "GET /repos/{owner}/{repo}/issues",
+        "GET /repos/{owner}/{repo}/pulls",
+        "GET /repos/{owner}/{repo}/releases"
+      ]
+    },
+    {
+      "name": "list_objects",
+      "type": "universal",
+      "description": {
+        "purpose": "List GitHub objects within a chosen collection with filter, sort, projection, and pagination.",
+        "when_to_use": [
+          "When enumerating issues or PRs of a repo.",
+          "When a server-side filter (state=open) or sort (created desc) is needed."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "GitHub list endpoints require a repo context (`owner` + `repo`); pass via filter.",
+          "Max 100 records per call.",
+          "Filter expressions limited to GitHub's documented filter qualifiers."
+        ],
+        "parameter_overview": "`collection` (required) + `filter` (`{property,operator,value}`) + `properties` projection + `sort_by`/`sort_order` + `limit`/`cursor`.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "type": "string",
+            "enum": [
+              "Issue",
+              "PullRequest",
+              "Release"
+            ]
+          },
+          "filter": {
+            "type": "object"
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sort_by": {
+            "type": "string"
+          },
+          "sort_order": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 25
+          },
+          "cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "collection"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "objects"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": {
+          "style": "cursor",
+          "default_limit": 25,
+          "max_limit": 100
+        },
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "number",
+            "title",
+            "state"
+          ],
+          "opt_in": [
+            "body",
+            "labels",
+            "assignees"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 15000,
+          "guidance_template": "Returned {N} of approximately {Total} {collection}. Use `cursor` to paginate or `properties: ['title','state']` to project fewer fields."
+        },
+        "has_response_format_param": true
+      },
+      "source_endpoints": [
+        "GET /repos/{owner}/{repo}/issues",
+        "GET /repos/{owner}/{repo}/pulls",
+        "GET /repos/{owner}/{repo}/releases"
+      ]
+    },
+    {
+      "name": "upsert",
+      "type": "universal",
+      "description": {
+        "purpose": "Create a new GitHub Issue/PullRequest/Release or update an existing one (smart routing by id presence).",
+        "when_to_use": [
+          "When opening a new Issue or PR.",
+          "When editing an Issue's title/body/state."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Releases cannot be updated by tag \u2014 only by id; supply id for updates.",
+          "PR creation requires `head` and `base` branches; both must exist.",
+          "Re-creating a release with the same tag fails with 422."
+        ],
+        "parameter_overview": "`collection` selects type. `data` alone creates; `id` + `data` updates. For PR creation `data.head`/`data.base` required.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "type": "string",
+            "enum": [
+              "Issue",
+              "PullRequest",
+              "Release"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "collection",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "object"
+          },
+          "created": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "object",
+          "created"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "number",
+            "title",
+            "state"
+          ],
+          "opt_in": [
+            "body",
+            "labels"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "{action} succeeded for {collection} #{number}. Refetch with `properties` projection if response truncated."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /repos/{owner}/{repo}/issues",
+        "PATCH /repos/{owner}/{repo}/issues/{issue_number}",
+        "POST /repos/{owner}/{repo}/pulls",
+        "POST /repos/{owner}/{repo}/releases"
+      ]
+    },
+    {
+      "name": "delete",
+      "type": "universal",
+      "description": {
+        "purpose": "Delete a GitHub Release (Issues and PRs cannot be deleted via API; close them instead).",
+        "when_to_use": [
+          "When removing a draft release.",
+          "When cleaning up test releases on a sandbox repo."
+        ],
+        "when_not_to_use": [
+          "For Issues \u2014 call `issues_close` instead (GitHub does not support issue deletion via REST).",
+          "For PullRequests \u2014 close via `upsert` with `data.state='closed'`."
+        ],
+        "how_to_use": null,
+        "limitations": [
+          "Only Release supports delete; attempting Issue/PR delete returns 405.",
+          "Once deleted, the release is gone; tag remains.",
+          "`confirm: true` is mandatory."
+        ],
+        "parameter_overview": "`type: 'object'` + `id` (smart ID of Release) + `confirm: true`. Batch delete supported via `ids` array.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "object",
+              "objects"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confirm": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "type",
+          "confirm"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "deleted_count": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "deleted_count"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "deleted_count",
+            "failed"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Deleted {deleted_count} of {requested}. Re-call with remaining IDs; idempotent."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "DELETE /repos/{owner}/{repo}/releases/{release_id}"
+      ]
+    },
+    {
+      "name": "issues_close",
+      "type": "action",
+      "description": {
+        "purpose": "Close an open GitHub Issue (idempotent \u2014 re-closing a closed issue is a no-op).",
+        "when_to_use": [
+          "When a fix is shipped and the bug Issue should auto-close.",
+          "When rejecting a feature request."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Re-closing a closed Issue returns the same closed object (idempotent).",
+          "Closing a locked Issue requires admin permissions."
+        ],
+        "parameter_overview": "Required `id` (smart ID of Issue). Optional `state_reason` enum (`completed`, `not_planned`, `reopened`).",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+:object:Issue:[A-Za-z0-9_/#-]+$"
+          },
+          "state_reason": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "not_planned"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "issue": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "issue"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "number",
+            "state",
+            "state_reason"
+          ],
+          "opt_in": [
+            "body",
+            "comments"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Issue #{number} closed with state_reason={state_reason}."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "PATCH /repos/{owner}/{repo}/issues/{issue_number}"
+      ]
+    },
+    {
+      "name": "pull_requests_merge",
+      "type": "action",
+      "description": {
+        "purpose": "Merge an open GitHub Pull Request using the requested merge strategy.",
+        "when_to_use": [
+          "When required reviews and CI checks have passed and the PR should land.",
+          "When applying a squash or rebase merge programmatically."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Already-merged PR returns 405 (not idempotent in GitHub semantics).",
+          "Branch protection rules can block merge with 405.",
+          "Closed-without-merge PRs cannot be merged \u2014 must be reopened first."
+        ],
+        "parameter_overview": "Required `id` (smart ID of PullRequest). Optional `merge_method` (`merge`/`squash`/`rebase`, default `merge`) and `commit_title`/`commit_message`.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+:object:PullRequest:[A-Za-z0-9_/#-]+$"
+          },
+          "merge_method": {
+            "type": "string",
+            "enum": [
+              "merge",
+              "squash",
+              "rebase"
+            ],
+            "default": "merge"
+          },
+          "commit_title": {
+            "type": "string"
+          },
+          "commit_message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "merged": {
+            "type": "boolean"
+          },
+          "sha": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "merged"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "merged",
+            "sha",
+            "message"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "PR merged at SHA {sha}. {message}"
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge"
+      ]
+    },
+    {
+      "name": "releases_create",
+      "type": "action",
+      "description": {
+        "purpose": "Create a new GitHub Release tied to a git tag (drafts and prereleases supported).",
+        "when_to_use": [
+          "When automating a release pipeline (CI tagged a build).",
+          "When publishing release notes for a new version."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Re-creating a release with the same tag returns 422 (NOT idempotent).",
+          "Tag must already exist OR `target_commitish` must be supplied for tag creation.",
+          "Body markdown is rendered server-side; max 125,000 chars."
+        ],
+        "parameter_overview": "Required `tag_name`. Optional `name` (release title), `body` (notes), `draft` (default false), `prerelease` (default false), `target_commitish` (commit/branch to tag).",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tag_name": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "boolean",
+            "default": false
+          },
+          "prerelease": {
+            "type": "boolean",
+            "default": false
+          },
+          "target_commitish": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag_name"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "release"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "tag_name",
+            "name",
+            "draft",
+            "prerelease"
+          ],
+          "opt_in": [
+            "body",
+            "assets"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Release {tag_name} created (id={id}). draft={draft} prerelease={prerelease}."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /repos/{owner}/{repo}/releases"
+      ]
+    },
+    {
+      "name": "create_pr_from_branch",
+      "type": "workflow",
+      "description": {
+        "purpose": "Create a pull request from a branch in two coordinated steps: verify branch ref exists, then open the PR.",
+        "when_to_use": [
+          "When the agent has just pushed a branch and wants to open a PR in the same turn.",
+          "When the branch existence is uncertain (e.g., across forks)."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Two-step workflow \u2014 partial failure leaves branch verified but PR uncreated; safe to retry.",
+          "Requires `head` branch to exist before invocation.",
+          "Cross-fork PRs need fully-qualified `head` (e.g., `username:branch`)."
+        ],
+        "parameter_overview": "Required `owner`, `repo`, `head_branch`, `base_branch`, `title`. Optional `body` (markdown). Coarse parameters representing user intent \u2014 internal step IDs are hidden.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "head_branch": {
+            "type": "string"
+          },
+          "base_branch": {
+            "type": "string",
+            "default": "main"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "repo",
+          "head_branch",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "pull_request": {
+            "type": "object"
+          },
+          "head_sha": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pull_request"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "pull_request",
+            "head_sha"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 15000,
+          "guidance_template": "Workflow {action} completed; PR #{number} opened from {head_sha}."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "GET /repos/{owner}/{repo}/git/refs/heads/{branch}",
+        "POST /repos/{owner}/{repo}/pulls"
+      ]
+    }
+  ],
+  "flags": null
+}

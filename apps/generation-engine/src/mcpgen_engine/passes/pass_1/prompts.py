@@ -159,7 +159,8 @@ def build_schema_synth_user_prompt_extra(extra: ExtraTool, raw_ir: RawIR) -> str
     ]
     if extra.workflow_steps:
         parts.append(
-            f"Workflow steps ({len(extra.workflow_steps)} sub-plans, {_WORKFLOW_STEP_BUDGET_HINT}):"
+            f"Workflow steps ({len(extra.workflow_steps)} sub-plans, "
+            f"{_WORKFLOW_STEP_BUDGET_HINT}):"
         )
     if blocks:
         parts.append("Endpoints (XML-sandboxed spec excerpts):")

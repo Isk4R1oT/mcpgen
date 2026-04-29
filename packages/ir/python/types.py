@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 
@@ -601,6 +602,7 @@ class Pass5Output(BaseModel):
         extra="forbid",
     )
     tools: List[Tool2]
+    flags: Optional[Dict[str, Any]] = None
 
 
 class QualityBadge(Enum):
@@ -676,6 +678,8 @@ class QualityReport(BaseModel):
     f3_agent_eval: Optional[F3AgentEval] = None
     overall_score: confloat(ge=0.0, le=5.0)
     quality_badge: QualityBadge
+    bundle_size_kb: Optional[conint(ge=0, le=9007199254740991)] = None
+    pipeline_versions: Optional[Dict[str, str]] = None
 
 
 class Method(Enum):
@@ -844,6 +848,38 @@ class SmartIdSchema(BaseModel):
     format: str
     types: List[str]
     collections: List[str]
+
+
+class StageEFileEntry(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    relative_path: str
+    sha256_content_hash: constr(pattern=r"^[a-f0-9]{64}$")
+    render_template: str
+    render_inputs_hash: constr(pattern=r"^[a-f0-9]{64}$")
+
+
+class File(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    relative_path: str
+    sha256_content_hash: constr(pattern=r"^[a-f0-9]{64}$")
+    render_template: str
+    render_inputs_hash: constr(pattern=r"^[a-f0-9]{64}$")
+
+
+class StageEManifest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    files: List[File]
+    bundle_size_kb: confloat(ge=0.0)
+    ts_compile_passed: bool
+    ts_compile_warning_count: conint(ge=0, le=9007199254740991)
+    template_version: str
+    generated_at: datetime
 
 
 class ToolAnnotations(BaseModel):

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 complete — all 12 plans landed, 544 tests pass, verification PASSED
-last_updated: "2026-04-28T06:30:19.731Z"
-last_activity: 2026-04-27 -- Phase 03 execution started
+stopped_at: Completed 04-15-PLAN.md
+last_updated: "2026-04-29T10:24:31.992Z"
+last_activity: 2026-04-29
 progress:
   total_phases: 10
-  completed_phases: 3
-  total_plans: 29
-  completed_plans: 30
+  completed_phases: 4
+  total_plans: 44
+  completed_plans: 45
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-26)
 
 **Core value:** Generated MCP servers measurably outperform hand-written ones on agent task success rate — paste an OpenAPI URL → 60 seconds later you have a deployed MCP server that scores ≥4.0 on F2 smell rubric and ≥70% F3 agent task success on golden tasks for that API.
-**Current focus:** Phase 03 — generation-engine-author-pass-2-3-4
+**Current focus:** Phase 04 — generation-engine-shape-codegen-pass-5-stage-e
 
 ## Current Position
 
-Phase: 03 (generation-engine-author-pass-2-3-4) — EXECUTING
-Plan: 1 of 12
-Status: Executing Phase 03
-Last activity: 2026-04-27 -- Phase 03 execution started
+Phase: 04 (generation-engine-shape-codegen-pass-5-stage-e) — EXECUTING
+Plan: 3 of 13
+Status: Ready to execute
+Last activity: 2026-04-29
 
-Progress: [██░░░░░░░░] 20% (2 of 10 phases complete)
+Progress: [██████████] 100%
 
 ## Next
 
@@ -75,6 +75,8 @@ parameter spec + Pass 4 annotations).
 | Phase 02 P07 | 95min | 2 tasks tasks | 12 files files |
 | Phase 02-generation-engine-architect-pass-0-1 P08 | 150 | 2 tasks | 8 files |
 | Phase 02-generation-engine-architect-pass-0-1 P09 | 17min | 5 tasks | 18 files |
+| Phase 04 P14 | ~180min | 3 tasks | 15 files |
+| Phase 04 P15 | 90 | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -153,6 +155,11 @@ Recent decisions affecting current work:
 - Plan 02-09: GET /api/v1/generate/{job_id}/artifacts re-derives spec_hash by re-running deterministic Stage A on stored job parameters and reads L1 directly — keeps engine in-memory _JOB_TABLE small. Phase 6+ migrates to Postgres generations.artifacts JSONB
 - Plan 02-09: notion/linear/slack live-fetch skipped in 5-fixture parametrized E2E — those fixtures' upstream spec_url values point to GraphQL / REST docs portals (not raw OpenAPI 3.x JSON which D-12 requires); structural-equivalence assertion turns on automatically when Phase 4+ adds GraphQL ingestion
 - Plan 02-09: init.perf cold-cache budget asserts <90_000ms (D-46 soft cap, hard CI fail threshold) — the 60s M1 target is recorded manually in 02-PHASE-VERIFICATION.md since CI macos-arm64 is approximate hardware
+- D-3 assertion checks TS string literals only — comments are intentional
+- MCP handshake test requires Host + Accept + Bearer + SSE parsing
+- dev_local=False default at CLI flag, contracts, and scaffold parameter layers
+- McpServer.registerTool(name, config, cb) is canonical SDK v1 (1.6+) form for outputSchema-bearing tools — deprecated 5-arg server.tool() silently drops outputSchema
+- json_schema_to_zod Jinja2 filter converts Pass 5 JSON Schema dicts to Zod TypeScript expressions — SDK AnySchema requires Zod types, not plain JSON objects
 
 ### Pending Todos
 
@@ -179,8 +186,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 3 complete — all 12 plans landed, 544 tests pass, verification PASSED
-Resume file: --resume-file
+Last session: 2026-04-29T10:24:31.955Z
+Stopped at: Completed 04-15-PLAN.md
+Resume file: None
 
-**Planned Phase:** 3 (generation-engine-author-pass-2-3-4) — 12 plans — 2026-04-27T23:33:10.922Z
+**Planned Phase:** 4 (generation-engine-shape-codegen-pass-5-stage-e) — 13 plans — 2026-04-28T08:41:30.964Z

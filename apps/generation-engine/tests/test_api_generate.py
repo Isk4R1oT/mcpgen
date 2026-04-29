@@ -11,6 +11,7 @@ Pattern: FastAPI TestClient (mirrors `test_main.py`).
 from __future__ import annotations
 
 import json
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -130,6 +131,126 @@ def _stub_stage_c_passes(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pipeline_module, "pass_2_run", _fake_pass_2)
     monkeypatch.setattr(pipeline_module, "pass_3_run", _fake_pass_3)
     monkeypatch.setattr(pipeline_module, "pass_4_run", _fake_pass_4)
+
+
+@pytest.fixture(autouse=True)
+def _stub_stage_d_e(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bypass Pass 5 + Stage E heavy-lifting (Phase 4 — D-33 + D-34).
+
+    Pass 5: returns a minimally-shaped ``Pass5Output`` with the same tool
+    list as Pass 1, default response_config (truncation only, no
+    pagination, no field filtering, no response_format).
+
+    Stage E: returns a minimal ``StageEManifest`` (1 placeholder file
+    entry, ts_compile_passed=True, bundle_size_kb=0.0) and writes the
+    placeholder file to disk so the new ``GET /output/...`` endpoint
+    can re-serve it on demand. Mirrors the Phase-3 ``_stub_stage_c_passes``
+    pattern — keeps API/SSE-shape tests deterministic without the 30s
+    tsc + wrangler subprocess cost.
+    """
+    from datetime import datetime
+    from hashlib import sha256
+
+    from mcpgen_ir.types import (
+        Annotations,
+        Description,
+        FieldFiltering,
+        Pagination2,
+        Pass1Output,
+        Pass2Output,
+        Pass3Output,
+        Pass4Output,
+        Pass5Output,
+        RawIR,
+        ResponseConfig2,
+        StageEManifest,
+        Style,
+        Tool2,
+        Truncation,
+    )
+    from mcpgen_ir.types import File as ManifestFile
+
+    from mcpgen_engine import pipeline as pipeline_module
+
+    async def _fake_pass_5(
+        pass_4_output: Pass4Output,
+        pass_3_output: Pass3Output,
+        pass_2_output: Pass2Output,
+        pass_1_output: Pass1Output,
+        raw_ir: RawIR,  # noqa: ARG001
+    ) -> Pass5Output:
+        tools: list[Tool2] = []
+        for t in pass_1_output.tools:
+            input_schema = pass_3_output.input_schemas.get(
+                t.name, {"type": "object", "additionalProperties": False}
+            )
+            desc = pass_2_output.descriptions.get(t.name)
+            if desc is None:
+                description = Description(
+                    purpose=f"Stub purpose for {t.name} (pipeline test).",
+                    when_to_use=["use case"],
+                    limitations=["stub"],
+                    parameter_overview="x" * 60,
+                )
+            else:
+                description = Description.model_validate(desc.model_dump())
+            ann = pass_4_output.annotations.get(t.name)
+            if ann is None:
+                annotations = Annotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                )
+            else:
+                annotations = Annotations.model_validate(ann.model_dump())
+            tool2 = Tool2(
+                name=t.name,
+                type=t.type,
+                description=description,
+                inputSchema=input_schema,
+                outputSchema={"type": "object", "additionalProperties": True},
+                annotations=annotations,
+                response_config=ResponseConfig2(
+                    pagination=Pagination2(style=Style.none, default_limit=25, max_limit=100),
+                    field_filtering=FieldFiltering(always_include=[], opt_in=[], always_exclude=[]),
+                    truncation=Truncation(
+                        threshold_tokens=15000,
+                        guidance_template="Showing partial results.",
+                    ),
+                    has_response_format_param=False,
+                ),
+                source_endpoints=[],
+            )
+            tools.append(tool2)
+        return Pass5Output(tools=tools)
+
+    async def _fake_stage_e(**kwargs: Any) -> StageEManifest:
+        out_dir = kwargs["output_dir"]
+        # Write a placeholder so the GET /output/ endpoint can serve a
+        # deterministic body without re-rendering Jinja2.
+        out_dir.mkdir(parents=True, exist_ok=True)
+        placeholder = "// stub server.ts emitted by test_api_generate fixture\n"
+        (out_dir / "src").mkdir(parents=True, exist_ok=True)
+        (out_dir / "src" / "server.ts").write_text(placeholder, encoding="utf-8")
+        return StageEManifest(
+            files=[
+                ManifestFile(
+                    relative_path="src/server.ts",
+                    sha256_content_hash=sha256(placeholder.encode("utf-8")).hexdigest(),
+                    render_template="server.ts.j2",
+                    render_inputs_hash="0" * 64,
+                )
+            ],
+            bundle_size_kb=0.0,
+            ts_compile_passed=True,
+            ts_compile_warning_count=0,
+            template_version="1",
+            generated_at=datetime.now(UTC),
+        )
+
+    monkeypatch.setattr(pipeline_module, "pass_5_run", _fake_pass_5)
+    monkeypatch.setattr(pipeline_module, "stage_e_run", _fake_stage_e)
 
 
 @pytest.fixture(name="client")
@@ -322,7 +443,9 @@ def test_sse_stream_emits_phase_3_stage_sequence(
     client: TestClient,
     httpx_mock: HTTPXMock,
 ) -> None:
-    """D-33: SSE stream emits A → B (x2) → C (x3) → completed (author_complete).
+    """D-33: SSE stream emits the Phase-4 16-event sequence.
+
+    A → B(x2) → C(x3) → D(x1) → E(x1) → completed (shape_codegen_complete).
 
     Also verifies the wire format ``id:\\nevent:\\ndata:\\n\\n`` per Phase-1 D-09.
     """
@@ -364,9 +487,24 @@ def test_sse_stream_emits_phase_3_stage_sequence(
     c_completed_count = sum(1 for s in stages_seen if s == ("C", "completed"))
     assert c_started_count == 3
     assert c_completed_count == 3
+    # Phase 4 D-33: Stage D + Stage E both fire exactly once each.
+    assert sum(1 for s in stages_seen if s == ("D", "started")) == 1
+    assert sum(1 for s in stages_seen if s == ("D", "completed")) == 1
+    assert sum(1 for s in stages_seen if s == ("E", "started")) == 1
+    assert sum(1 for s in stages_seen if s == ("E", "completed")) == 1
     assert stages_seen[-1] == ("completed", "completed")
-    # D-33: terminal phase is `author_complete`, not `architect_complete`.
-    assert events[-1]["data"]["partial_result"]["phase"] == "author_complete"
+    # Phase 4 D-33: terminal phase is `shape_codegen_complete`. Phase-3
+    # `author_complete` survives as a sub_status on C:completed (pass_4)
+    # for backward compat with Phase-2/3 CLI consumers.
+    assert events[-1]["data"]["partial_result"]["phase"] == "shape_codegen_complete"
+    pass_4_completed = next(
+        e
+        for e in events
+        if e["data"]["stage"] == "C"
+        and e["data"]["status"] == "completed"
+        and e["data"].get("partial_result", {}).get("phase") == "pass_4"
+    )
+    assert pass_4_completed["data"]["partial_result"].get("sub_status") == "author_complete"
 
     # Wire-format compliance: every event has id, event, and data fields.
     for ev in events:
@@ -467,3 +605,34 @@ def test_sse_stream_supports_last_event_id_resume(
         assert (
             ev["id"] > first_event_id
         ), f"resume violation: event_id {ev['id']!r} <= cutoff {first_event_id!r}"
+
+
+# ──────────────── Plan 04-14 — _build_user_options dev_local field ─────────────
+
+
+def test_build_user_options_dev_local_default_false() -> None:
+    """_build_user_options({}) returns dev_local=False by default."""
+    from mcpgen_engine.api.generate import _build_user_options
+
+    opts = _build_user_options({})
+    assert opts.dev_local is False
+
+
+def test_build_user_options_dev_local_true() -> None:
+    """_build_user_options({'dev_local': True}) returns dev_local=True."""
+    from mcpgen_engine.api.generate import _build_user_options
+
+    opts = _build_user_options({"dev_local": True})
+    assert opts.dev_local is True
+
+
+def test_build_user_options_dev_local_invalid_type_raises_400() -> None:
+    """_build_user_options({'dev_local': 'yes'}) raises HTTPException 400."""
+    from fastapi import HTTPException
+
+    from mcpgen_engine.api.generate import _build_user_options
+
+    with pytest.raises(HTTPException) as exc_info:
+        _build_user_options({"dev_local": "yes"})
+    assert exc_info.value.status_code == 400
+    assert "dev_local" in str(exc_info.value.detail)

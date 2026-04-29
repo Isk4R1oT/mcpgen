@@ -101,6 +101,13 @@ class UserOptions(BaseModel):
     `target_complexity` and `max_tools_override` are consumed by
     ``validation.enforce_caps``; `explicit_includes` / `explicit_excludes` are
     consumed by ``deterministic_filter`` (this module).
+
+    `dev_local` (Plan 04-14 D-3) is a pure passthrough container — Pass 0 filter
+    logic does NOT branch on this field.  It flows downstream through pipeline.py
+    → stage_e.run() → scaffold.render_scaffold_files() which substitutes the
+    ``{tenant_short_id}`` placeholder with ``"local"`` and adds wrangler-dev
+    ALLOWED_HOSTS when ``dev_local=True``.  Default ``False`` (3 layers of
+    default-off prevent accidental production opt-in — Pitfall #30).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -109,6 +116,7 @@ class UserOptions(BaseModel):
     max_tools_override: int | None = None
     explicit_includes: list[str] = Field(default_factory=list)
     explicit_excludes: list[str] = Field(default_factory=list)
+    dev_local: bool = False
 
 
 # ──────────────────────────────── Public API ───────────────────────────────

@@ -16,6 +16,8 @@ export interface CliInitOptions {
   complexity: ComplexityLevel;
   include: string[];
   exclude: string[];
+  /** Plan 04-14 D-3: enable dev-local build mode (substitutes tenant placeholder). */
+  devLocal: boolean;
 }
 
 export interface EngineGenerationRequest {
@@ -25,6 +27,8 @@ export interface EngineGenerationRequest {
     target_complexity: ComplexityLevel;
     explicit_includes: string[];
     explicit_excludes: string[];
+    /** Plan 04-14 D-3: dev-local build mode flag. */
+    dev_local: boolean;
   };
 }
 
@@ -58,6 +62,7 @@ export function buildEngineRequestBody(
       target_complexity: opts.complexity,
       explicit_includes: opts.include,
       explicit_excludes: opts.exclude,
+      dev_local: opts.devLocal,
     },
   };
   if (specUrl !== null) body.spec_url = specUrl;

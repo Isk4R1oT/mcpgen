@@ -1,0 +1,31 @@
+// Static configuration for the {{ spec_slug }} MCP server.
+// CONTEXT D-25 — server.name carries the `{tenant_short_id}` placeholder
+// (literal, kept verbatim through codegen). Phase 6 deploy substitutes the
+// real tenant prefix per tenant — Pitfall #30 mitigation: two tenants on
+// the same spec NEVER share `server.name`.
+// When dev_local=True (Plan 04-14 D-3), the placeholder is substituted with
+// "local" at codegen time so standalone wrangler dev works without Phase 6.
+
+/** Server name template. Phase 6 substitutes `{tenant_short_id}`. */
+export const SERVER_NAME_TEMPLATE: string = "{{ tenant_short_id_placeholder }}-{{ spec_slug }}";
+
+/** Spec slug — stable per upstream API (e.g. "stripe", "github"). */
+export const SPEC_SLUG: string = "{{ spec_slug }}";
+
+/** MCP protocol version negotiated with clients. CONTEXT D-25. */
+export const MCP_PROTOCOL_VERSION: string = "{{ mcp_protocol_version }}";
+
+/**
+ * Allowlist consumed by `StreamableHTTPServerTransport.allowedHosts` (CONTEXT
+ * D-22). Phase 6 deploy substitutes `{tenant_short_id}`. Custom tenant domains
+ * are added at deploy time via the dispatch Worker — never hardcoded here.
+ * In dev-local mode (Plan 04-14 D-3), extra localhost entries are added so
+ * standalone `wrangler dev` works without Phase 6 substitution.
+ */
+export const ALLOWED_HOSTS: string[] = [
+  "{{ tenant_short_id_placeholder }}-{{ spec_slug }}.mcpgen.dev",
+  {% for h in extra_allowed_hosts | default([]) %}"{{ h }}",
+  {% endfor %}];
+
+/** Upstream API base URL (Pass 0 derived). */
+export const UPSTREAM_BASE_URL: string = "{{ upstream_base_url }}";

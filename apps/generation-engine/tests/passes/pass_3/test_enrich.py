@@ -412,9 +412,10 @@ async def test_enrich_all_params_concurrency_pipeline_scoped(
     result = await enrich_all_params(extracted, tool_types)
 
     assert sum(len(v) for v in result.values()) == 30
-    assert (
-        max_in_flight <= PASS_3_ENRICHMENT_CONCURRENCY
-    ), f"max_in_flight={max_in_flight} exceeded pipeline cap of {PASS_3_ENRICHMENT_CONCURRENCY}"
+    assert max_in_flight <= PASS_3_ENRICHMENT_CONCURRENCY, (
+        f"max_in_flight={max_in_flight} exceeded pipeline cap of "
+        f"{PASS_3_ENRICHMENT_CONCURRENCY}"
+    )
 
 
 # ─────────────────── Output grouping & ordering ────────────────────────────

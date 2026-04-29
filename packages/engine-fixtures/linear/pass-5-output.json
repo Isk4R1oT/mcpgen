@@ -1,0 +1,879 @@
+{
+  "tools": [
+    {
+      "name": "search",
+      "type": "universal",
+      "description": {
+        "purpose": "Search Linear issues, projects, and cycles by free-text query and return ranked smart IDs.",
+        "when_to_use": [
+          "When the user wants to find an issue by partial title, identifier (e.g. LIN-1234), or label.",
+          "When the exact issue id is unknown but team or project context is available."
+        ],
+        "when_not_to_use": [
+          "When the exact identifier is already known \u2014 use `fetch` instead.",
+          "When enumerating every issue in a cycle \u2014 use `list_objects` with a filter."
+        ],
+        "how_to_use": null,
+        "limitations": [
+          "Returns at most 50 results per call (Linear GraphQL pagination cap).",
+          "Free-text search runs against title and description; label/assignee filters require `list_objects`.",
+          "Search index lag of up to 30s for newly created issues."
+        ],
+        "parameter_overview": "Single `query` string; results returned as smart IDs of the form linear-prod-linear:object:Issue:LIN-1234 or linear-prod-linear:object:Project:proj_uuid, ranked by relevance and recency.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Free-text search query (issue title, identifier, or label substring)."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "preview": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "score"
+              ]
+            }
+          }
+        },
+        "required": [
+          "results"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": {
+          "style": "cursor",
+          "default_limit": 25,
+          "max_limit": 50
+        },
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "type",
+            "score"
+          ],
+          "opt_in": [
+            "preview",
+            "labels"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 10000,
+          "guidance_template": "Showing {N} of {Total} matches. Use `cursor` to paginate or refine your query (e.g. add team identifier prefix LIN-)."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /graphql (issueSearch)",
+        "POST /graphql (projects)",
+        "POST /graphql (cycles)"
+      ]
+    },
+    {
+      "name": "fetch",
+      "type": "universal",
+      "description": {
+        "purpose": "Fetch the full Linear object addressed by a smart ID (Issue, Project, or Cycle).",
+        "when_to_use": [
+          "When you have a smart ID returned by `search` or `list_objects`.",
+          "When you need the full property set, comments, or sub-tasks of an issue."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Comments and attachments are returned as a separate property; agents must request explicitly via `properties`.",
+          "Returns 404 if the object was deleted or never existed."
+        ],
+        "parameter_overview": "Single `id` string in the smart-ID format `linear-prod-linear:object:{Issue|Project|Cycle}:{identifier}`; routing maps the type to the correct GraphQL query.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Smart ID, e.g. `linear-prod-linear:object:Issue:LIN-1234`.",
+            "pattern": "^[a-z0-9-]+:object:(Issue|Project|Cycle):[A-Za-z0-9_-]+$"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "object"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "identifier",
+            "title",
+            "state",
+            "createdAt"
+          ],
+          "opt_in": [
+            "description",
+            "comments",
+            "attachments",
+            "subscribers"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 20000,
+          "guidance_template": "Issue exceeded {threshold} tokens; {N} fields included. Re-call with `properties` projection (e.g. drop `description` for issues with long bodies)."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /graphql (issue)",
+        "POST /graphql (project)",
+        "POST /graphql (cycle)"
+      ]
+    },
+    {
+      "name": "list_collections",
+      "type": "universal",
+      "description": {
+        "purpose": "List the Linear teams, projects, and cycles the integration has access to (each is a collection of issues).",
+        "when_to_use": [
+          "At session start to discover what teams the user can read.",
+          "When mapping a free-text request to a specific team or cycle id."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Only collections shared with the integration's API key are visible.",
+          "Returns metadata only \u2014 use `list_objects` to enumerate issues within a collection."
+        ],
+        "parameter_overview": "Optional `pattern` (glob on team/project name) and `include_schema` (bool) for embedding the issue-state schema; defaults return all visible collections without schema.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "include_schema": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "collections": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "collections"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": {
+          "style": "cursor",
+          "default_limit": 50,
+          "max_limit": 100
+        },
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "name",
+            "type",
+            "issueCount"
+          ],
+          "opt_in": [
+            "schema",
+            "states",
+            "labels"
+          ],
+          "always_exclude": []
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Listed {N} collections. Use `pattern` to narrow by name."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /graphql (teams)",
+        "POST /graphql (projects)",
+        "POST /graphql (cycles)"
+      ]
+    },
+    {
+      "name": "list_objects",
+      "type": "universal",
+      "description": {
+        "purpose": "List Linear issues within a chosen team, project, or cycle with filter, sort, projection, and cursor pagination.",
+        "when_to_use": [
+          "When enumerating issues in a known team or cycle.",
+          "When server-side filter (e.g., state=Todo, assignee=user_id) or sort by priority is needed."
+        ],
+        "when_not_to_use": [
+          "When you have an explicit issue identifier \u2014 use `fetch`.",
+          "When the team or cycle id is unknown \u2014 use `search` or `list_collections` first."
+        ],
+        "how_to_use": null,
+        "limitations": [
+          "Cursor pagination only; max 100 issues per call (Linear GraphQL cap).",
+          "Filter expressions limited to Linear's documented filter shape (property/operator/value).",
+          "Sort restricted to indexed properties (priority, createdAt, updatedAt, identifier)."
+        ],
+        "parameter_overview": "`collection` (team/project/cycle id) + `filter` (`{property,operator,value}`) + `properties` projection + `sort_by`/`sort_order` + `limit`/`cursor`.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "type": "string"
+          },
+          "filter": {
+            "type": "object",
+            "properties": {
+              "property": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "eq",
+                  "neq",
+                  "in",
+                  "contains",
+                  "gt",
+                  "lt"
+                ]
+              },
+              "value": {}
+            }
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sort_by": {
+            "type": "string",
+            "enum": [
+              "priority",
+              "createdAt",
+              "updatedAt",
+              "identifier"
+            ]
+          },
+          "sort_order": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 25
+          },
+          "cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "collection"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "objects"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": {
+          "style": "cursor",
+          "default_limit": 25,
+          "max_limit": 100
+        },
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "identifier",
+            "title",
+            "state",
+            "priority"
+          ],
+          "opt_in": [
+            "description",
+            "labels",
+            "assignee",
+            "subscribers"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 15000,
+          "guidance_template": "Returned {N} of approximately {Total} issues. Use `cursor` to paginate or `properties` to project fewer fields (drop `description` first)."
+        },
+        "has_response_format_param": true
+      },
+      "source_endpoints": [
+        "POST /graphql (issues)"
+      ]
+    },
+    {
+      "name": "upsert",
+      "type": "universal",
+      "description": {
+        "purpose": "Create a new Linear issue or update an existing one (smart routing by id presence).",
+        "when_to_use": [
+          "When filing a new issue from an external trigger.",
+          "When patching state, priority, or assignee on an existing issue."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Cannot upsert into a Project or Cycle directly \u2014 only Issue objects.",
+          "Required fields on create: `team` and `title`; mismatches fail with 400.",
+          "Re-creating with the same external title produces a duplicate \u2014 Linear has no server-side deduplication."
+        ],
+        "parameter_overview": "`collection` is the team id. Provide `data.title` and `data.team` for create; `id` + `data` for partial update. Workflow state transitions enforce Linear's per-team state machine.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "collection",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "object"
+          },
+          "created": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "object",
+          "created"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "id",
+            "identifier",
+            "title",
+            "state"
+          ],
+          "opt_in": [
+            "description",
+            "labels"
+          ],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "{action} succeeded for issue {id}. Refetch with `fetch` if full payload was truncated."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /graphql (issueCreate)",
+        "POST /graphql (issueUpdate)"
+      ]
+    },
+    {
+      "name": "delete",
+      "type": "universal",
+      "description": {
+        "purpose": "Hard-delete a Linear issue (admin-only). For archival use `issues_archive` instead \u2014 Linear treats archive as the soft-delete equivalent.",
+        "when_to_use": [
+          "When permanently removing a test issue from a sandbox team.",
+          "When the API key has admin scope and a hard delete is explicitly required."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Requires admin scope on the API key; will 403 for non-admin tokens.",
+          "Hard delete is irreversible. Most callers want `issues_archive` instead.",
+          "Re-deleting a deleted issue is a no-op (idempotent)."
+        ],
+        "parameter_overview": "`type: 'object'` + `id` (smart ID of Issue) + `confirm: true`. Batch delete supported via `ids` array.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "object",
+              "objects"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confirm": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "type",
+          "confirm"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "deleted_count": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "deleted_count"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "deleted_count",
+            "failed"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Deleted {deleted_count} of {requested} issues. Failures listed in `failed` array (most often: insufficient scope)."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /graphql (issueDelete)"
+      ]
+    },
+    {
+      "name": "issues_create_with_relations",
+      "type": "action",
+      "description": {
+        "purpose": "Create a Linear issue and simultaneously link it to parent/blocking/related issues in a single call.",
+        "when_to_use": [
+          "When filing a sub-task that has a known parent issue.",
+          "When the new issue blocks or is blocked by existing issues that should be linked atomically."
+        ],
+        "when_not_to_use": [
+          "When relations are not known at creation time \u2014 use `upsert` to create, then patch relations separately.",
+          "When creating multiple unrelated issues \u2014 call `upsert` per issue."
+        ],
+        "how_to_use": null,
+        "limitations": [
+          "Maximum 10 relations per call (Linear GraphQL mutation cost cap).",
+          "Each related issue must already exist; non-existent relation ids fail the entire mutation atomically.",
+          "Re-running with the same input creates a duplicate issue (not idempotent)."
+        ],
+        "parameter_overview": "Required: `team`, `title`. Optional: `description`, `parent_id`, `blocks` (array of issue ids), `blocked_by` (array), `related` (array). All relation arrays accept Linear identifiers (LIN-123) or smart IDs.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10
+          },
+          "blocked_by": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10
+          },
+          "related": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10
+          }
+        },
+        "required": [
+          "team",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "issue": {
+            "type": "object"
+          },
+          "relations_created": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "issue",
+          "relations_created"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "issue",
+            "relations_created"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Issue created with {relations_created} relations. Fetch with `fetch` for full payload."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /graphql (issueCreate with relations[])"
+      ]
+    },
+    {
+      "name": "issues_archive",
+      "type": "action",
+      "description": {
+        "purpose": "Archive a Linear issue (soft-delete). Linear's canonical removal operation \u2014 preferred over `delete` for non-admin callers.",
+        "when_to_use": [
+          "When closing out a completed cycle's issues without losing history.",
+          "When sweeping stale issues from a triage queue."
+        ],
+        "when_not_to_use": null,
+        "how_to_use": null,
+        "limitations": [
+          "Re-archiving an archived issue is a no-op (idempotent).",
+          "Archived issues remain queryable via `list_objects` with `filter.property=archivedAt,operator=neq,value=null`.",
+          "Cannot archive an issue with open sub-tasks; archive sub-tasks first."
+        ],
+        "parameter_overview": "Required: `id` (smart ID or LIN-identifier). Optional: `cascade_subtasks` (bool, default false) to archive children.",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cascade_subtasks": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          },
+          "subtasks_archived": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "archived"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "archived",
+            "subtasks_archived"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Issue {id} archived. Restore via `upsert` with `data.archived: false`."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /graphql (issueArchive)"
+      ]
+    },
+    {
+      "name": "cycles_advance",
+      "type": "action",
+      "description": {
+        "purpose": "Advance the active Linear cycle for a team \u2014 close the current cycle and open the next sequential cycle.",
+        "when_to_use": [
+          "When a sprint/cycle ends and the next should begin atomically.",
+          "When automating cycle rollover from a scheduled trigger."
+        ],
+        "when_not_to_use": [
+          "When merely closing a cycle without opening a new one \u2014 use `upsert` with cycle.completedAt.",
+          "Mid-cycle (Linear rejects the mutation if the active cycle is not within its scheduled close window)."
+        ],
+        "how_to_use": null,
+        "limitations": [
+          "Requires admin scope.",
+          "Advancing twice in the same period creates an empty intermediate cycle (not idempotent).",
+          "Open issues in the closing cycle move to the new cycle automatically per team setting."
+        ],
+        "parameter_overview": "Required: `team_id`. Optional: `move_open_issues` (bool, default true), `next_cycle_starts_at` (ISO 8601 date).",
+        "description_hash": null
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string"
+          },
+          "move_open_issues": {
+            "type": "boolean",
+            "default": true
+          },
+          "next_cycle_starts_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "previous_cycle": {
+            "type": "object"
+          },
+          "new_cycle": {
+            "type": "object"
+          },
+          "issues_moved": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "previous_cycle",
+          "new_cycle"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "response_config": {
+        "pagination": null,
+        "field_filtering": {
+          "always_include": [
+            "previous_cycle",
+            "new_cycle",
+            "issues_moved"
+          ],
+          "opt_in": [],
+          "always_exclude": [
+            "raw_response"
+          ]
+        },
+        "truncation": {
+          "threshold_tokens": 5000,
+          "guidance_template": "Cycle advanced for team {team_id}; {issues_moved} open issues moved to new cycle."
+        },
+        "has_response_format_param": false
+      },
+      "source_endpoints": [
+        "POST /graphql (cycleAdvance)"
+      ]
+    }
+  ],
+  "flags": null
+}

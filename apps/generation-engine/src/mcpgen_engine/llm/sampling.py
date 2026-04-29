@@ -98,6 +98,15 @@ PASS_4_SETTINGS: ModelSettings = ModelSettings(
     extra_body=_PROVIDER_ROUTING,
 )
 
+# D-02: Pass 5 field-importance ranking — classification-grade with tiny
+# creative window for guidance text.
+PASS_5_SETTINGS: ModelSettings = ModelSettings(
+    temperature=0.1,
+    top_p=0.9,
+    max_tokens=1024,
+    extra_body=_PROVIDER_ROUTING,
+)
+
 # D-02: Inline quality gate (Pass 2 + Pass 3) — judge mode, classification-grade.
 INLINE_GATE_SETTINGS: ModelSettings = ModelSettings(
     temperature=0.0,

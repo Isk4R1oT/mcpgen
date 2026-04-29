@@ -517,9 +517,9 @@ async def test_author_all_tools_respects_concurrency_10(
 
     results = await author_all_tools(pass_1_output, raw_ir)
     assert len(results) == 25
-    assert (
-        max_in_flight <= PASS_2_AUTHORING_CONCURRENCY
-    ), f"max_in_flight={max_in_flight} exceeded cap of {PASS_2_AUTHORING_CONCURRENCY}"
+    assert max_in_flight <= PASS_2_AUTHORING_CONCURRENCY, (
+        f"max_in_flight={max_in_flight} exceeded cap of " f"{PASS_2_AUTHORING_CONCURRENCY}"
+    )
 
 
 # ─────────────────────── System-prompt sanity guards ───────────────────────

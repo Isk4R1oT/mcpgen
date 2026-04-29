@@ -18,6 +18,7 @@ exhaustively).
 from __future__ import annotations
 
 import json
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -145,6 +146,119 @@ def _stub_stage_c_passes(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pipeline_module, "pass_2_run", _fake_pass_2)
     monkeypatch.setattr(pipeline_module, "pass_3_run", _fake_pass_3)
     monkeypatch.setattr(pipeline_module, "pass_4_run", _fake_pass_4)
+
+
+@pytest.fixture(autouse=True)
+def _stub_stage_d_e(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bypass Pass 5 + Stage E heavy lifting (Phase 4 D-33 + D-34).
+
+    Pass 5: minimal Pass5Output mirroring Pass 1's tool list with
+    deterministic response_config (truncation only).
+    Stage E: minimal StageEManifest with one placeholder file.
+
+    Real Pass 5 / Stage E coverage lives in
+    `tests/passes/pass_5/*` and `tests/stages/stage_e/*` respectively.
+    """
+    from datetime import datetime
+    from hashlib import sha256
+
+    from mcpgen_ir.types import (
+        FieldFiltering,
+        Pagination2,
+        Pass5Output,
+        ResponseConfig2,
+        StageEManifest,
+        Style,
+        Tool2,
+        Truncation,
+    )
+    from mcpgen_ir.types import File as ManifestFile
+
+    async def _fake_pass_5(
+        pass_4_output: Pass4Output,
+        pass_3_output: Pass3Output,
+        pass_2_output: Pass2Output,
+        pass_1_output: Pass1Output,
+        raw_ir: RawIR,  # noqa: ARG001
+    ) -> Pass5Output:
+        tools: list[Tool2] = []
+        for t in pass_1_output.tools:
+            input_schema = pass_3_output.input_schemas.get(
+                t.name, {"type": "object", "additionalProperties": False}
+            )
+            desc_src = pass_2_output.descriptions.get(t.name)
+            if desc_src is None:
+                description = Description(
+                    purpose=f"Stub purpose for {t.name} (pipeline test).",
+                    when_to_use=["use case"],
+                    limitations=["stub"],
+                    parameter_overview="x" * 60,
+                )
+            else:
+                description = Description.model_validate(desc_src.model_dump())
+            ann_src = pass_4_output.annotations.get(t.name)
+            if ann_src is None:
+                annotations = Annotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                )
+            else:
+                annotations = Annotations.model_validate(ann_src.model_dump())
+            tools.append(
+                Tool2(
+                    name=t.name,
+                    type=t.type,
+                    description=description,
+                    inputSchema=input_schema,
+                    outputSchema={
+                        "type": "object",
+                        "additionalProperties": True,
+                    },
+                    annotations=annotations,
+                    response_config=ResponseConfig2(
+                        pagination=Pagination2(style=Style.none, default_limit=25, max_limit=100),
+                        field_filtering=FieldFiltering(
+                            always_include=[],
+                            opt_in=[],
+                            always_exclude=[],
+                        ),
+                        truncation=Truncation(
+                            threshold_tokens=15000,
+                            guidance_template="Showing partial results.",
+                        ),
+                        has_response_format_param=False,
+                    ),
+                    source_endpoints=[],
+                )
+            )
+        return Pass5Output(tools=tools)
+
+    async def _fake_stage_e(**kwargs: Any) -> StageEManifest:
+        out_dir = kwargs["output_dir"]
+        out_dir.mkdir(parents=True, exist_ok=True)
+        placeholder = "// stub server.ts emitted by test_pipeline fixture\n"
+        (out_dir / "src").mkdir(parents=True, exist_ok=True)
+        (out_dir / "src" / "server.ts").write_text(placeholder, encoding="utf-8")
+        return StageEManifest(
+            files=[
+                ManifestFile(
+                    relative_path="src/server.ts",
+                    sha256_content_hash=sha256(placeholder.encode("utf-8")).hexdigest(),
+                    render_template="server.ts.j2",
+                    render_inputs_hash="0" * 64,
+                )
+            ],
+            bundle_size_kb=0.0,
+            ts_compile_passed=True,
+            ts_compile_warning_count=0,
+            template_version="1",
+            generated_at=datetime.now(UTC),
+        )
+
+    monkeypatch.setattr(pipeline_module, "pass_5_run", _fake_pass_5)
+    monkeypatch.setattr(pipeline_module, "stage_e_run", _fake_stage_e)
 
 
 # ────────────────────────── Mocked-LLM helpers ─────────────────────────────
@@ -404,10 +518,13 @@ async def test_full_pipeline_emits_phase_3_sse_sequence(httpx_mock: HTTPXMock) -
     assert isinstance(annotation_count, int)
     assert annotation_count == 6
 
-    # D-33: terminal event carries phase=author_complete (NOT architect_complete).
+    # Phase 4 D-33: terminal event carries phase=shape_codegen_complete.
+    # Phase-3 author_complete survives as a sub_status on C:completed (pass_4).
     final = events[-1]
     assert final.partial_result is not None
-    assert final.partial_result.get("phase") == "author_complete"
+    assert final.partial_result.get("phase") == "shape_codegen_complete"
+    # Pass 4 C:completed retains sub_status=author_complete for backward compat.
+    assert pass_4_done.partial_result.get("sub_status") == "author_complete"
 
 
 async def test_second_run_zero_llm_calls(httpx_mock: HTTPXMock) -> None:
@@ -499,7 +616,7 @@ async def test_pipeline_persists_full_architect_output_to_l1(httpx_mock: HTTPXMo
     raw_ir = await stage_a.run(spec_url=None, spec_content=_synthetic_openapi_spec())
     cached = get_l1(l1_key(raw_ir.spec_hash))
     assert cached is not None
-    # D-34: L1 value layout — 6 keys.
+    # Phase 4 D-34: L1 value layout — 8 keys (incl. pass_5_output + stage_e_manifest).
     assert set(cached.keys()) == {
         "raw_ir",
         "pass_0_output",
@@ -507,9 +624,11 @@ async def test_pipeline_persists_full_architect_output_to_l1(httpx_mock: HTTPXMo
         "pass_2_output",
         "pass_3_output",
         "pass_4_output",
+        "pass_5_output",
+        "stage_e_manifest",
     }
 
-    # Round-trip through `reconstruct_from_l1` returns 6-tuple.
+    # Round-trip through `reconstruct_from_l1` returns 8-tuple.
     (
         raw_ir_2,
         pass_0_output,
@@ -517,6 +636,8 @@ async def test_pipeline_persists_full_architect_output_to_l1(httpx_mock: HTTPXMo
         pass_2_output,
         pass_3_output,
         pass_4_output,
+        _pass_5_output,
+        _stage_e_manifest,
     ) = reconstruct_from_l1(cached)
     assert raw_ir_2.spec_hash == raw_ir.spec_hash
     assert len(pass_0_output.tool_plans) == 3

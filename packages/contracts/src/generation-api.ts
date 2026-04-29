@@ -128,6 +128,11 @@ export const GenerationOptions = z.object({
   explicit_includes: z.array(z.string()).optional(),
   // Pro override: lift Pass 0 cap from 50 to 100 tools (D-08 / Pass 0 §"User Override Flow").
   max_tools_override: z.number().int().min(50).max(100).optional(),
+  // Plan 04-14 D-3: dev-local build mode — substitutes {tenant_short_id} with
+  // "local" at codegen time + adds wrangler-dev ALLOWED_HOSTS so standalone
+  // `wrangler dev` works without Phase 6 dispatch substitution.
+  // Default false (3 layers of default-off — Pitfall #30 invariant preserved).
+  dev_local: z.boolean().default(false),
 });
 export type GenerationOptions = z.infer<typeof GenerationOptions>;
 

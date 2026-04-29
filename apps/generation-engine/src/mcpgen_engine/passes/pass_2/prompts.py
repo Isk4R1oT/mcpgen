@@ -182,7 +182,11 @@ def render_spec_excerpt(endpoint_id: str, field: str, content: str | None) -> st
     Pure: no I/O, no side effects.
     """
     truncated = (content or "")[:_DESCRIPTION_PREVIEW_CHARS]
-    return f'<spec_excerpt source="{endpoint_id}" field="{field}">\n{truncated}\n</spec_excerpt>'
+    return (
+        f'<spec_excerpt source="{endpoint_id}" field="{field}">\n'
+        f"{truncated}\n"
+        f"</spec_excerpt>"
+    )
 
 
 def build_user_prompt(
@@ -223,7 +227,9 @@ def build_user_prompt(
         f"Upstream endpoint count: {len(tool.source_endpoints)}\n"
     )
     body = "\n".join(excerpts)
-    trailer = "\n\nProduce a Description object with all 5 rubric components per the system prompt."
+    trailer = (
+        "\n\nProduce a Description object with all 5 rubric components per " "the system prompt."
+    )
     return header + body + trailer
 
 
