@@ -154,6 +154,11 @@ export const deployments = pgTable('deployments', {
   local_port: integer('local_port'), // Phase 6: local-compute port (null for Phase-10 CF deploys)
   // ─── Phase 8 additions ───────────────────────────────────────────
   auto_regenerate_on_drift: boolean('auto_regenerate_on_drift').notNull().default(false),
+  // ─── Phase 9 additions (D-19 / CTRL-08) ─────────────────────────
+  // Public quality badge opt-in toggle; default false is privacy-safe per Phase 7
+  // dashboard UI. Wave 2 BFF endpoint POST /api/v1/deployments/[id]/badge-public
+  // toggles this column. Migration: 20260430000000_phase9_badge_public.sql.
+  public_badge: boolean('public_badge').notNull().default(false),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

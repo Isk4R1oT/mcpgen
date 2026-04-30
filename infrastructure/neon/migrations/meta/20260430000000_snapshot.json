@@ -1,6 +1,6 @@
 {
-  "id": "5e5128f0-b28b-499e-b12e-68fa61621175",
-  "prevId": "12c6731a-905f-4e58-9e90-11f34c802d00",
+  "id": "9a2b4c6d-7e8f-4a1b-9c3d-2e4f5a6b7c8d",
+  "prevId": "5e5128f0-b28b-499e-b12e-68fa61621175",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -53,6 +53,13 @@
         },
         "auto_regenerate_on_drift": {
           "name": "auto_regenerate_on_drift",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "public_badge": {
+          "name": "public_badge",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

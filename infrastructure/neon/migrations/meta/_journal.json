@@ -29,6 +29,13 @@
       "when": 1777293303030,
       "tag": "20260428000002_phase8_billing_drift",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777551295910,
+      "tag": "20260430000000_phase9_badge_public",
+      "breakpoints": true
     }
   ]
 }
