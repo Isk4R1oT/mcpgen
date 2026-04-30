@@ -10,6 +10,7 @@
     "deploy": "wrangler deploy --upload-source-maps",
     "typecheck": "tsc --noEmit",
     "test": "vitest --run",
+    "test:load": "vitest --run --config vitest.load.config.ts",
     "lint": "echo \"no lint step in @mcpgen/api (covered by workspace eslint via pnpm -r lint)\"",
     "sourcemaps:upload": "@sentry/cli sourcemaps upload --release ${SENTRY_RELEASE:-$(git rev-parse --short HEAD)} dist/"
   },
