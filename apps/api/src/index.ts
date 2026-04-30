@@ -28,6 +28,7 @@ import { spikeSseRoute } from './routes/_spike/sse.js';
 import { driftRoute } from './routes/v1/drift.js';
 import { deploymentsRoute } from './routes/v1/deployments.js';
 import { usageRoute } from './routes/v1/usage.js';
+import { deployRoute } from './routes/v1/deploy.js';
 import { inngest } from './inngest/client.js';
 import { functions } from './inngest/functions/index.js';
 
@@ -94,6 +95,10 @@ protectedApp.route('/', deploymentsRoute);
 // JOIN org-scope mandatory because `usage_hourly` matview lacks org_id).
 // usageRoute self-prefixes /usage/hourly.
 protectedApp.route('/', usageRoute);
+// Plan 09-04 / D-18 #4 of 4: deploy fetch + Claude Desktop config snippet.
+// POST (not GET) to match the frontend Route Handler proxy contract per
+// Plan 09-03 deviation pattern. deployRoute self-prefixes /deploy/:id.
+protectedApp.route('/', deployRoute);
 app.route('/api/v1', protectedApp);
 
 export default app;

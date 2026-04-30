@@ -49,3 +49,29 @@ export async function deploymentBelongsToOrg(
   const rows = r.rows as unknown as DeploymentOwnershipRow[];
   return rows[0]?.org_id === orgId;
 }
+
+/**
+ * Returns true iff `generationId` is owned by `orgId` per a 3-table JOIN:
+ * generations → projects → org_id. Sister of `deploymentBelongsToOrg` —
+ * used by Plan 09-04 Task 2's POST /deploy/:generationId route to org-scope
+ * before fetching the deployment row.
+ *
+ * Returns false for both "generation does not exist" and "generation exists
+ * but belongs to a different org" — call sites MUST translate that boolean
+ * into a 404 response (never 403) so the BFF never confirms existence of a
+ * foreign-org generation to the caller (T-9-bff-auth-07).
+ */
+export async function generationBelongsToOrg(
+  generationId: string,
+  orgId: string,
+): Promise<boolean> {
+  const r = await db.execute(sql`
+    SELECT p.org_id AS org_id
+    FROM generations g
+    JOIN projects p ON p.id = g.project_id
+    WHERE g.id = ${generationId}
+    LIMIT 1
+  `);
+  const rows = r.rows as unknown as DeploymentOwnershipRow[];
+  return rows[0]?.org_id === orgId;
+}
