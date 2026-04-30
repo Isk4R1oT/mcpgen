@@ -205,16 +205,28 @@ Plans:
 
 ### Phase 9: Observability & Polish
 **Workstream**: `main`
-**Goal**: Sentry (TS + Python with source maps), BetterStack (logs + uptime + CF Queue depth alerts), Langfuse v4 (LLM tracing via OTel) wired across all components with `beforeSend` redaction for auth headers and spec content. Cross-phase integration checks include cross-tenant smart-ID fuzz, multi-client smoke (Cursor / Claude Desktop / ChatGPT Deep Research), Inngest orphan audit, deliberate-leak PII audit, and Neon Scale-tier upgrade verification. Inngest function IDs are stable strings.
+**Goal**: Sentry (TS + Python with source maps), BetterStack (logs + uptime + outbox depth + heartbeat alerts), Langfuse v4 (LLM tracing via OTel) wired across all components with `beforeSend` redaction for auth headers and spec content via single shared cross-language helper. Cross-phase integration checks include cross-tenant smart-ID fuzz (5 tenants × 5 specs), multi-client smoke (Cursor / Claude Desktop / ChatGPT Deep Research), Inngest orphan audit (static + live), deliberate-leak PII audit (mocked Sentry events API), and Neon Scale-tier upgrade verification (local synthetic load + W7 runbook). Inngest function IDs are stable strings (verified via static AST scan). Closes 4 Phase 7 carry-forward BFF endpoints (deployments / usage-hourly / deploy-by-id / badge-public) so the `MCPGEN_FRONTEND_MODE=live` dashboard flow works end-to-end.
 **Depends on**: Phases 2–8 merged
 **Requirements**: CTRL-08, CTRL-09
-**Pitfalls mitigated** (per `.planning/research/PITFALLS.md` §Pitfall-to-Phase Mapping): #1 (cross-tenant smart-ID fuzz test in F1 fixture), #4 (multi-version client smoke), #12 (deliberate-leak PII audit), #19 (Neon Scale-tier compute upgrade verification under load), #21 (Inngest function orphan audit; stable function IDs `drift-watcher-v1` / `usage-reconciler-v1`), #33 (multi-client smoke test against Claude Desktop, Cursor, ChatGPT Deep Research)
+**Pitfalls mitigated** (per `.planning/research/PITFALLS.md` §Pitfall-to-Phase Mapping): #1 (cross-tenant smart-ID fuzz test in F1 fixture), #4 (multi-version client smoke), #12 (deliberate-leak PII audit + shared redactor across 4 SDKs), #19 (Neon Scale-tier compute upgrade verification under load), #21 (Inngest function orphan audit; stable function IDs `drift-watcher-v1` / `usage-reconciler-v1`), #33 (multi-client smoke test against Claude Desktop, Cursor, ChatGPT Deep Research). Phase 9 also fixes Pitfall #3 (apps/dispatch missing Sentry init) and Pitfall #18 (Drizzle migration journal sync after manual SQL edit).
 **Success Criteria** (what must be TRUE):
-  1. Sentry DSNs filled in all 4 apps with source maps uploaded per runtime; `beforeSend` strips `Authorization`, `X-Upstream-Auth`, `Cookie`, and spec content; deliberate-leak PII audit returns zero hits for `Bearer `, `sk_live_`, `ghp_` across Sentry events and BetterStack logs over the audit window
-  2. Langfuse v4 captures every LLM call with `session_id = generation.id`; trace → cost → quality_score correlation is visible in the Langfuse UI; spec sections are redacted from trace metadata (only IR structure is logged)
-  3. BetterStack uptime checks cover `apps/web`, `apps/api`, `apps/dispatch`, `apps/generation-engine`, sample tenant Worker, and Logto endpoint; CF Queue depth alert fires above 10K messages; Neon connection-refusal alert fires on autovacuum spikes
-  4. Inngest function IDs are stable strings (`drift-watcher-v1`, `usage-reconciler-v1`); orphan audit reports zero orphans; cross-tenant smart-ID fuzz test in F1 fixture proves dispatched tenant Worker rejects IDs whose prefix doesn't match its tenant; multi-client smoke (Cursor / Claude Desktop / ChatGPT Deep Research) passes for the 5 popular APIs
-**Plans**: TBD
+  1. Sentry DSNs filled in all 4 apps with source maps uploaded per runtime; `beforeSend` strips `Authorization`, `X-Upstream-Auth`, `Cookie`, and spec content via single `redactBeforeSend` helper imported by all 4 SDKs (TS) + Python equivalent in engine; deliberate-leak PII audit returns zero hits for `Bearer `, `sk_live_`, `ghp_`, `MCPGEN_LEAK_CANARY_2026Q2` across mocked Sentry events (Phase 9) / real Sentry events (Phase 10 swap)
+  2. Langfuse v4 captures every LLM call with `langfuse.session.id = generation.id`; trace → cost → quality_score correlation is visible in the Langfuse UI; Logfire scrubbing callback explicitly preserves `langfuse.session.id` (Pitfall #1 of Phase 9 RESEARCH); spec content >10K chars in span attributes is replaced with `<spec redacted, sha256:...>` (only IR structure logged)
+  3. BetterStack uptime checks runbooked for `apps/web`, `apps/api`, `apps/dispatch`, `apps/generation-engine`, sample tenant Worker, Logto endpoint (Phase 10 W7 provisioning); outbox depth alert fires above 10K rows pending older than 5 min (replaces CF Queue depth alert per Phase 8 D-22 local-compute pivot); Neon connection-refusal alert via local synthetic load reproducer + W7 Scale-tier upgrade runbook
+  4. Inngest function IDs are stable strings (`drift-watcher-v1`, `usage-reconciler-v1`, etc.); static-source orphan audit reports zero orphans bidirectionally (register vs implementation); cross-tenant smart-ID fuzz test in F1 (5 tenants × 5 specs = 25 generations) proves no regex collisions; dispatch runtime guard test confirms 403 on foreign-tenant ID; multi-client smoke runbook documents 5 popular APIs × 3 clients = 15 manual W7 runs; 4 BFF carry-forward endpoints from Phase 7 (deployments list, usage hourly, deploy by id, badge public toggle) are implemented + integration-tested with org-scope JOIN authz
+**Plans**: 11 plans
+Plans:
+- [ ] 09-01-PLAN.md — Shared Sentry redactor (TS+Py) + apps/dispatch Sentry init + 4-SDK leak audit (D-03, D-04, D-12, Pitfall #3) [Wave 1]
+- [ ] 09-02-PLAN.md — Drizzle migration `20260430000000_phase9_badge_public.sql` + journal sync + schema push [BLOCKING for Wave 2] (D-19) [Wave 1]
+- [ ] 09-03-PLAN.md — BFF endpoints `GET /deployments` + `POST /:id/badge-public` + auth-helpers extraction + dashboard-api contract promotion (D-18 part 1) [Wave 2]
+- [ ] 09-04-PLAN.md — BFF endpoints `GET /usage/hourly` + `GET /deploy/[generationId]` + claude_desktop_config snippet (D-18 part 2) [Wave 2]
+- [ ] 09-05-PLAN.md — Langfuse session_id correlation: Wave 0 spike + run_with_tracing wrapper across 10 sites + Logfire scrubbing-callback override + spec content scrubber (D-06, D-07) [Wave 2]
+- [ ] 09-06-PLAN.md — Inngest orphan audit static-source AST scan with bidirectional set-equality (D-14) [Wave 2]
+- [ ] 09-07-PLAN.md — Source maps upload orchestrator + per-app commands + skip-when-no-token (D-05) [Wave 2]
+- [ ] 09-08-PLAN.md — Cross-tenant smart-ID fuzz F1 (5×5) + dispatch runtime guard test (D-08, D-09) [Wave 3]
+- [ ] 09-09-PLAN.md — 2024-protocol mock client + multi-client smoke runbook (D-10, D-11) [Wave 3]
+- [ ] 09-10-PLAN.md — PII leak-audit script with mocked Sentry events adapter (D-13 + Phase 10 carry-forward) [Wave 3]
+- [ ] 09-11-PLAN.md — Outbox depth monitor + Inngest live audit + Neon OOM repro + Neon Scale-tier runbook + BetterStack runbook + architecture §6 P99 SLO doc edit (D-15, D-16, D-17, D-20, D-21) [Wave 3]
 
 ### Phase 10: Launch
 **Workstream**: `main`
@@ -245,7 +257,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 | 6. Runtime Plane | 0/TBD | Not started | - |
 | 7. Frontend Wire-Up | 0/TBD | Not started | - |
 | 8. Auth + Billing | 0/TBD | Not started | - |
-| 9. Observability & Polish | 0/TBD | Not started | - |
+| 9. Observability & Polish | 0/11 | Not started | - |
 | 10. Launch | 0/TBD | Not started | - |
 
 ---
