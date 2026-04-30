@@ -121,13 +121,11 @@ vi.mock('../../src/db.js', () => {
         params.push((c as { value: unknown }).value);
       }
     }
-    // GET /usage/hourly aggregation query — recognized by the 4-table JOIN
-    // FROM clause and the date_trunc('hour', ...) bucket expression.
     if (
       sqlText.includes('FROM usage_events') &&
       sqlText.includes('JOIN deployments d') &&
       sqlText.includes('JOIN generations g') &&
-      sqlText.includes('JOIN projects p') &&
+      sqlText.includes('JOIN projects') &&
       sqlText.includes('WHERE p.org_id =')
     ) {
       const orgId = params[0] as string | undefined;

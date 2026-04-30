@@ -27,6 +27,7 @@ import { cancelGenerationRoute } from './routes/internal/v1/cancel-generation.js
 import { spikeSseRoute } from './routes/_spike/sse.js';
 import { driftRoute } from './routes/v1/drift.js';
 import { deploymentsRoute } from './routes/v1/deployments.js';
+import { usageRoute } from './routes/v1/usage.js';
 import { inngest } from './inngest/client.js';
 import { functions } from './inngest/functions/index.js';
 
@@ -89,6 +90,10 @@ protectedApp.route('/', driftRoute);
 // /deployments/:id/badge-public so it composes with driftRoute (different
 // methods + paths; no collision).
 protectedApp.route('/', deploymentsRoute);
+// Plan 09-04 / D-18 #3 of 4: hourly usage aggregate (Pitfall #5 — 4-table
+// JOIN org-scope mandatory because `usage_hourly` matview lacks org_id).
+// usageRoute self-prefixes /usage/hourly.
+protectedApp.route('/', usageRoute);
 app.route('/api/v1', protectedApp);
 
 export default app;
