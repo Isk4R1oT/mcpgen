@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-05-PLAN.md
-last_updated: "2026-04-30T15:51:30.513Z"
+stopped_at: Completed 09-10-PLAN.md
+last_updated: "2026-04-30T16:00:37.361Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 83
-  completed_plans: 83
+  completed_plans: 84
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 9 (Observability & Polish) — EXECUTING
-Plan: 8 of 11
+Plan: 9 of 11
 Status: Ready to execute
 Last activity: 2026-04-30
 
@@ -86,6 +86,7 @@ parameter spec + Pass 4 annotations).
 | Phase 09 P06 | 3min | 1 task tasks | 1 file (created) files |
 | Phase 09-observability-polish P07 | 12min | 1 task (TDD) tasks | 8 files (3 created, 5 modified) files |
 | Phase 09 P05 | 50min | 3 tasks | 19 files |
+| Phase 09 P10 | 5min | 2 tasks tasks | 7 files (6 created, 1 modified) files |
 
 ## Accumulated Context
 
@@ -194,6 +195,9 @@ Recent decisions affecting current work:
 - Plan 09-05: Logfire scrubber is pattern-driven — callbacks only fire when path/value matches a regex. Added SPEC_CONTENT_PATTERNS (spec_yaml/raw_ir.openapi/prompt.system/system_prompt) to ScrubbingOptions.extra_patterns so the scrubber visits spec keys (none match Logfire's built-in patterns).
 - Plan 09-05: session_id='unknown' placeholder + TODO(09-05) at all 11 agent.run call sites is acceptable per plan acceptance criterion (≥6 of 10 required). Threading generation_id through pass orchestrator signatures deferred to follow-up; wrapper + scrub callback are the D-06+D-07 milestone.
 - Plan 09-05: conftest-level logfire silent-config (metrics=False + NoOpMeterProvider) required because pytest filterwarnings=error promotes LogfireNotConfiguredWarning AND logfire 1.3.2 + opentelemetry-sdk 1.41 have a _ProxyCounter.add arity mismatch when metrics enabled.
+- Plan 09-10: SentryEventsAdapter mock-now-real-later substitution mirrors Phase 8 D-23 StorageAdapter pattern; same shape (interface + Phase-9 mock + Phase-10 real impl + env flag SENTRY_EVENTS_ADAPTER=mock|real swap) makes Phase 10 carry-forward a single-file change
+- Plan 09-10: leak-audit script CLI surface intentionally narrow (--mode mock|real only); test seeding via env-fixture path SENTRY_EVENTS_MOCK_FIXTURE_PATH keeps gitleaks-safe (sentinels live only in tmp test fixtures) and avoids polluting operator-facing flags
+- Plan 09-10: 4 distinct exit codes (0 PASS / 1 FAIL leak-found / 2 unexpected error / 3 mode-real-not-implemented) lets operator scripts dispatch on failure mode; --mode real returns 3 cleanly distinguishes Phase-10-pending from leak-found
 
 ### Pending Todos
 
@@ -220,8 +224,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-30T15:51:11.383Z
-Stopped at: Completed 09-05-PLAN.md
+Last session: 2026-04-30T16:00:37.356Z
+Stopped at: Completed 09-10-PLAN.md
 Resume file: None
 
 **Planned Phase:** 9 (Observability & Polish) — 11 plans — 2026-04-30T11:23:35.070Z
