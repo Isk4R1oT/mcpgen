@@ -96,32 +96,41 @@ def test_scrub_long_spec_replaces_10001_char_spec_yaml() -> None:
     assert marker_re.match(result), f"Marker shape mismatch: {result!r}"
 
 
-def test_scrub_long_spec_returns_none_for_small_spec() -> None:
-    """Test 6: a 100-char spec_yaml passes through (no redaction)."""
+def test_scrub_long_spec_passes_through_small_spec_unchanged() -> None:
+    """Test 6: a 100-char spec_yaml is returned UNCHANGED (passthrough).
+
+    Note: ``extra_patterns`` makes Logfire's scrubber visit ``spec_yaml`` —
+    if our callback returned ``None`` here Logfire would replace the value
+    with the literal ``[Scrubbed due to 'spec_yaml']`` which is strictly
+    worse than the small spec itself. Returning ``match.value`` short-circuits
+    the default scrubber.
+    """
     small_spec = "openapi: 3.0.0\ninfo: ..."
     match = _make_match(("attributes", "spec_yaml"), small_spec)
     result = _scrub_long_spec_attributes(match)
-    assert result is None
+    assert result == small_spec
 
 
 def test_scrub_long_spec_returns_none_for_non_spec_attribute() -> None:
     """A 10001-char string under a non-spec attribute key is NOT redacted by this callback.
 
     (The default Logfire scrubber may still redact it via pattern matching,
-    but that's not this callback's responsibility.)
+    but that's not this callback's responsibility — returning None lets the
+    chain fall through.)
     """
     match = _make_match(("attributes", "some_random_attr"), "x" * 10_001)
     assert _scrub_long_spec_attributes(match) is None
 
 
-def test_scrub_long_spec_returns_none_for_non_string_value() -> None:
-    """Non-string values (e.g. int, list) under a spec key are not redacted.
+def test_scrub_long_spec_passes_through_non_string_value() -> None:
+    """Non-string values (e.g. int, list) under a spec key passthrough.
 
     Spec content is always a str in our pipeline; a non-str under
-    spec_yaml indicates a bug elsewhere, not a leak we should silently mask.
+    spec_yaml indicates a bug elsewhere. Returning ``match.value`` short-
+    circuits the default scrubber so diagnostic value is preserved.
     """
     match = _make_match(("attributes", "spec_yaml"), 42)
-    assert _scrub_long_spec_attributes(match) is None
+    assert _scrub_long_spec_attributes(match) == 42
 
 
 def test_scrub_long_spec_handles_nested_path_via_last_segment() -> None:

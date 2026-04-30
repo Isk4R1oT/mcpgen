@@ -1,7 +1,7 @@
 """Plan 09-05 Task 2 / D-07: Logfire scrubbing-callback overrides.
 
 Two callbacks chained into a single ``combined_scrub_callback`` registered
-via ``logfire.configure(scrubbing=ScrubbingOptions(callback=...))``:
+via ``logfire.configure(scrubbing=ScrubbingOptions(callback=..., extra_patterns=...))``:
 
 1. :func:`_preserve_langfuse_session_id` — overrides Logfire's default scrub
    of any string matching ``/session/``, which would otherwise replace
@@ -22,6 +22,15 @@ Logfire invokes the callback once per match; returning ``match.value``
 short-circuits the default scrub for that path. Returning ``None`` lets
 the default scrubber proceed with whatever it would have done (typically
 replacing the value with ``[Scrubbed due to '<pattern>']``).
+
+Critical implementation detail: Logfire only invokes the callback when its
+internal scrubber detects a *pattern* in the attribute path or value. The
+default patterns cover ``password``, ``secret``, ``api_key``, ``session``,
+etc. — which is enough for ``langfuse.session.id`` (caught via the
+``session`` pattern) but NOT for ``spec_yaml`` / ``raw_ir.openapi`` /
+``prompt.system`` etc. To make the callback see those keys we add them to
+``ScrubbingOptions.extra_patterns`` (see :data:`SPEC_CONTENT_PATTERNS`)
+which extends the regex set Logfire applies to attribute path segments.
 """
 
 from __future__ import annotations
@@ -46,6 +55,20 @@ _SPEC_CONTENT_KEYS: frozenset[str] = frozenset(
     }
 )
 
+# Regex patterns appended to Logfire's default scrub patterns so the
+# scrubber visits the keys above (without these, Logfire's pattern-driven
+# scrubber never invokes our callback for ``spec_yaml`` / ``openapi`` /
+# ``prompt`` / ``system_prompt`` because none match its built-in patterns
+# like ``password`` / ``secret`` / ``api_key`` / ``session``).
+SPEC_CONTENT_PATTERNS: tuple[str, ...] = (
+    r"spec_yaml",
+    r"spec_url_response_body",
+    r"raw_ir\.openapi",
+    r"openapi",
+    r"prompt\.system",
+    r"system_prompt",
+)
+
 _SPEC_REDACTION_THRESHOLD = 10_000
 
 
@@ -64,19 +87,22 @@ def _preserve_langfuse_session_id(match: logfire.ScrubMatch) -> Any:
 
 
 def _scrub_long_spec_attributes(match: logfire.ScrubMatch) -> Any:
-    """Replace >10K-char spec content in span attributes with a sha256 marker.
+    """Handle spec-content attributes: sha256-marker for >10K chars, passthrough else.
 
-    Triggers when:
+    Triggers when ``match.path`` ends in one of :data:`_SPEC_CONTENT_KEYS`.
 
-    - ``match.path`` ends in one of :data:`_SPEC_CONTENT_KEYS`.
-    - ``match.value`` is a ``str`` longer than 10,000 characters.
+    - >10K chars → return ``<spec redacted, sha256:{16-char hex prefix}>``.
+    - ≤10K chars → return ``match.value`` unchanged (passthrough — small specs
+      contain no sensitive data and the literal scrub marker
+      ``[Scrubbed due to 'spec_yaml']`` is strictly less useful than the spec
+      itself).
+    - non-string → return ``match.value`` unchanged (defensive — non-str under
+      a spec key indicates a bug elsewhere; redacting a non-str silently
+      destroys diagnostic value).
 
-    Replacement format: ``<spec redacted, sha256:{16-char hex prefix}>``.
-    The 16-char prefix is enough entropy to distinguish specs in a single
-    trace stream while keeping the marker readable in the Langfuse UI.
-
-    Returns ``None`` for non-matching paths/values so other callbacks (or
-    the default scrubber) can take over.
+    Returns ``None`` ONLY when the path is NOT a spec key, so the chain can
+    fall through to :func:`_preserve_langfuse_session_id` or the default
+    scrubber for non-spec attributes.
     """
     if not match.path:
         return None
@@ -85,9 +111,9 @@ def _scrub_long_spec_attributes(match: logfire.ScrubMatch) -> Any:
         return None
     value = match.value
     if not isinstance(value, str):
-        return None
+        return value  # passthrough non-str defensively
     if len(value) <= _SPEC_REDACTION_THRESHOLD:
-        return None
+        return value  # passthrough small specs (Logfire's literal marker is worse than the value)
     sha = hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
     return f"<spec redacted, sha256:{sha}>"
 

@@ -30,7 +30,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from .scrubbing import combined_scrub_callback
+from .scrubbing import SPEC_CONTENT_PATTERNS, combined_scrub_callback
 
 
 def configure_langfuse_otel() -> None:
@@ -39,7 +39,9 @@ def configure_langfuse_otel() -> None:
     Phase 9 Plan 09-05 (D-06 + D-07): registers ``combined_scrub_callback`` so
     Logfire's default ``/session/`` scrubber preserves ``langfuse.session.id``
     (Pitfall #1) and >10K-char spec attributes are replaced with sha256
-    markers (D-07).
+    markers (D-07). ``extra_patterns=SPEC_CONTENT_PATTERNS`` makes Logfire's
+    pattern-driven scrubber visit the spec attribute keys (which would
+    otherwise slip past since they don't match any built-in pattern).
     """
     public_key = os.environ.get("LANGFUSE_PUBLIC_KEY", "")
     secret_key = os.environ.get("LANGFUSE_SECRET_KEY", "")
@@ -49,12 +51,15 @@ def configure_langfuse_otel() -> None:
     )
 
     # Logfire: do not forward to Logfire SaaS; we use it only for OTel SDK init.
-    # ScrubbingOptions(callback=...) overrides the default scrubber selectively
-    # — see observability/scrubbing.py for the chain.
+    # ScrubbingOptions(callback=..., extra_patterns=...) — see
+    # observability/scrubbing.py for the callback chain + pattern rationale.
     logfire.configure(
         send_to_logfire=False,
         service_name="mcpgen-generation-engine",
-        scrubbing=logfire.ScrubbingOptions(callback=combined_scrub_callback),
+        scrubbing=logfire.ScrubbingOptions(
+            callback=combined_scrub_callback,
+            extra_patterns=list(SPEC_CONTENT_PATTERNS),
+        ),
     )
 
     if not (public_key and secret_key):
