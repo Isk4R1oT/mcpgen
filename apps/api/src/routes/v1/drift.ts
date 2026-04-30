@@ -29,6 +29,7 @@ import { ulid } from 'ulid';
 import { DeploymentDriftPatchRequest } from '@mcpgen/contracts/billing-types';
 import { drift_events, deployments, generations } from '@mcpgen/contracts/db-schema';
 import { db } from '../../db.js';
+import { deploymentBelongsToOrg } from '../../lib/auth-helpers.js';
 import type { AuthContext } from '../../middleware/auth.js';
 
 interface DriftRouteBindings {
@@ -41,25 +42,9 @@ export const driftRoute = new Hono<{
   Variables: { auth: AuthContext };
 }>();
 
-interface DeploymentOwnershipRow {
-  org_id: string;
-}
-
-async function deploymentBelongsToOrg(
-  deploymentId: string,
-  orgId: string,
-): Promise<boolean> {
-  const r = await db.execute(sql`
-    SELECT p.org_id AS org_id
-    FROM deployments d
-    JOIN generations g ON g.id = d.generation_id
-    JOIN projects p ON p.id = g.project_id
-    WHERE d.id = ${deploymentId}
-    LIMIT 1
-  `);
-  const rows = r.rows as unknown as DeploymentOwnershipRow[];
-  return rows[0]?.org_id === orgId;
-}
+// `deploymentBelongsToOrg` was extracted to apps/api/src/lib/auth-helpers.ts
+// (Plan 09-03 Task 2) so deployment-list / badge-public / future deploy-status
+// routes share the canonical 4-table JOIN predicate. Imported above.
 
 interface DriftEventOwnershipRow {
   org_id: string;
