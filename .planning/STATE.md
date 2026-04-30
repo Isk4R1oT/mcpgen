@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-04-PLAN.md
-last_updated: "2026-04-30T12:57:34.821Z"
+stopped_at: Completed 09-06-PLAN.md
+last_updated: "2026-04-30T15:34:05.016Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 83
-  completed_plans: 80
-  percent: 96
+  completed_plans: 81
+  percent: 98
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 9 (Observability & Polish) — EXECUTING
-Plan: 5 of 11
+Plan: 6 of 11
 Status: Ready to execute
 Last activity: 2026-04-30
 
-Progress: [██████████] 96%
+Progress: [██████████] 98%
 
 ## Next
 
@@ -83,6 +83,7 @@ parameter spec + Pass 4 annotations).
 | Phase 09 P02 | 18min | 3 tasks | 7 files |
 | Phase 09 P03 | 9min | 3 tasks tasks | 11 files (6 created, 5 modified) files |
 | Phase 09 P04 | 13min | 2 tasks tasks | 7 files (5 created, 2 modified) files |
+| Phase 09 P06 | 3min | 1 task tasks | 1 file (created) files |
 
 ## Accumulated Context
 
@@ -181,6 +182,8 @@ Recent decisions affecting current work:
 - Plan 09-04: /usage/hourly does NOT implement pagination — UsageHourlyResponseSchema exposes only { rows: [...] }; frontend Route Handler does not pass limit/offset; honoring contract truth (Plan 09-03 deviation pattern)
 - Plan 09-04: generationBelongsToOrg sister helper added to auth-helpers.ts for routes keyed by generation_id (3-table JOIN generations → projects → org_id); same false-on-either-condition contract as deploymentBelongsToOrg so 404-not-403 defense in depth holds
 - Plan 09-04: buildClaudeDesktopConfig pure helper at apps/api/src/lib/claude-desktop-config.ts emits X-Upstream-Auth literal placeholder string only for passthrough mode (T-9-bff-auth-08; never serializes real upstream key per RUN-03 pass-through invariant); stored / oauth modes emit no headers
+- Plan 09-06: anti-hardcode regex /id:\s*['"][a-z][a-z0-9-]*-v\d+['"]/ chosen over broader literal patterns — rejects only id-versioned literals so legitimate string ids in other contexts (event names, log messages) pass; T-9-orphan-01 mitigation
+- Plan 09-06: TypeScript noUncheckedIndexedAccess required Record<string, string | undefined> cast + explicit toBeDefined() guard before set-add; clearer test failure message than relying on Set.add(undefined) coercion
 
 ### Pending Todos
 
@@ -207,8 +210,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-30T12:57:34.814Z
-Stopped at: Completed 09-04-PLAN.md
+Last session: 2026-04-30T15:34:05.010Z
+Stopped at: Completed 09-06-PLAN.md
 Resume file: None
 
 **Planned Phase:** 9 (Observability & Polish) — 11 plans — 2026-04-30T11:23:35.070Z
