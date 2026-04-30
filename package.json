@@ -14,6 +14,9 @@
     "format": "prettier --write .",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
     "sourcemaps:upload": "bash scripts/sourcemaps/upload-all.sh",
+    "leak-audit": "tsx scripts/observability/leak-audit.ts",
+    "outbox:monitor": "tsx scripts/observability/outbox-depth-monitor.ts",
+    "inngest:orphan-audit": "tsx scripts/observability/inngest-orphan-audit.ts",
     "prepare": "if [ -d .git ] && command -v pre-commit >/dev/null 2>&1; then pre-commit install --hook-type pre-commit --hook-type commit-msg || true; fi"
   },
   "devDependencies": {
