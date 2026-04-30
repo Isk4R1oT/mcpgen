@@ -14,40 +14,16 @@ from __future__ import annotations
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
 
 import sentry_sdk
 import structlog
 from fastapi import FastAPI
 
-from .api import generate as generate_api
-from .observability import configure_langfuse_otel
-from .stages.stage_e.validate import ensure_codegen_node_modules
-
-if TYPE_CHECKING:
-    from sentry_sdk._types import Event, Hint
+from mcpgen_engine.api import generate as generate_api
+from mcpgen_engine.observability import configure_langfuse_otel, redact_before_send
+from mcpgen_engine.stages.stage_e.validate import ensure_codegen_node_modules
 
 _log = structlog.get_logger(__name__)
-
-
-def _sentry_before_send(event: Event, _hint: Hint) -> Event | None:
-    """Architecture §11.3 + Pitfall #12: redact auth headers + spec content.
-
-    Phase 1 wires the contract; Phase 4 expands the redaction set as more event
-    shapes appear. We redact `Authorization`, `X-Upstream-Auth`, and `Cookie`
-    request headers if Sentry serialises them.
-
-    Returns the (possibly mutated) event. Returning None would drop the event;
-    we never drop in Phase 1.
-    """
-    request = event.get("request")
-    if isinstance(request, dict):
-        headers = request.get("headers")
-        if isinstance(headers, dict):
-            for key in ("Authorization", "X-Upstream-Auth", "Cookie"):
-                if key in headers:
-                    headers[key] = "[REDACTED]"
-    return event
 
 
 def init_sentry() -> None:
@@ -55,6 +31,10 @@ def init_sentry() -> None:
 
     Empty SENTRY_DSN is acceptable in Phase 1 (Sentry SDK no-ops when dsn is
     falsy). Phase 9 fills DSN per env via flyctl secrets.
+
+    Phase 9 (D-04): `before_send` is the shared `redact_before_send` from
+    `mcpgen_engine.observability` — single source of truth mirroring the TS
+    `redactBeforeSend` in `@mcpgen/contracts/sentry-redaction`.
     """
     # T-1-09: SENTRY_DSN comes from env var; never logged. before_send redacts auth headers.
     sentry_sdk.init(
@@ -62,7 +42,7 @@ def init_sentry() -> None:
         environment=os.environ.get("ENVIRONMENT", "development"),
         release=os.environ.get("SENTRY_RELEASE", ""),
         traces_sample_rate=0.1,
-        before_send=_sentry_before_send,
+        before_send=redact_before_send,
     )
 
 

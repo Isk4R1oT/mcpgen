@@ -25,9 +25,12 @@ def test_sentry_init_handles_empty_dsn(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_sentry_before_send_redacts_auth_headers() -> None:
-    from mcpgen_engine.main import _sentry_before_send
+    """Phase 9 (D-04): the inline `_sentry_before_send` was promoted to the
+    shared `mcpgen_engine.observability.redact_before_send` helper; this test
+    now exercises the shared helper through the same surface (auth-header
+    redaction)."""
+    from mcpgen_engine.observability import redact_before_send
 
-    # Sentry Event is a TypedDict at runtime; build the same shape for the test.
     event = {
         "request": {
             "headers": {
@@ -38,7 +41,7 @@ def test_sentry_before_send_redacts_auth_headers() -> None:
             }
         }
     }
-    cleaned = _sentry_before_send(event, {})  # type: ignore[arg-type]
+    cleaned = redact_before_send(event, {})
     assert cleaned is not None
     request = cleaned["request"]
     assert isinstance(request, dict)

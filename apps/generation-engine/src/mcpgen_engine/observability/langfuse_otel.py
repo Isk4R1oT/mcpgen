@@ -11,6 +11,12 @@ exporter pointing at Langfuse Cloud (or local Langfuse).
 Idempotent: safe to call multiple times — logfire.configure is itself idempotent
 and we only register a TracerProvider when both Langfuse keys are set, so a
 second call without keys is a no-op.
+
+Phase 9 (D-04): moved from `observability.py` (single-file) to
+`observability/langfuse_otel.py` (package member) so the new
+`sentry_redaction.py` sibling can land alongside it. The package's
+`__init__.py` re-exports `configure_langfuse_otel` to preserve backward-compat
+imports (`from mcpgen_engine.observability import configure_langfuse_otel`).
 """
 
 from __future__ import annotations
