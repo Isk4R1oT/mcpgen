@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 09-09-PLAN.md
-last_updated: "2026-04-30T16:03:40.876Z"
+status: verifying
+stopped_at: Completed 09-11-PLAN.md
+last_updated: "2026-04-30T16:20:07.371Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 10
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 83
-  completed_plans: 86
+  completed_plans: 87
   percent: 100
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 
 Phase: 9 (Observability & Polish) — EXECUTING
 Plan: 11 of 11
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-30
 
 Progress: [██████████] 100%
@@ -89,6 +89,7 @@ parameter spec + Pass 4 annotations).
 | Phase 09 P10 | 5min | 2 tasks tasks | 7 files (6 created, 1 modified) files |
 | Phase 09-observability-polish P08 | 7min | 2 tasks tasks | 2 files (created) files |
 | Phase 09-observability-polish P09 | 25min | 2 tasks tasks | 3 files (2 created + 1 summary) files |
+| Phase 09 P11 | 23min | 3 tasks tasks | 9 created + 3 modified files files |
 
 ## Accumulated Context
 
@@ -205,6 +206,11 @@ Recent decisions affecting current work:
 - Plan 09-09: in-process Python port of capabilityGate.ts mirrors TS byte-for-byte (lex string compare on protocolVersion, deepcopy + pop for outputSchema strip); real-dispatch coverage stays in F3
 - Plan 09-09: @pytest.mark.integration NOT used because pyproject.toml strict-markers + integration marker unregistered — file location tests/integration/ is the operative marker
 - Plan 09-09: ChatGPT Deep Research multi-client smoke runbook requires cloudflared/ngrok tunneling because OpenAI Connectors need publicly reachable URLs (the only one of 3 clients that cannot point at localhost directly)
+- Plan 09-11: outbox depth monitor refactored library + thin-script split (apps/api/src/lib/outbox-depth-monitor.ts + scripts/observability/outbox-depth-monitor.ts) — vite couldn't resolve cross-rootDir .js imports; direct vitest function import is ~3s vs 125s child-process exec timing out at 60s
+- Plan 09-11: test-only env-var injection pattern (OUTBOX_MONITOR_FILTER_DEPLOYMENT_ID / THRESHOLD_OVERRIDE / ALERT_LOG_PATH) keeps production CLI behavior unchanged while allowing fast deterministic tests with small row counts (10 vs 10000)
+- Plan 09-11: tests/load/** opt-in pattern via apps/api/vitest.load.config.ts (testTimeout 600_000) + default vitest.config.ts exclude — RUN_LOAD_TESTS=1 + DATABASE_URL gated; pnpm test stays fast, pnpm test:load runs Neon OOM repro
+- Plan 09-11: outbox depth dedup table deferred — drift_email_log-style PK dedup mentioned in plan would require Drizzle migration (Rule 4 architectural); default sender logs to stderr when RESEND_API_KEY/OPS_EMAIL unset (D-01 invariant); BetterStack runbook step 4 escalation policy 5-min delay handles cadence
+- Plan 09-11: D-20 architecture §6 P99 SLO statement now explicit warm vs amortized split (warm < 50ms / amortized < 100ms with 5-min keep-warm cron) per Pitfall #14
 
 ### Pending Todos
 
@@ -231,8 +237,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-30T16:03:40.871Z
-Stopped at: Completed 09-09-PLAN.md
+Last session: 2026-04-30T16:19:51.103Z
+Stopped at: Completed 09-11-PLAN.md
 Resume file: None
 
 **Planned Phase:** 9 (Observability & Polish) — 11 plans — 2026-04-30T11:23:35.070Z
