@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-02-PLAN.md
-last_updated: "2026-04-30T12:22:58.395Z"
+stopped_at: Completed 09-03-PLAN.md
+last_updated: "2026-04-30T12:37:41.284Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 83
-  completed_plans: 78
-  percent: 94
+  completed_plans: 79
+  percent: 95
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 9 (Observability & Polish) — EXECUTING
-Plan: 3 of 11
+Plan: 4 of 11
 Status: Ready to execute
 Last activity: 2026-04-30
 
-Progress: [█████████░] 94%
+Progress: [██████████] 95%
 
 ## Next
 
@@ -81,6 +81,7 @@ parameter spec + Pass 4 annotations).
 | Phase 04 P15 | 90 | 3 tasks | 17 files |
 | Phase 09 P01 | 33min | 3 tasks tasks | 10 created + 9 modified files |
 | Phase 09 P02 | 18min | 3 tasks | 7 files |
+| Phase 09 P03 | 9min | 3 tasks tasks | 11 files (6 created, 5 modified) files |
 
 ## Accumulated Context
 
@@ -171,6 +172,9 @@ Recent decisions affecting current work:
 - Plan 09-01: sentryOptionsFor return type explicit CloudflareOptions across apps/api + apps/dispatch — lets withSentry callback typing compose via Sentry structural typing (ErrorEvent extends SentryEventLike)
 - Plan 09-02: hand-authored FROZEN-prefix migration 20260430000000_phase9_badge_public.sql with idempotent ADD COLUMN IF NOT EXISTS pattern (Phase 8 precedent); inline T-9-mig-01 mitigation repaired Phase 8 snapshot 20260428000002 prevId from 36509bbb (init) to 12c6731a (idempotency_key) per journal idx-2 chain order — drizzle-kit:check now exits 0
 - Plan 09-02: drizzle-kit push tripped on Phase 8 usage_hourly matview WITH NO DATA (deferred); applied ALTER TABLE directly via @neondatabase/serverless HTTP driver — surgical, scoped, verified via information_schema query
+- Plan 09-03: BFF endpoint method/body MUST match frontend Route Handler proxy — PATCH /badge-public + body { public_badge: boolean }, NOT POST + { public }; the frontend tests + 14 dashboard-client tests assert the proxy contract verbatim and changing it would 502 dashboard live mode
+- Plan 09-03: selective barrel re-export from packages/contracts/src/index.ts excludes wire-shape Deployment to avoid TS2308 collision with the Drizzle InferSelectModel Deployment in db-types.ts; wire-shape consumers deep-import @mcpgen/contracts/dashboard-api for the wire type alias
+- Plan 09-03: deploymentBelongsToOrg extracted to apps/api/src/lib/auth-helpers.ts (verbatim move from drift.ts:48-62) so deployment-list / badge-public / future deploy-status routes share the canonical 4-table JOIN IDOR predicate; drift.ts now imports rather than defines
 
 ### Pending Todos
 
@@ -197,8 +201,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-30T12:22:58.386Z
-Stopped at: Completed 09-02-PLAN.md
+Last session: 2026-04-30T12:37:41.277Z
+Stopped at: Completed 09-03-PLAN.md
 Resume file: None
 
 **Planned Phase:** 9 (Observability & Polish) — 11 plans — 2026-04-30T11:23:35.070Z
