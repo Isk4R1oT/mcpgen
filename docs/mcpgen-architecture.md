@@ -983,7 +983,12 @@ Claude Desktop                    Dispatch Worker         Tenant Worker         
 - Auth + rate limit + dispatch overhead: **< 30ms**
 - Upstream call: variable (Stripe ~100ms)
 - Response transformation: **< 10ms**
-- Total overhead над upstream: **< 50ms**
+- **P99 warm < 50ms over upstream; P99 amortized (including amortized cold-start over 5-min keep-warm cron) < 100ms over upstream**
+
+Cold-start cost is amortized via the 5-min keep-warm cron for active tenants
+(per RUN-02 / Pitfall #14). Warm P99 reflects the per-request latency over
+upstream once the isolate is hot. The amortized P99 includes the
+once-per-5-min cold-start tax.
 
 ### 8.4 Drift detection flow
 
