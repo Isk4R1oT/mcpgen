@@ -16,7 +16,9 @@ If everything else fails, this must work: **paste an OpenAPI URL → 60 seconds 
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] **GEN-09** — Stage F1 static validation (8 cheap deterministic + 3 subprocess checks; failure → upstream-pass retry mapping). Validated in Phase 5: Generation Engine — Validation (Stage F).
+- [x] **GEN-10** — Stage F2 smell scan via single Qwen3-Coder (5-shuffle × 3-temp = 15 calls/tool; σ ≥ 0.4 discrimination; 6-component rubric; threshold ≥ 4.0 wired to LAUNCH_CRITERIA). Validated in Phase 5.
+- [x] **GEN-11** — Stage F3 agent eval (Sonnet 4.7 test agent + Qwen LLM judge, two-tier evaluator, 3 mock clients, 5 sandbox adapters, 30 hand-authored golden tasks, retry FSM with cascade L2 invalidation). Validated in Phase 5 (mocked tier; real-LLM calibration drain operator-deferred per `05-HUMAN-UAT.md`).
 
 ### Active
 
@@ -32,9 +34,9 @@ If everything else fails, this must work: **paste an OpenAPI URL → 60 seconds 
 - [ ] **GEN-06**: Pass 4 (Annotations Inference) emits 4 MCP boolean hints + title for every tool, deterministic 80%, `openWorldHint=true` invariant, conservative aggregation for workflow tools
 - [ ] **GEN-07**: Pass 5 (Response Shaping) emits MCP 2025-06-18 outputSchema, pagination strategy, field filtering, truncation thresholds with teaching guidance
 - [ ] **GEN-08**: Stage E (Codegen) produces a complete TypeScript Cloudflare Worker project (~25–30 files) via 100% deterministic Jinja2 templates with `tsc --noEmit` validation built in
-- [ ] **GEN-09**: Stage F1 (Static validation) runs tsc + ajv + ESLint + bundle size + MCP protocol compliance + secret scan and maps each failed check to a specific upstream-pass retry
-- [ ] **GEN-10**: Stage F2 (Smell scan) runs single Qwen3-Coder with 5-shuffle prompt averaging + temperature variance per Model Override doc; threshold ≥ 4.0 on 6-component rubric; per-component failures trigger targeted retries (max 2 rounds)
-- [ ] **GEN-11**: Stage F3 (Agent eval) runs real Sonnet 4.7 agent against golden tasks for top-10 APIs (real sandbox) and mocked env for the rest; two-tier evaluator; pass criterion ≥0.7 server pass rate
+- [x] **GEN-09**: Stage F1 (Static validation) runs tsc + ajv + ESLint + bundle size + MCP protocol compliance + secret scan and maps each failed check to a specific upstream-pass retry — validated Phase 5
+- [x] **GEN-10**: Stage F2 (Smell scan) runs single Qwen3-Coder with 5-shuffle prompt averaging + temperature variance per Model Override doc; threshold ≥ 4.0 on 6-component rubric; per-component failures trigger targeted retries (max 2 rounds) — validated Phase 5
+- [x] **GEN-11**: Stage F3 (Agent eval) runs real Sonnet 4.7 agent against golden tasks for top-10 APIs (real sandbox) and mocked env for the rest; two-tier evaluator; pass criterion ≥0.7 server pass rate — validated Phase 5 (mocked tier; real-LLM calibration deferred to operator)
 - [ ] **GEN-12**: 4-layer caching (L1 spec sha + L2 pass-input hash + L3 tool hash + L4 Anthropic prompt cache) — repeated generation of the same spec costs $0 LLM
 - [ ] **GEN-13**: All LLM calls go through PydanticAI + OpenRouter `OpenAIProvider` using `qwen/qwen3-coder` (Stage F3 test agent is the documented exception — Sonnet 4.7)
 

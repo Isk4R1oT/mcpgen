@@ -55,9 +55,9 @@
 **: Pass 5 (Response Shaping) emits MCP 2025-06-18 `outputSchema`, pagination strategy (cursor preferred), field filtering (always-include / opt-in via `properties` / always-exclude), per-tool-type truncation thresholds with teaching guidance templates that explicitly bound pagination expectations [P1: pitfall #5]
 - [x] **GEN-08
 **: Stage E (Codegen) produces a complete TypeScript Cloudflare Worker project (~25–30 files) via 100% deterministic Jinja2 templates, including `tsc --noEmit` validation, `wrangler deploy --dry-run` bundle-size capture, `hostHeaderValidation` middleware, Sentry `beforeSend` redaction for `X-Upstream-Auth` / `Authorization` / `Cookie` / spec-declared auth headers, MCP Inspector compatibility, and `.mcpgen.yaml` project config in the generated repo [P0: pitfalls #8, #12, #15]
-- [ ] **GEN-09**: Stage F1 (Static validation) runs tsc + ajv + ESLint + bundle-size gate (<800KB pass / 800–950KB warn / >950KB fail) + MCP protocol compliance + secret scan (gitleaks) + smart-ID regex compile + routing completeness + auth middleware presence + cross-tenant smart-ID fuzz check + OpenAI compliance fixture for `search` / `fetch` exact signatures, and maps each failed check to a specific upstream-pass retry [P0: pitfalls #1, #8, #32]
-- [ ] **GEN-10**: Stage F2 (Smell scan) runs single Qwen3-Coder with 5-shuffle prompt averaging + temperature variance (T=0.0/0.2/0.5) per Model Override doc; threshold ≥ 4.0 on 6-component rubric; **between-tool σ ≥ 0.4 discrimination metric** flagged when violated [P1: pitfall #9]; per-component failures trigger targeted retries (max 2 rounds)
-- [ ] **GEN-11**: Stage F3 (Agent eval) runs real Sonnet 4.7 agent against golden tasks for top-10 APIs in real sandbox + mocked env for the rest; two-tier evaluator (rule-based + LLM judge); pass criterion ≥ 0.7 server pass rate; mock client harness covers Cursor (`readOnlyHint=true` confirmation skip), Claude Desktop, and ChatGPT Deep Research signature compliance [P0: pitfalls #31, #32]
+- [x] **GEN-09**: Stage F1 (Static validation) runs tsc + ajv + ESLint + bundle-size gate (<800KB pass / 800–950KB warn / >950KB fail) + MCP protocol compliance + secret scan (gitleaks) + smart-ID regex compile + routing completeness + auth middleware presence + cross-tenant smart-ID fuzz check + OpenAI compliance fixture for `search` / `fetch` exact signatures, and maps each failed check to a specific upstream-pass retry [P0: pitfalls #1, #8, #32]
+- [x] **GEN-10**: Stage F2 (Smell scan) runs single Qwen3-Coder with 5-shuffle prompt averaging + temperature variance (T=0.0/0.2/0.5) per Model Override doc; threshold ≥ 4.0 on 6-component rubric; **between-tool σ ≥ 0.4 discrimination metric** flagged when violated [P1: pitfall #9]; per-component failures trigger targeted retries (max 2 rounds)
+- [x] **GEN-11**: Stage F3 (Agent eval) runs real Sonnet 4.7 agent against golden tasks for top-10 APIs in real sandbox + mocked env for the rest; two-tier evaluator (rule-based + LLM judge); pass criterion ≥ 0.7 server pass rate; mock client harness covers Cursor (`readOnlyHint=true` confirmation skip), Claude Desktop, and ChatGPT Deep Research signature compliance [P0: pitfalls #31, #32]
 - [x] **GEN-12
 **: 4-layer caching (L1 spec sha + L2 pass-input hash + L3 tool hash + L4 Anthropic prompt cache) — repeated generation of the same spec costs $0 LLM
 - [x] **GEN-13
@@ -206,9 +206,9 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | GEN-06 | Phase 3 | Pending |
 | GEN-07 | Phase 4 | Pending |
 | GEN-08 | Phase 4 | Pending |
-| GEN-09 | Phase 5 | Pending |
-| GEN-10 | Phase 5 | Pending |
-| GEN-11 | Phase 5 | Pending |
+| GEN-09 | Phase 5 | Complete |
+| GEN-10 | Phase 5 | Complete |
+| GEN-11 | Phase 5 | Complete |
 | GEN-12 | Phase 2 | Complete (plan 02-08) |
 | GEN-13 | Phase 2 | Complete (plan 02-01) |
 | RUN-01 | Phase 6 | Pending |

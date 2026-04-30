@@ -57,7 +57,7 @@ References:
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -72,7 +72,7 @@ from mcpgen_ir.types import (
     RawIR,
     StageEManifest,
 )
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 from ulid import ULID
 
 from mcpgen_engine.cache import get_l1, l1_key, set_l1
@@ -97,6 +97,16 @@ from mcpgen_engine.stages.stage_e.validate import (
     StageEBundleTooLargeError,
     StageETsError,
 )
+from mcpgen_engine.stages.stage_f.f1_static import F1RunResult, run_f1
+from mcpgen_engine.stages.stage_f.f2_smell import F2RunResult, run_f2
+from mcpgen_engine.stages.stage_f.f3_agent_eval import F3RunResult, run_f3
+from mcpgen_engine.stages.stage_f.golden_tasks import load_golden_tasks
+from mcpgen_engine.stages.stage_f.judge_prompts import F2_JUDGE_PROMPT
+from mcpgen_engine.stages.stage_f.quality_report import (
+    compute_badge,
+    compute_overall,
+)
+from mcpgen_engine.stages.stage_f.rubric import RubricScore
 
 _log = structlog.get_logger(__name__)
 
@@ -107,7 +117,19 @@ _log = structlog.get_logger(__name__)
 # `packages/contracts/src/generation-api.ts`. Phase 4 emits A, B, C, D, E,
 # completed, failed. F1 / F2 / F3 land in Phase 5.
 
-GenerationStage = Literal["A", "B", "C", "D", "E", "F1", "F2", "F3", "completed", "failed"]
+GenerationStage = Literal[
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F1",
+    "F2",
+    "F3",
+    "validation_complete",
+    "completed",
+    "failed",
+]
 GenerationStatus = Literal["started", "completed", "error"]
 
 
@@ -228,15 +250,354 @@ def resolve_output_dir(job_id: str) -> Path:
     (D-47) which re-renders deterministically from the cached
     ``stage_e_manifest`` — so the on-disk dir is essentially a build
     scratch location and is safe to evict between Engine restarts.
+
+    CR-01 (Phase 5 review fix): in production (``MCPGEN_ENV=production``)
+    a ``/tmp/...`` default is REFUSED — ``/tmp`` is world-writable on
+    POSIX and a co-tenant on a shared host can ``mkdir
+    /tmp/mcpgen-engine-output`` first to win the race for the parent
+    directory. The operator MUST set ``MCPGEN_OUTPUT_DIR`` to a
+    per-process directory owned by the engine UID with restrictive perms
+    (e.g. ``mode 0700``) before the engine boots in production. The
+    per-job sub-directory is created with explicit ``mode=0o700`` so a
+    co-tenant cannot enumerate sibling jobs even if the parent is
+    readable.
     """
     base = os.environ.get("MCPGEN_OUTPUT_DIR")
     if base is None:
+        env = os.environ.get("MCPGEN_ENV", "dev").lower()
+        if env == "production":
+            raise RuntimeError(
+                "MCPGEN_OUTPUT_DIR must be set in production "
+                "(co-tenant TOCTOU on /tmp default — Phase 5 review CR-01). "
+                "Point at a per-process directory owned by the engine UID "
+                "with mode 0700."
+            )
         # `/tmp/mcpgen-engine-output/<job_id>` is always writable in dev
         # + Fly Machines per Phase 2 D-44.
         base = "/tmp/mcpgen-engine-output"  # noqa: S108 — controlled by env
     out = Path(base) / job_id
-    out.mkdir(parents=True, exist_ok=True)
+    # mode=0o700: deny world / group access to the per-job sub-directory so
+    # a co-tenant cannot enumerate or symlink-shadow sibling jobs, even if
+    # the parent is readable. The umask is process-wide and may vary, so
+    # we set the mode explicitly here.
+    out.mkdir(parents=True, exist_ok=True, mode=0o700)
     return out
+
+
+# ─────────────────────────── Stage F serializers ───────────────────────────
+
+
+def _serialize_f1(f1_result: F1RunResult) -> dict[str, Any]:
+    """Compact F1 SSE payload — exposes pass/fail + first failure code."""
+    payload: dict[str, Any] = {
+        "passed": f1_result.passed,
+        "checks_run": len(f1_result.outcomes),
+        "subprocess_checks_pending": f1_result.subprocess_checks_pending,
+    }
+    if f1_result.first_failure is not None:
+        payload["first_failure"] = {
+            "check_name": f1_result.first_failure.check_name,
+            "error": f1_result.first_failure.error,
+            "retry_target": f1_result.first_failure.retry_target,
+        }
+    return payload
+
+
+def _serialize_f2(f2_result: F2RunResult) -> dict[str, Any]:
+    """Compact F2 SSE payload — overall + sigma + low-confidence flag."""
+    return {
+        "passed": f2_result.passed,
+        "overall_score": f2_result.overall_score,
+        "sigma": f2_result.sigma,
+        "low_confidence_run": f2_result.low_confidence_run,
+        "tool_count": len(f2_result.tool_scores),
+    }
+
+
+def _serialize_f3(f3_result: F3RunResult | None) -> dict[str, Any] | None:
+    """Compact F3 SSE payload — pass_rate + per-mock-client flags."""
+    if f3_result is None:
+        return None
+    return {
+        "passed": f3_result.passed,
+        "pass_rate": f3_result.pass_rate,
+        "results_count": len(f3_result.results),
+        "mock_clients_passed": all(mr.passed for mr in f3_result.mock_client_results),
+    }
+
+
+def _build_quality_report(
+    *,
+    spec_hash: str,
+    f1_result: F1RunResult | None,
+    f2_result: F2RunResult | None,
+    f3_result: F3RunResult | None,
+    bundle_size_kb: int | None = None,
+) -> dict[str, Any]:
+    """Assemble a QualityReport dict (CONTEXT D-28, D-29).
+
+    Returns a plain dict matching the IR ``QualityReport`` shape so it
+    serializes cleanly through ``model_dump_json(exclude_none=True)`` on
+    SSE wire. The fields ``f1_static`` / ``f2_smell`` / ``f3_agent_eval``
+    follow the ``packages/ir/python/types.py`` schema; populating them
+    from typed F1/F2/F3 dataclasses keeps the contract stable.
+    """
+    f1_passed = f1_result.passed if f1_result is not None else False
+    f2_overall = f2_result.overall_score if f2_result is not None else None
+    f3_pass_rate = f3_result.pass_rate if f3_result is not None else None
+
+    overall_score = compute_overall(
+        f1_passed=f1_passed, f2_overall=f2_overall, f3_pass_rate=f3_pass_rate
+    )
+    badge = compute_badge(f1_passed=f1_passed, f2_overall=f2_overall, f3_pass_rate=f3_pass_rate)
+
+    f1_payload: dict[str, Any] = {
+        "passed": f1_passed,
+        "ts_compile_errors": [],
+        "json_schema_errors": [],
+        "mcp_compliance_errors": [],
+        "secret_scan_findings": [],
+        "bundle_bytes": (bundle_size_kb or 0) * 1024,
+    }
+    if f1_result is not None:
+        # Surface error codes from outcomes into the IR slots.
+        for outcome in f1_result.outcomes:
+            if outcome.passed or outcome.error is None:
+                continue
+            if outcome.check_name == "ts_compile":
+                f1_payload["ts_compile_errors"].append(outcome.error)
+            elif outcome.check_name == "json_schema":
+                f1_payload["json_schema_errors"].append(outcome.error)
+            elif outcome.check_name == "mcp_compliance":
+                f1_payload["mcp_compliance_errors"].append(outcome.error)
+            elif outcome.check_name == "secret_scan":
+                f1_payload["secret_scan_findings"].append(outcome.error)
+
+    f2_payload: dict[str, Any] = {
+        "tool_scores": [],
+        "overall_average": f2_overall or 0.0,
+        "passed": f2_result.passed if f2_result is not None else False,
+    }
+    if f2_result is not None:
+        f2_payload["tool_scores"] = [
+            {
+                "tool_name": ts.tool_name,
+                "components": [{"component": c.component, "score": c.score} for c in ts.components],
+                "average": ts.average,
+            }
+            for ts in f2_result.tool_scores
+        ]
+
+    f3_payload: dict[str, Any] | None = None
+    if f3_result is not None:
+        f3_payload = {
+            "results": [
+                {
+                    "task_id": r.task_id,
+                    "passed": r.passed,
+                    "judge_task_completion": r.judge_score.task_completion,
+                    "judge_grounding": r.judge_score.grounding,
+                    "turns_used": getattr(r.trajectory, "iteration_count", 0),
+                }
+                for r in f3_result.results
+            ],
+            "pass_rate": f3_result.pass_rate,
+            "passed": f3_result.passed,
+        }
+
+    warnings: list[str] = []
+    if f2_result is not None:
+        warnings.extend(f2_result.warnings)
+    if f3_result is not None:
+        warnings.extend(f3_result.warnings)
+
+    return {
+        "spec_hash": spec_hash,
+        "f1_static": f1_payload,
+        "f2_smell": f2_payload,
+        "f3_agent_eval": f3_payload,
+        "overall_score": overall_score,
+        "quality_badge": badge,
+        "bundle_size_kb": bundle_size_kb,
+        "retry_history": [],
+        "f3_test_agent_id": None,
+        "f2_low_confidence_run": (f2_result.low_confidence_run if f2_result is not None else False),
+        "golden_task_set_origin": "hand_authored",
+        "sandbox_environment": "real",
+        "warnings": warnings,
+        "generation_time_seconds": None,
+        "total_cost_usd": None,
+    }
+
+
+async def _run_stage_f(
+    *,
+    job_id: str,
+    final_tools: list[dict[str, Any]],
+    pass_1_output: Pass1Output,
+    pass_2_output: Pass2Output,
+    raw_ir: RawIR,
+    generated_dir: Path,
+    bundle_size_kb: int,
+    spec_slug: str,
+    spec_hash: str,
+    f3_enabled: bool,
+    sandbox_credentials: dict[str, str] | None,
+    user_golden_tasks: list[dict[str, Any]] | None,
+) -> AsyncIterator[GenerationSseEvent]:
+    """Run F1 → F2 → F3 (conditional) → emit SSE events + persist QR.
+
+    NOT a generator-as-coroutine: this is a real ``AsyncIterator`` so the
+    caller can yield-from it with ``async for ... in _run_stage_f(...)``.
+
+    D-07 fail-closed: F2/F3 are skipped when F1 fails.
+    D-12 + D-17: F3 auto-triggered when F2 sigma < 0.4 OR overall < threshold.
+    """
+    # ─── F1 ─────────────────────────────────────────────────────────────────
+    yield _event(
+        job_id=job_id,
+        stage="F1",
+        status="started",
+        partial_result=None,
+        error=None,
+    )
+    sample_collection = "Default"
+    sample_id = "test_id"
+    if raw_ir.endpoints:
+        # Extract a real-ish collection name from the first endpoint path.
+        path_parts = raw_ir.endpoints[0].path.split("/")
+        for part in reversed(path_parts):
+            if part and not part.startswith("{"):
+                sample_collection = part
+                break
+    f1_result = await run_f1(
+        generated_dir=generated_dir,
+        bundle_size_kb=bundle_size_kb,
+        final_tools=final_tools,
+        mcp_protocol_version="2025-06-18",
+        pass_1_output=pass_1_output.model_dump(),
+        raw_ir=raw_ir.model_dump(),
+        pass_2_output=pass_2_output.model_dump(),
+        spec_slug=spec_slug,
+        sample_collection=sample_collection,
+        sample_id=sample_id,
+    )
+    yield _event(
+        job_id=job_id,
+        stage="F1",
+        status="completed",
+        partial_result={"f1_result": _serialize_f1(f1_result)},
+        error=None,
+    )
+
+    if not f1_result.passed:
+        # D-07 fail-closed: skip F2 + F3.
+        qr = _build_quality_report(
+            spec_hash=spec_hash,
+            f1_result=f1_result,
+            f2_result=None,
+            f3_result=None,
+            bundle_size_kb=bundle_size_kb,
+        )
+        yield _event(
+            job_id=job_id,
+            stage="validation_complete",
+            status="completed",
+            partial_result={
+                "phase": "validation_complete",
+                "quality_report": qr,
+            },
+            error=None,
+        )
+        return
+
+    # ─── F2 ─────────────────────────────────────────────────────────────────
+    yield _event(
+        job_id=job_id,
+        stage="F2",
+        status="started",
+        partial_result=None,
+        error=None,
+    )
+    from mcpgen_engine.llm.agent_factory import make_agent
+
+    f2_judge = make_agent(output_type=RubricScore, system_prompt=F2_JUDGE_PROMPT)
+    f2_result = await run_f2(
+        final_tools=final_tools,
+        judge_agent=f2_judge,
+    )
+    yield _event(
+        job_id=job_id,
+        stage="F2",
+        status="completed",
+        partial_result={"f2_result": _serialize_f2(f2_result)},
+        error=None,
+    )
+
+    # ─── F3 (conditional) ───────────────────────────────────────────────────
+    # D-12 (sigma low) OR D-17 (overall<min) OR D-35 (operator opt-in).
+    f3_should_run = f3_enabled or f2_result.low_confidence_run or not f2_result.passed
+    f3_result: F3RunResult | None = None
+    if f3_should_run:
+        yield _event(
+            job_id=job_id,
+            stage="F3",
+            status="started",
+            partial_result=None,
+            error=None,
+        )
+        try:
+            if user_golden_tasks:
+                golden_tasks_payload = list(user_golden_tasks)
+            else:
+                golden = load_golden_tasks(spec_slug, allow_auto_generated=True)
+                golden_tasks_payload = [t.model_dump() for t in golden]
+            if not golden_tasks_payload:
+                _log.info("pipeline.f3_skipped_no_tasks", job_id=job_id)
+            else:
+                f3_result = await run_f3(
+                    generated_dir=generated_dir,
+                    final_tools=final_tools,
+                    golden_tasks=golden_tasks_payload,
+                    sandbox_credentials=sandbox_credentials,
+                )
+        except (FileNotFoundError, ValidationError) as exc:
+            # Known recoverable F3 input errors: missing fixture / malformed golden task.
+            # F3 is skipped, pipeline continues with f3_result=None. Anything else
+            # (RuntimeError from spawn_server, OSError, AssertionError, network errors)
+            # propagates up so the operator sees `failed` instead of silent f3_result=None.
+            _log.warning(
+                "pipeline.f3_unavailable",
+                job_id=job_id,
+                error_class=type(exc).__name__,
+                error=str(exc),
+            )
+        yield _event(
+            job_id=job_id,
+            stage="F3",
+            status="completed",
+            partial_result={"f3_result": _serialize_f3(f3_result)},
+            error=None,
+        )
+
+    # ─── validation_complete (terminal) ─────────────────────────────────────
+    qr = _build_quality_report(
+        spec_hash=spec_hash,
+        f1_result=f1_result,
+        f2_result=f2_result,
+        f3_result=f3_result,
+        bundle_size_kb=bundle_size_kb,
+    )
+    yield _event(
+        job_id=job_id,
+        stage="validation_complete",
+        status="completed",
+        partial_result={
+            "phase": "validation_complete",
+            "quality_report": qr,
+        },
+        error=None,
+    )
 
 
 # ─────────────────────────── Public orchestrator ───────────────────────────
@@ -248,6 +609,10 @@ async def run_pipeline(
     spec_content: str | None,
     options: UserOptions,
     job_id: str,
+    f3_enabled: bool = False,
+    sandbox_credentials: dict[str, str] | None = None,
+    user_golden_tasks: list[dict[str, Any]] | None = None,
+    record_quality_report: Callable[[str, dict[str, Any]], None] | None = None,
 ) -> AsyncIterator[GenerationSseEvent]:
     """Phase-4 pipeline: Stage A → Pass 0..5 → Stage E.
 
@@ -469,14 +834,39 @@ async def run_pipeline(
                 error=None,
             )
 
-            # Terminal ────────────────────────────────────────────────────
-            yield _event(
+            # Phase 5 D-31: even on L1 hit we run F1/F2/F3 (F1 is cheap;
+            # F2 hits L2 cache; F3 only triggers if explicitly opted into
+            # OR if F2 force-triggers per D-12 / D-17). Terminal becomes
+            # `validation_complete:completed` (replacing the old
+            # `completed:completed phase=shape_codegen_complete`).
+            spec_slug_warm = _derive_spec_slug(pass_1_cached)
+            final_tools_payload_warm = [
+                t.model_dump(mode="json", by_alias=True) for t in pass_5_cached.tools
+            ]
+            async for ev in _run_stage_f(
                 job_id=job_id,
-                stage="completed",
-                status="completed",
-                partial_result={"phase": "shape_codegen_complete", **cache_marker},
-                error=None,
-            )
+                final_tools=final_tools_payload_warm,
+                pass_1_output=pass_1_cached,
+                pass_2_output=pass_2_cached,
+                raw_ir=raw_ir,
+                generated_dir=resolve_output_dir(job_id),
+                bundle_size_kb=int(stage_e_manifest_cached.bundle_size_kb),
+                spec_slug=spec_slug_warm,
+                spec_hash=raw_ir.spec_hash,
+                f3_enabled=f3_enabled,
+                sandbox_credentials=sandbox_credentials,
+                user_golden_tasks=user_golden_tasks,
+            ):
+                if (
+                    ev.stage == "validation_complete"
+                    and ev.status == "completed"
+                    and ev.partial_result is not None
+                    and record_quality_report is not None
+                ):
+                    qr = ev.partial_result.get("quality_report")
+                    if isinstance(qr, dict):
+                        record_quality_report(job_id, cast(dict[str, Any], qr))
+                yield ev
             return
 
         # Cache miss: continue cold pipeline.
@@ -689,13 +1079,38 @@ async def run_pipeline(
             cache_key_prefix=cache_key[:16],
         )
 
-        yield _event(
+        # Phase 5 D-31: chain F1 → F2 → F3 (conditional) → validation_complete.
+        # The terminal `validation_complete:completed` carries the full
+        # QualityReport in partial_result. F1 fail-closed (D-07) skips F2/F3.
+        final_tools_payload = [
+            t.model_dump(mode="json", by_alias=True) for t in pass_5_output.tools
+        ]
+        async for ev in _run_stage_f(
             job_id=job_id,
-            stage="completed",
-            status="completed",
-            partial_result={"phase": "shape_codegen_complete"},
-            error=None,
-        )
+            final_tools=final_tools_payload,
+            pass_1_output=pass_1_output,
+            pass_2_output=pass_2_output,
+            raw_ir=raw_ir,
+            generated_dir=resolve_output_dir(job_id),
+            bundle_size_kb=int(stage_e_manifest.bundle_size_kb),
+            spec_slug=spec_slug,
+            spec_hash=raw_ir.spec_hash,
+            f3_enabled=f3_enabled,
+            sandbox_credentials=sandbox_credentials,
+            user_golden_tasks=user_golden_tasks,
+        ):
+            # Capture the QualityReport from the terminal event so the API
+            # handler can persist it to _JOB_TABLE for GET /quality-report.
+            if (
+                ev.stage == "validation_complete"
+                and ev.status == "completed"
+                and ev.partial_result is not None
+                and record_quality_report is not None
+            ):
+                qr = ev.partial_result.get("quality_report")
+                if isinstance(qr, dict):
+                    record_quality_report(job_id, cast(dict[str, Any], qr))
+            yield ev
 
     except (
         StageAError,

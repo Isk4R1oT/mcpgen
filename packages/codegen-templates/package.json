@@ -4,6 +4,12 @@
   "private": true,
   "description": "Jinja2 templates + hoisted node_modules for Stage E codegen.",
   "type": "module",
+  "scripts": {
+    "gitleaks:check": "command -v gitleaks > /dev/null 2>&1 || (echo 'ERROR: gitleaks not installed. Install: brew install gitleaks (macOS) or see https://github.com/gitleaks/gitleaks#installing — pinned to >=8.30.0 per Phase 5 D-05 step 9.' && exit 1)"
+  },
+  "engines": {
+    "gitleaks": ">=8.30.0"
+  },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.3.6",

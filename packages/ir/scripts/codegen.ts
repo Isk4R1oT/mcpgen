@@ -54,7 +54,12 @@ function emitJsonSchema(outFile: string): string[] {
 
   for (const [name, value] of Object.entries(IR)) {
     if (!isZodSchema(value)) continue;
-    const json = z.toJSONSchema(value, { target: 'draft-2020-12' });
+    // io: 'input' so that Zod `.default(...)` fields are NOT in `required[]`
+    // (Pydantic codegen will then emit them as optional with a default value).
+    // This is the additive-contract enabler for Phase 5 D-29 (RetryRound /
+    // GoldenTask / new QualityReport fields) — without it, datamodel-codegen
+    // marks defaulted fields as required and pre-Phase-5 fixtures break.
+    const json = z.toJSONSchema(value, { target: 'draft-2020-12', io: 'input' });
     // Keep the title so datamodel-codegen picks it up as the class name.
     defs[name] = { title: name, ...(json as Record<string, unknown>) };
     exportedNames.push(name);
@@ -92,6 +97,11 @@ function runDatamodelCodegen(inputDir: string, outputFile: string): void {
     '3.12',
     '--use-schema-description',
     '--use-title-as-name',
+    // Coerce JSON-Schema string `default` values into actual Enum members
+    // (Phase 5 D-29 requirement: QualityReport.golden_task_set_origin default
+    // serializes cleanly via `model_dump()` without PydanticSerializationUnexpectedValue
+    // warnings when `filterwarnings=error` is set).
+    '--set-default-enum-member',
     // Determinism: omit the timestamp header so `codegen:check` can byte-compare.
     '--disable-timestamp',
   ];

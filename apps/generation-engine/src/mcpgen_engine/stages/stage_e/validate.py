@@ -84,7 +84,7 @@ class StageETsError(StageEError):
     do NOT auto-fix tsc errors — surface to the planner / human investigator.
     """
 
-    def __init__(self: StageETsError, errors: list[str]) -> None:
+    def __init__(self, errors: list[str]) -> None:
         self.errors: list[str] = list(errors)[:50]
         super().__init__(
             f"STAGE_E_TS_ERROR: tsc --noEmit failed with {len(errors)} error "
@@ -101,11 +101,7 @@ class StageEBundleTooLargeError(StageEError):
     ``MULTI_SERVER_SPLIT_REQUIRED`` in the user-facing message.
     """
 
-    def __init__(
-        self: StageEBundleTooLargeError,
-        size_kb: float,
-        suggested_splits: list[str],
-    ) -> None:
+    def __init__(self, size_kb: float, suggested_splits: list[str]) -> None:
         self.size_kb: float = size_kb
         self.suggested_splits: list[str] = list(suggested_splits)
         super().__init__(

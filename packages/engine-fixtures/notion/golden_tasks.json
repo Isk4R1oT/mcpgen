@@ -1,0 +1,82 @@
+[
+  {
+    "task_id": "notion.simple_read.search_pages_by_keyword",
+    "prompt": "Find all Notion pages whose title contains 'Roadmap'. Use a single search call.",
+    "expected_outcome": "search returns a non-empty list of page objects with 'Roadmap' in the title.",
+    "expected_sequence": ["search"],
+    "expected_errors": null,
+    "max_iterations": 3
+  },
+  {
+    "task_id": "notion.simple_write.create_page_in_database",
+    "prompt": "Create a new page in database db_test_tasks_001 with property Name='Smoke Test Task' and Status='Todo'.",
+    "expected_outcome": "upsert returns a Page object with parent.database_id=db_test_tasks_001 and the requested properties set.",
+    "expected_sequence": ["upsert"],
+    "expected_errors": null,
+    "max_iterations": 4
+  },
+  {
+    "task_id": "notion.multi_step_read.discover_then_query",
+    "prompt": "Use list_collections to discover what kinds of resources this Notion workspace exposes, then list 3 databases via list_objects.",
+    "expected_outcome": "list_collections includes a 'database' or 'page' collection; list_objects then returns up to 3 database objects.",
+    "expected_sequence": ["list_collections", "list_objects"],
+    "expected_errors": null,
+    "max_iterations": 5
+  },
+  {
+    "task_id": "notion.filter_usage.query_database_by_status",
+    "prompt": "List up to 10 pages in database db_test_tasks_001 where Status='In progress'.",
+    "expected_outcome": "list_objects returns Page objects whose Status property equals 'In progress'; result count <= 10.",
+    "expected_sequence": ["list_objects"],
+    "expected_errors": null,
+    "max_iterations": 4
+  },
+  {
+    "task_id": "notion.pagination.full_database_dump",
+    "prompt": "List every page in database db_test_pagination_001. Use cursor-based pagination; stop after 5 pages.",
+    "expected_outcome": "list_objects called multiple times with cursor advancing each time; agent stops at page 5 if not exhausted.",
+    "expected_sequence": ["list_objects", "list_objects"],
+    "expected_errors": null,
+    "max_iterations": 7
+  },
+  {
+    "task_id": "notion.error_recovery.fetch_invalid_page_id",
+    "prompt": "Fetch the page with smart ID 'notion:object:Page:invalid_id_xxx'. If it does not exist, surface the 404 and stop.",
+    "expected_outcome": "fetch surfaces a 'page not found' error; agent reports it without retrying or calling other tools.",
+    "expected_sequence": ["fetch"],
+    "expected_errors": ["object_not_found", "validation_error"],
+    "max_iterations": 2
+  },
+  {
+    "task_id": "notion.workflow.create_then_fetch_to_verify",
+    "prompt": "Create a new page in database db_test_tasks_001 named 'Verification Task', then fetch it back by smart ID to confirm it persisted.",
+    "expected_outcome": "upsert returns a new page; fetch on the returned smart ID returns the same page with title='Verification Task'.",
+    "expected_sequence": ["upsert", "fetch"],
+    "expected_errors": null,
+    "max_iterations": 5
+  },
+  {
+    "task_id": "notion.cross_tool_reasoning.find_then_archive",
+    "prompt": "Find the oldest page in database db_test_tasks_001, then archive it (set archived=true via upsert).",
+    "expected_outcome": "list_objects returns pages sorted by created_time asc; agent picks the first; upsert with archived=true succeeds and returns the archived Page.",
+    "expected_sequence": ["list_objects", "upsert"],
+    "expected_errors": null,
+    "max_iterations": 5
+  },
+  {
+    "task_id": "notion.edge_case.delete_archived_page",
+    "prompt": "Delete page 'notion:object:Page:archived_test_001'. If it is already archived/trashed, surface that and stop.",
+    "expected_outcome": "delete returns success or 'already deleted'; the agent does not loop.",
+    "expected_sequence": ["delete"],
+    "expected_errors": null,
+    "max_iterations": 3
+  },
+  {
+    "task_id": "notion.authentication.search_with_invalid_token",
+    "prompt": "Search for pages titled 'Test'. If credentials are missing or invalid, surface 401 and stop.",
+    "expected_outcome": "search returns results OR a 401 'invalid_token' error; agent does not call further tools after 401.",
+    "expected_sequence": ["search"],
+    "expected_errors": ["unauthorized", "401"],
+    "max_iterations": 2
+  }
+]

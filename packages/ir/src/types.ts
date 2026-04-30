@@ -368,6 +368,33 @@ export const CompleteServerSpec = z.object({
 export type CompleteServerSpec = z.infer<typeof CompleteServerSpec>;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Phase 5 — GoldenTask + RetryRound (Stage F support types — D-29)
+// `GoldenTask` is the golden-task fixture shape consumed by F3 agent eval.
+// `RetryRound` is the per-round retry orchestration trace embedded in
+// `QualityReport.retry_history` (Phase 5 D-29).
+// Both are Phase 5 NEW types — strictly-additive.
+// ─────────────────────────────────────────────────────────────────────────────
+export const GoldenTask = z.object({
+  task_id: z.string().min(1),
+  prompt: z.string().min(1),
+  expected_outcome: z.string().min(1),
+  expected_sequence: z.array(z.string()).nullable().default(null),
+  expected_errors: z.array(z.string()).nullable().default(null),
+  max_iterations: z.number().int().min(1).default(10),
+});
+export type GoldenTask = z.infer<typeof GoldenTask>;
+
+export const RetryRound = z.object({
+  round_number: z.number().int().min(1),
+  triggered_by: z.string().min(1),
+  retry_target: z.string().min(1),
+  outcome: z.enum(['retried', 'skipped_budget', 'success', 'failed']),
+  cost_usd: z.number(),
+  duration_s: z.number(),
+});
+export type RetryRound = z.infer<typeof RetryRound>;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Stage F — QualityReport (F1 / F2 / F3 + per-tool scores + overall + badge)
 // ─────────────────────────────────────────────────────────────────────────────
 export const QualityBadge = z.enum(['premium', 'verified', 'standard', 'needs_review']);
@@ -440,5 +467,15 @@ export const QualityReport = z.object({
   quality_badge: QualityBadge,
   bundle_size_kb: z.number().int().nonnegative().nullable().optional(),
   pipeline_versions: z.record(z.string(), z.string()).nullable().optional(),
+  // Phase 5 D-29 — strictly-additive fields (all default-provided, none required).
+  // Pre-Phase-5 fixtures continue to validate without supplying any of these.
+  retry_history: z.array(RetryRound).default([]),
+  f3_test_agent_id: z.string().nullable().default(null),
+  f2_low_confidence_run: z.boolean().default(false),
+  golden_task_set_origin: z.enum(['hand_authored', 'auto_generated']).default('hand_authored'),
+  sandbox_environment: z.enum(['real', 'mocked', 'hybrid']).default('real'),
+  warnings: z.array(z.string()).default([]),
+  generation_time_seconds: z.number().nullable().default(null),
+  total_cost_usd: z.number().nullable().default(null),
 });
 export type QualityReport = z.infer<typeof QualityReport>;

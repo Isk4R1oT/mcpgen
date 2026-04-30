@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import AnyUrl, BaseModel, ConfigDict, Field, confloat, conint, constr
+from pydantic import AnyUrl, BaseModel, Field, confloat, conint, constr
 
 
 class FieldMcpgenIrRoot(BaseModel):
@@ -30,18 +30,12 @@ class RecommendedMode(Enum):
 
 
 class AuthRequirement(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     scheme: Scheme
     recommended_mode: RecommendedMode
     notes: Optional[str] = None
 
 
 class Descriptions(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     purpose: constr(min_length=20)
     when_to_use: List[str] = Field(..., min_length=1)
     when_not_to_use: Optional[List[str]] = None
@@ -52,16 +46,10 @@ class Descriptions(BaseModel):
 
 
 class AuthoredTools(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     descriptions: Dict[str, Descriptions]
 
 
 class SmartId(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     format: str
     types: List[str]
     collections: List[str]
@@ -77,18 +65,12 @@ class UniversalTool(Enum):
 
 
 class Rule(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     universal_tool: UniversalTool
     target_endpoint: str
     params_mapping: Dict[str, str]
 
 
 class Routing(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     smart_id: SmartId
     rules: List[Rule]
 
@@ -101,9 +83,6 @@ class Type(Enum):
 
 
 class Description(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     purpose: constr(min_length=20)
     when_to_use: List[str] = Field(..., min_length=1)
     when_not_to_use: Optional[List[str]] = None
@@ -114,9 +93,6 @@ class Description(BaseModel):
 
 
 class Annotations(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     readOnlyHint: bool
     destructiveHint: bool
     idempotentHint: bool
@@ -131,35 +107,23 @@ class Style(Enum):
 
 
 class Pagination(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     style: Style
     default_limit: conint(le=9007199254740991, gt=0)
     max_limit: conint(le=9007199254740991, gt=0)
 
 
 class FieldFiltering(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     always_include: List[str]
     opt_in: List[str]
     always_exclude: List[str]
 
 
 class Truncation(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     threshold_tokens: conint(le=9007199254740991, gt=0)
     guidance_template: str
 
 
 class ResponseConfig(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     pagination: Optional[Pagination] = None
     field_filtering: Optional[FieldFiltering] = None
     truncation: Truncation
@@ -167,9 +131,6 @@ class ResponseConfig(BaseModel):
 
 
 class Tool(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     type: Type
     description: Description
@@ -181,9 +142,6 @@ class Tool(BaseModel):
 
 
 class Step(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     endpoint: str
     description: str
 
@@ -195,18 +153,12 @@ class PartialFailureStrategy(Enum):
 
 
 class Workflow(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     steps: List[Step] = Field(..., max_length=5, min_length=2)
     partial_failure_strategy: PartialFailureStrategy
 
 
 class CompleteServerSpec(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     server_name: str
     spec_hash: constr(pattern=r"^[a-f0-9]{64}$")
     routing: Routing
@@ -215,27 +167,18 @@ class CompleteServerSpec(BaseModel):
 
 
 class CompositeCandidate(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: str
     steps: List[str] = Field(..., max_length=5, min_length=2)
     rationale: str
 
 
 class SampleInvocation(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     url: AnyUrl
     method: str
     params: Dict[str, Any]
 
 
 class CoverageProof(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     endpoint_id: str
     mapped_to_universal_tool: str
     sample_invocation: SampleInvocation
@@ -268,9 +211,6 @@ class Reason(Enum):
 
 
 class DroppedEndpoint(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     method: str
     path: str
     reason: Reason
@@ -278,9 +218,6 @@ class DroppedEndpoint(BaseModel):
 
 
 class F1StaticReport(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     passed: bool
     ts_compile_errors: List[str]
     json_schema_errors: List[str]
@@ -299,26 +236,17 @@ class Component1(Enum):
 
 
 class Component(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     component: Component1
     score: confloat(ge=0.0, le=5.0)
 
 
 class ToolScore(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     tool_name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     components: List[Component]
     average: confloat(ge=0.0, le=5.0)
 
 
 class F2SmellReport(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     tool_scores: List[ToolScore]
     overall_average: confloat(ge=0.0, le=5.0)
     passed: bool
@@ -334,26 +262,17 @@ class Component3(Enum):
 
 
 class Component2(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     component: Component3
     score: confloat(ge=0.0, le=5.0)
 
 
 class F2ToolSmellScore(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     tool_name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     components: List[Component2]
     average: confloat(ge=0.0, le=5.0)
 
 
 class Result(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     task_id: str
     passed: bool
     judge_task_completion: confloat(ge=0.0, le=10.0)
@@ -362,18 +281,12 @@ class Result(BaseModel):
 
 
 class F3AgentEvalReport(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     results: List[Result]
     pass_rate: confloat(ge=0.0, le=1.0)
     passed: bool
 
 
 class F3GoldenTaskResult(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     task_id: str
     passed: bool
     judge_task_completion: confloat(ge=0.0, le=10.0)
@@ -382,27 +295,18 @@ class F3GoldenTaskResult(BaseModel):
 
 
 class FieldFilteringConfig(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     always_include: List[str]
     opt_in: List[str]
     always_exclude: List[str]
 
 
 class Pagination1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     style: Style
     default_limit: conint(le=9007199254740991, gt=0)
     max_limit: conint(le=9007199254740991, gt=0)
 
 
 class ResponseConfig1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     pagination: Optional[Pagination1] = None
     field_filtering: Optional[FieldFiltering] = None
     truncation: Truncation
@@ -410,9 +314,6 @@ class ResponseConfig1(BaseModel):
 
 
 class FinalTool(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     type: Type
     description: Description
@@ -423,10 +324,16 @@ class FinalTool(BaseModel):
     source_endpoints: List[str]
 
 
+class GoldenTask(BaseModel):
+    task_id: constr(min_length=1)
+    prompt: constr(min_length=1)
+    expected_outcome: constr(min_length=1)
+    expected_sequence: Optional[List[str]] = None
+    expected_errors: Optional[List[str]] = None
+    max_iterations: Optional[conint(ge=1, le=9007199254740991)] = 10
+
+
 class PaginationConfig(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     style: Style
     default_limit: conint(le=9007199254740991, gt=0)
     max_limit: conint(le=9007199254740991, gt=0)
@@ -441,9 +348,6 @@ class Category(Enum):
 
 
 class ToolPlan(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     category: Category
     source_endpoints: List[str] = Field(..., min_length=1)
@@ -451,9 +355,6 @@ class ToolPlan(BaseModel):
 
 
 class DroppedEndpoint1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     method: str
     path: str
     reason: Reason
@@ -461,9 +362,6 @@ class DroppedEndpoint1(BaseModel):
 
 
 class AuthRequirement1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     scheme: Scheme
     recommended_mode: RecommendedMode
     notes: Optional[str] = None
@@ -476,9 +374,6 @@ class TargetComplexity(Enum):
 
 
 class Pass0Output(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     tool_plans: List[ToolPlan]
     dropped_endpoints: List[DroppedEndpoint1]
     composite_candidates: List[CompositeCandidate]
@@ -488,53 +383,35 @@ class Pass0Output(BaseModel):
 
 
 class Tool1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     type: Type
     source_endpoints: List[str]
 
 
 class Rule1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     universal_tool: UniversalTool
     target_endpoint: str
     params_mapping: Dict[str, str]
 
 
 class Routing1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     smart_id: SmartId
     rules: List[Rule1]
 
 
 class Workflow1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     steps: List[Step] = Field(..., max_length=5, min_length=2)
     partial_failure_strategy: PartialFailureStrategy
 
 
 class CoverageProofItem(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     endpoint_id: str
     mapped_to_universal_tool: str
     sample_invocation: SampleInvocation
 
 
 class Pass1Output(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     tools: List[Tool1]
     routing: Routing1
     workflows: List[Workflow1]
@@ -543,40 +420,25 @@ class Pass1Output(BaseModel):
 
 
 class Pass2Output(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     descriptions: Dict[str, Descriptions]
 
 
 class Pass3Output(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     input_schemas: Dict[str, Dict[str, Any]]
 
 
 class Pass4Output(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     annotations: Dict[str, Annotations]
     titles: Dict[str, str]
 
 
 class Pagination2(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     style: Style
     default_limit: conint(le=9007199254740991, gt=0)
     max_limit: conint(le=9007199254740991, gt=0)
 
 
 class ResponseConfig2(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     pagination: Optional[Pagination2] = None
     field_filtering: Optional[FieldFiltering] = None
     truncation: Truncation
@@ -584,9 +446,6 @@ class ResponseConfig2(BaseModel):
 
 
 class Tool2(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     type: Type
     description: Description
@@ -598,9 +457,6 @@ class Tool2(BaseModel):
 
 
 class Pass5Output(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     tools: List[Tool2]
     flags: Optional[Dict[str, Any]] = None
 
@@ -613,9 +469,6 @@ class QualityBadge(Enum):
 
 
 class F1Static(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     passed: bool
     ts_compile_errors: List[str]
     json_schema_errors: List[str]
@@ -634,44 +487,56 @@ class Component5(Enum):
 
 
 class Component4(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     component: Component5
     score: confloat(ge=0.0, le=5.0)
 
 
 class ToolScore1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     tool_name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     components: List[Component4]
     average: confloat(ge=0.0, le=5.0)
 
 
 class F2Smell(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     tool_scores: List[ToolScore1]
     overall_average: confloat(ge=0.0, le=5.0)
     passed: bool
 
 
 class F3AgentEval(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     results: List[Result]
     pass_rate: confloat(ge=0.0, le=1.0)
     passed: bool
 
 
+class Outcome(Enum):
+    retried = "retried"
+    skipped_budget = "skipped_budget"
+    success = "success"
+    failed = "failed"
+
+
+class RetryHistoryItem(BaseModel):
+    round_number: conint(ge=1, le=9007199254740991)
+    triggered_by: constr(min_length=1)
+    retry_target: constr(min_length=1)
+    outcome: Outcome
+    cost_usd: float
+    duration_s: float
+
+
+class GoldenTaskSetOrigin(Enum):
+    hand_authored = "hand_authored"
+    auto_generated = "auto_generated"
+
+
+class SandboxEnvironment(Enum):
+    real = "real"
+    mocked = "mocked"
+    hybrid = "hybrid"
+
+
 class QualityReport(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     spec_hash: constr(pattern=r"^[a-f0-9]{64}$")
     f1_static: F1Static
     f2_smell: F2Smell
@@ -680,6 +545,16 @@ class QualityReport(BaseModel):
     quality_badge: QualityBadge
     bundle_size_kb: Optional[conint(ge=0, le=9007199254740991)] = None
     pipeline_versions: Optional[Dict[str, str]] = None
+    retry_history: Optional[List[RetryHistoryItem]] = []
+    f3_test_agent_id: Optional[str] = None
+    f2_low_confidence_run: Optional[bool] = False
+    golden_task_set_origin: Optional[GoldenTaskSetOrigin] = (
+        GoldenTaskSetOrigin.hand_authored
+    )
+    sandbox_environment: Optional[SandboxEnvironment] = SandboxEnvironment.real
+    warnings: Optional[List[str]] = []
+    generation_time_seconds: Optional[float] = None
+    total_cost_usd: Optional[float] = None
 
 
 class Method(Enum):
@@ -693,9 +568,6 @@ class Method(Enum):
 
 
 class RawEndpoint(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     method: Method
     path: str
     operation_id: Optional[str] = None
@@ -716,9 +588,6 @@ class SpecFormat(Enum):
 
 
 class Endpoint(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     method: Method
     path: str
     operation_id: Optional[str] = None
@@ -746,9 +615,6 @@ class In(Enum):
 
 
 class SecuritySchemes(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     type: Type4
     scheme: Optional[str] = None
     in_: Optional[In] = Field(..., alias="in")
@@ -757,9 +623,6 @@ class SecuritySchemes(BaseModel):
 
 
 class RawIR(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     spec_format: SpecFormat
     spec_hash: constr(pattern=r"^[a-f0-9]{64}$")
     endpoints: List[Endpoint]
@@ -769,45 +632,39 @@ class RawIR(BaseModel):
 
 
 class Pagination3(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     style: Style
     default_limit: conint(le=9007199254740991, gt=0)
     max_limit: conint(le=9007199254740991, gt=0)
 
 
 class ResponseConfig3(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     pagination: Optional[Pagination3] = None
     field_filtering: Optional[FieldFiltering] = None
     truncation: Truncation
     has_response_format_param: bool
 
 
+class RetryRound(BaseModel):
+    round_number: conint(ge=1, le=9007199254740991)
+    triggered_by: constr(min_length=1)
+    retry_target: constr(min_length=1)
+    outcome: Outcome
+    cost_usd: float
+    duration_s: float
+
+
 class Rule2(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     universal_tool: UniversalTool
     target_endpoint: str
     params_mapping: Dict[str, str]
 
 
 class RoutingConfig(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     smart_id: SmartId
     rules: List[Rule2]
 
 
 class RoutingRule(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     universal_tool: UniversalTool
     target_endpoint: str
     params_mapping: Dict[str, str]
@@ -823,17 +680,11 @@ class Component6(Enum):
 
 
 class RubricComponentScore(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     component: Component6
     score: confloat(ge=0.0, le=5.0)
 
 
 class SecurityScheme(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     type: Type4
     scheme: Optional[str] = None
     in_: Optional[In] = Field(..., alias="in")
@@ -842,18 +693,12 @@ class SecurityScheme(BaseModel):
 
 
 class SmartIdSchema(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     format: str
     types: List[str]
     collections: List[str]
 
 
 class StageEFileEntry(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     relative_path: str
     sha256_content_hash: constr(pattern=r"^[a-f0-9]{64}$")
     render_template: str
@@ -861,9 +706,6 @@ class StageEFileEntry(BaseModel):
 
 
 class File(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     relative_path: str
     sha256_content_hash: constr(pattern=r"^[a-f0-9]{64}$")
     render_template: str
@@ -871,21 +713,15 @@ class File(BaseModel):
 
 
 class StageEManifest(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     files: List[File]
     bundle_size_kb: confloat(ge=0.0)
     ts_compile_passed: bool
-    ts_compile_warning_count: conint(ge=0, le=9007199254740991)
+    ts_compile_warning_count: Optional[conint(ge=0, le=9007199254740991)] = 0
     template_version: str
     generated_at: datetime
 
 
 class ToolAnnotations(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     readOnlyHint: bool
     destructiveHint: bool
     idempotentHint: bool
@@ -893,9 +729,6 @@ class ToolAnnotations(BaseModel):
 
 
 class ToolDescription(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     purpose: constr(min_length=20)
     when_to_use: List[str] = Field(..., min_length=1)
     when_not_to_use: Optional[List[str]] = None
@@ -906,9 +739,6 @@ class ToolDescription(BaseModel):
 
 
 class ToolPlan1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     category: Category
     source_endpoints: List[str] = Field(..., min_length=1)
@@ -923,53 +753,35 @@ class Type6(Enum):
 
 
 class Tool3(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     type: Type6
     source_endpoints: List[str]
 
 
 class Rule3(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     universal_tool: UniversalTool
     target_endpoint: str
     params_mapping: Dict[str, str]
 
 
 class Routing2(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     smart_id: SmartId
     rules: List[Rule3]
 
 
 class Workflow2(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     steps: List[Step] = Field(..., max_length=5, min_length=2)
     partial_failure_strategy: PartialFailureStrategy
 
 
 class CoverageProofItem1(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     endpoint_id: str
     mapped_to_universal_tool: str
     sample_invocation: SampleInvocation
 
 
 class ToolTaxonomy(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     tools: List[Tool3]
     routing: Routing2
     workflows: List[Workflow2]
@@ -978,34 +790,22 @@ class ToolTaxonomy(BaseModel):
 
 
 class ToolTaxonomyEntry(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     type: Type6
     source_endpoints: List[str]
 
 
 class TruncationConfig(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     threshold_tokens: conint(le=9007199254740991, gt=0)
     guidance_template: str
 
 
 class WorkflowDef(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: constr(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     steps: List[Step] = Field(..., max_length=5, min_length=2)
     partial_failure_strategy: PartialFailureStrategy
 
 
 class WorkflowStep(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     endpoint: str
     description: str

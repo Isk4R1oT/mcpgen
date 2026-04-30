@@ -33,13 +33,6 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
     && cp /root/.local/bin/uv /usr/local/bin/uv \
     && uv --version
 
-# Install gitleaks (F1 dep - Phase 5).
-RUN curl -L "https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz" \
-        -o /tmp/gl.tgz \
-    && tar -xzf /tmp/gl.tgz -C /usr/local/bin gitleaks \
-    && rm /tmp/gl.tgz \
-    && gitleaks version
-
 WORKDIR /app
 
 # Copy the Python workspace dep first so its layer can be cached separately.
@@ -64,7 +57,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH"
 
 COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /usr/local/bin/gitleaks /usr/local/bin/gitleaks
+
+# Install gitleaks 8.30.1 binary (F1 secret_scan dep — Phase 5 D-05 step 9).
+# Multi-stage COPY from the official zricethezav/gitleaks image keeps a single source of truth
+# for the pinned version. Bump in lock-step with packages/codegen-templates/package.json
+# `engines.gitleaks` and the .pre-commit-config.yaml `gitleaks` repo rev.
+COPY --from=zricethezav/gitleaks:v8.30.1 /usr/bin/gitleaks /usr/local/bin/gitleaks
+
 COPY apps/generation-engine/src /app/src
 
 WORKDIR /app

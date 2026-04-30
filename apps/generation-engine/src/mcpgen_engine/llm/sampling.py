@@ -114,3 +114,59 @@ INLINE_GATE_SETTINGS: ModelSettings = ModelSettings(
     max_tokens=512,
     extra_body=_PROVIDER_ROUTING,
 )
+
+# ─── Phase 5 D-03: F2 + F3 sampling profiles ──────────────────────────────────
+# F2 judge runs the same prompt at THREE temperatures x FIVE shuffles = 15
+# evaluations per tool (mcpgen-model-and-provider-override.md §4 — multi-judge
+# replacement strategy). The three concrete settings ship as separate constants
+# so each shuffle slot gets a deterministic L2 cache key per Phase 5 D-32.
+#
+# F3 LLM judge stays on Qwen3-Coder via `make_agent` (Override doc §0).
+# F3 TEST AGENT is the documented exception — it uses real Anthropic Sonnet
+# via a separate AsyncAnthropic client in `llm/test_agent.py` (Override doc §7.3).
+# Two distinct roles: test AGENT (Sonnet — simulates real Cursor/Claude Desktop
+# user) vs. LLM JUDGE (Qwen — evaluates the agent's trajectory).
+
+# F2 judge — temperature 0.0 / 0.2 / 0.5 across 3 shuffle slots.
+# All three share the SAME `_PROVIDER_ROUTING` reference (Pitfall #2 invariant).
+F2_JUDGE_SETTINGS_T00: ModelSettings = ModelSettings(
+    temperature=0.0,
+    top_p=0.9,
+    max_tokens=2048,
+    extra_body=_PROVIDER_ROUTING,
+)
+
+F2_JUDGE_SETTINGS_T02: ModelSettings = ModelSettings(
+    temperature=0.2,
+    top_p=0.9,
+    max_tokens=2048,
+    extra_body=_PROVIDER_ROUTING,
+)
+
+F2_JUDGE_SETTINGS_T05: ModelSettings = ModelSettings(
+    temperature=0.5,
+    top_p=0.9,
+    max_tokens=2048,
+    extra_body=_PROVIDER_ROUTING,
+)
+
+# F3 LLM judge — single deterministic Qwen call per task per metric
+# (task_completion / tool_usage / planning / grounding). Higher determinism
+# maximises reproducibility of the LLM-judge tier.
+F3_JUDGE_SETTINGS: ModelSettings = ModelSettings(
+    temperature=0.0,
+    top_p=1.0,
+    max_tokens=1024,
+    extra_body=_PROVIDER_ROUTING,
+)
+
+# F3 TEST AGENT — Anthropic-side dict (NOT pydantic_ai.ModelSettings). The
+# Anthropic API rejects `extra_body` so this constant intentionally lacks it.
+# Higher temperature simulates real-user agent behavior (creativity in tool
+# selection). See `mcpgen_engine/llm/test_agent.py` for the AsyncAnthropic
+# client + Sonnet model id pin.
+F3_TEST_AGENT_SETTINGS: dict[str, object] = {
+    "temperature": 0.7,
+    "top_p": 1.0,
+    "max_tokens": 4096,
+}

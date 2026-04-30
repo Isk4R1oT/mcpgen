@@ -66,6 +66,40 @@ def _isolated_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     clear_l2()
 
 
+@pytest.fixture(autouse=True)
+def _stub_stage_f(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 5 D-31: F1 deterministic-pass; F2 sigma=0.6 (no F3 auto-trigger)."""
+    from unittest.mock import AsyncMock
+
+    from mcpgen_engine.stages.stage_f.f1_static import F1CheckOutcome, F1RunResult
+    from mcpgen_engine.stages.stage_f.f2_smell import F2RunResult
+
+    f1_pass = F1RunResult(
+        passed=True,
+        outcomes=[
+            F1CheckOutcome(
+                check_name="bundle_size",
+                passed=True,
+                error=None,
+                retry_target=None,
+                details={"kb": 0},
+            )
+        ],
+        first_failure=None,
+        subprocess_checks_pending=False,
+    )
+    f2_pass = F2RunResult(
+        tool_scores=[],
+        overall_score=4.5,
+        sigma=0.6,
+        passed=True,
+        low_confidence_run=False,
+        warnings=[],
+    )
+    monkeypatch.setattr(pipeline_module, "run_f1", AsyncMock(return_value=f1_pass))
+    monkeypatch.setattr(pipeline_module, "run_f2", AsyncMock(return_value=f2_pass))
+
+
 def _build_options() -> UserOptions:
     return UserOptions(
         target_complexity="standard",
@@ -268,31 +302,37 @@ async def test_warm_run_zero_qwen_calls(monkeypatch: pytest.MonkeyPatch) -> None
         "stage_e": 0,
     }, f"GEN-12 violation: warm run invoked stages {delta}"
 
-    # Warm-run terminal carries cache=l1_hit AND shape_codegen_complete.
+    # Phase 5 D-31: terminal becomes ``validation_complete:completed``.
+    # The L1 warm-path's intermediate Phase-4 events still carry
+    # cache=l1_hit; F1/F2/validation_complete run fresh (D-32: F1/F3 not
+    # cached, F2 hits L2 separately).
     final = warm_events[-1]
-    assert final.stage == "completed"
+    assert final.stage == "validation_complete"
     assert final.partial_result is not None
-    assert final.partial_result.get("cache") == "l1_hit"
-    assert final.partial_result.get("phase") == "shape_codegen_complete"
+    assert final.partial_result.get("phase") == "validation_complete"
+    cache_markers = [
+        e
+        for e in warm_events
+        if e.partial_result is not None and e.partial_result.get("cache") == "l1_hit"
+    ]
+    assert cache_markers, "expected cache=l1_hit on cached Phase-4 events"
 
-    # NOTE 8 canonical sequence:
-    #   A:started + A:completed (2)
-    #   B:started + B:completed x 2  (4 — pass_0 + pass_1)
-    #   C:started + C:completed x 3  (6 — pass_2 + pass_3 + pass_4)
-    #   D:started + D:completed      (2)
-    #   E:started + E:completed      (2)
-    #   completed:completed          (1)
-    #   = 17 events total
-    # (Plan must_haves stated "16 total" but counted A:started+A:completed as
-    # one entry — the actual sum is 17. We assert the actual emitted shape.)
-    assert (
-        len(warm_events) == 17
-    ), f"NOTE 8 — warm-cache must emit exactly 17 events, got {len(warm_events)}"
+    # Phase 4 NOTE 8 canonical sequence (16 events) + Phase 5 D-31 chain
+    # (F1:started/completed + F2:started/completed + validation_complete:completed
+    # = 5 additional). Total = 16 + 5 = 21 events.
+    assert len(warm_events) == 21, (
+        f"Phase 5 D-31: warm-cache must emit exactly 21 events "
+        f"(16 Phase-4 + 5 Phase-5), got {len(warm_events)}"
+    )
 
-    # Every warm event carries cache=l1_hit.
+    # Every warm Phase-4 event carries cache=l1_hit. Phase 5 events
+    # (F1/F2/validation_complete) run fresh on warm and don't carry the
+    # marker (D-32: F1/F3 not cached, F2 hits L2 separately).
+    cached_stages = {"A", "B", "C", "D", "E"}
     for ev in warm_events:
-        if ev.partial_result is not None:
-            assert ev.partial_result.get("cache") == "l1_hit"
+        if ev.partial_result is None or ev.stage not in cached_stages:
+            continue
+        assert ev.partial_result.get("cache") == "l1_hit"
 
 
 async def test_warm_run_outputs_bit_identical(

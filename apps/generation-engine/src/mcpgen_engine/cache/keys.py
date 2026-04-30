@@ -10,8 +10,25 @@ Every key is a sha256 hex digest over a canonicalised string composed of:
 Keys are deterministic: identical inputs always produce identical keys, so
 ``mypy --strict`` clean callers can rely on a key as a function-pure value.
 
+Stage F policy (Phase 5 D-32):
+
+- F2 (smell scan) DOES use L2 cache. Callers pass ``shuffle_temp_marker="5x3"``
+  so changing the 5-shuffle x 3-temperature spec invalidates F2 cache entries
+  cleanly. Composition: ``pass_name="stage_f2" + sampling_profile_label +
+  prompt_version + shuffle_temp_marker``. F2 only — Pass 0..5 + Stage E
+  callers leave ``shuffle_temp_marker`` at its default ``"none"`` (backward
+  compat preserved).
+- F1 (static checks) has NO L2 cache entry. F1 is deterministic + cheap;
+  re-running is faster than cache lookup.
+- F3 (agent eval) has NO L2 cache entry. F3 is stochastic (Sonnet 4.5 + tool
+  trajectories); results are not reproducible by spec hash even with the same
+  seed. Re-runs are required for trustworthy quality signals.
+
 References:
 - 02-CONTEXT.md D-37 (3 cache layers) + D-40 (TTL + engine_version invalidation)
+- 03-CONTEXT.md D-35 (prompt_version lever)
+- 04-CONTEXT.md D-35 (template_version lever)
+- 05-CONTEXT.md D-32 (F2 shuffle_temp_marker; F1/F3 NO L2)
 - 02-RESEARCH.md §"Pattern 6: Filesystem L1/L2 Cache with Atomic Writes"
 - 02-PATTERNS.md `cache/keys.py` row
 """
@@ -64,17 +81,21 @@ def l2_key(
     sampling_profile_label: str,
     prompt_version: str = "1",
     template_version: str = "1",
+    shuffle_temp_marker: str = "none",
 ) -> str:
     """L2 cache key: per-pass / per-stage output.
 
-    Composition (D-37 + Phase 3 D-35 + Phase 4 D-35):
+    Composition (D-37 + Phase 3 D-35 + Phase 4 D-35 + Phase 5 D-32):
     - ``pass_name`` — ``"pass_0"`` / ``"pass_1"`` / ``"pass_2"`` / ``"pass_3"`` /
-      ``"pass_4"`` / ``"pass_5"`` / ``"stage_e"``.
+      ``"pass_4"`` / ``"pass_5"`` / ``"stage_e"`` / ``"stage_f2"``.
     - ``pass_version`` — bumped manually when pass logic changes (start ``"1"``).
     - ``pass_input`` — canonical input dict (e.g., serialised RawIR for Pass 0).
     - ``sampling_profile_label`` — ``"PASS_0_SETTINGS"`` / ``"PASS_1_SETTINGS"`` / etc.;
       ANY change to extra_body provider routing pin invalidates entries
-      (defense-in-depth against Pitfall #2 quantization drift).
+      (defense-in-depth against Pitfall #2 quantization drift). F2 callers
+      pass ``"F2_JUDGE"`` so the three F2_JUDGE_SETTINGS_T0X profiles share
+      one cache identity, while ``shuffle_temp_marker`` separately encodes
+      the iteration spec.
     - ``prompt_version`` (Phase 3 D-35) — bumped manually whenever a prompt
       template in ``passes/<pass>/prompts.py`` changes. Default ``"1"`` keeps
       Pass 0/1 callers (Phase 2) backward-compatible — they don't pass the
@@ -86,13 +107,20 @@ def l2_key(
       don't pass the kwarg and continue to produce the same hash. Stage E
       callers pass ``STAGE_E_VERSION``; Pass 5 callers pass ``"1"`` (no Jinja2
       templates in Pass 5). Mitigates the Stage-E silent-template-drift case.
+    - ``shuffle_temp_marker`` (Phase 5 D-32) — F2-only marker encoding the
+      number of shuffles and temperatures (e.g. ``"5x3"`` for the canonical
+      5-shuffle x 3-temperature spec). Bumping invalidates F2 cache entries
+      cleanly. Default ``"none"`` keeps Pass 0..5 + Stage E callers
+      backward-compatible — they don't pass the kwarg and continue to produce
+      the same hash they did before this addition. F1 + F3 do NOT use
+      ``l2_key`` at all (D-32: F1 deterministic + cheap; F3 stochastic).
     - Model id is hardcoded ``qwen/qwen3-coder`` — single-source-of-truth lock.
     """
     input_hash = _canonical_json_sha256(pass_input)
     raw = (
         f"l2:{_engine_version()}:{pass_name}:{pass_version}:"
         f"qwen/qwen3-coder:{sampling_profile_label}:"
-        f"{prompt_version}:{template_version}:{input_hash}"
+        f"{prompt_version}:{template_version}:{shuffle_temp_marker}:{input_hash}"
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 

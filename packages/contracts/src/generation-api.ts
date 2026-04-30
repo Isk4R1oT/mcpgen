@@ -22,6 +22,7 @@
 //   - .planning/phases/01-foundation/01-CONTEXT.md D-09 (SSE resume) + D-10 (event_id ULID)
 //   - .planning/phases/01-foundation/01-PATTERNS.md "SSE envelope pattern"
 
+import { GoldenTask, QualityReport } from '@mcpgen/ir';
 import { z } from 'zod';
 
 import {
@@ -37,6 +38,9 @@ import {
 // Re-export header conventions so consumers import from one place.
 export { IDEMPOTENCY_KEY_HEADER, LAST_EVENT_ID_HEADER };
 
+// Re-export shared IR shapes that flow through this contract.
+export { GoldenTask, QualityReport };
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SSE event envelope (engine -> BFF -> client)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -49,6 +53,11 @@ export const GenerationStage = z.enum([
   'F1',
   'F2',
   'F3',
+  // Phase 5 D-31: terminal SSE event after F1 → F2 → F3 (conditional).
+  // Strictly additive — Phase 1-4 consumers ignore unknown stages, but
+  // Zod enums permit only listed members so this addition lets new
+  // consumers parse the new terminal cleanly.
+  'validation_complete',
   'completed',
   'failed',
 ]);
@@ -141,12 +150,24 @@ export const GenerationApiRequest = z
     spec_url: z.string().url().optional(),
     spec_content: z.string().optional(),
     options: GenerationOptions.optional(),
+    // Phase 5 D-35 — strictly-additive Stage F controls. All optional
+    // with Phase 1-4 backward-compat preserved (omitted = same shape
+    // pre-Phase-5 clients always sent).
+    f3_enabled: z.boolean().optional().default(false),
+    sandbox_credentials: z.record(z.string(), z.string()).optional(),
+    user_golden_tasks: z.array(GoldenTask).optional(),
   })
   .refine(
     (req) => Boolean(req.spec_url) !== Boolean(req.spec_content),
     'Exactly one of spec_url or spec_content must be provided.',
   );
 export type GenerationApiRequest = z.infer<typeof GenerationApiRequest>;
+
+// Phase 5 D-36 — GET /api/v1/generate/{job_id}/quality-report response.
+// Re-exports the IR ``QualityReport`` schema as the wire shape so
+// frontend / CLI consumers have a single import for the shape.
+export const QualityReportResponse = QualityReport;
+export type QualityReportResponse = z.infer<typeof QualityReportResponse>;
 
 export const GenerationApiResponse = z.object({
   job_id: GenIdSchema,

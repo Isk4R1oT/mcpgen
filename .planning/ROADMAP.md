@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Generation Engine — Architect (Pass 0+1)** - Stage A parser + Pass 0 inventory + Pass 1 Six-Tool consolidation with tenant-prefixed smart IDs (completed 2026-04-28)
 - [x] **Phase 3: Generation Engine — Author (Pass 2+3+4)** - Description authoring, parameter specification, annotations inference (completed 2026-04-28)
 - [x] **Phase 4: Generation Engine — Shape & Codegen (Pass 5 + Stage E)** - Response shaping + ~25–30-file deterministic Jinja2 codegen with bundle-size + DNS-rebinding gates (completed 2026-04-29; all 4 deviations drained per 04-13-INSPECTOR-EVIDENCE.md re-run #3)
-- [ ] **Phase 5: Generation Engine — Validation (Stage F)** - F1 static + F2 smell scan (Qwen 5-shuffle) + F3 agent eval against golden tasks
+- [x] **Phase 5: Generation Engine — Validation (Stage F)** - F1 static + F2 smell scan (Qwen 5-shuffle) + F3 agent eval against golden tasks (completed 2026-04-29)
 - [x] **Phase 6: Runtime Plane** - Dispatch Worker + tenant Workers + 3 auth modes + usage event pipeline with KV fallback (completed 2026-04-27 — runtime workstream)
 - [ ] **Phase 7: Frontend Wire-Up** - Wire locked Claude-Design UI to Generation API + SSE + dashboard (NO visual changes)
 - [x] **Phase 8: Auth + Billing** - Logto (email + GitHub) + Stripe Meters + quotas + cost cap + Drift Watcher with IR-diff (completed 2026-04-27 — ops workstream)
@@ -143,7 +143,18 @@ Plans:
   2. F2 smell scan via single Qwen3-Coder × 5-shuffle prompt averaging × temperature variance (T=0.0/0.2/0.5) = 15 evaluations per tool produces a per-tool 6-component rubric score; threshold for pass = ≥4.0 (imported from `packages/contracts/launch-criteria.ts`); between-tool σ ≥0.4 discrimination metric flags low-confidence runs and force-triggers F3 even on free tier; per-component failures trigger targeted upstream-pass retries (max 2 rounds, cached prior-pass outputs reused)
   3. F3 agent eval drives a real Sonnet 4.7 agent against golden tasks (≥10 per server) for top-10 APIs (Stripe, GitHub, Notion, Linear, Slack, Calendar, etc.) in real sandbox; for the rest in a mocked environment; two-tier evaluator (rule-based + LLM judge per MCP-Bench arXiv 2508.20453); mock client harness covers Cursor (read-only confirmation skip), Claude Desktop, and ChatGPT Deep Research signature compliance; pass criterion = ≥0.7 server pass rate (imported from `packages/contracts/launch-criteria.ts`)
   4. End-to-end `Stage A → Pass 0–5 → Stage E → F1 → F2 → F3` produces a Quality Badge (premium ≥0.85 / verified ≥0.7 / standard / needs_review) for any input spec; Stripe + GitHub + Notion + Linear + Slack reach `verified` at minimum on a fresh run
-**Plans**: TBD
+**Plans**: 10 plans
+Plans:
+- [x] 05-01-PLAN.md — Foundation: IR additive types (QualityReport + GoldenTask + RetryRound) + Phase 5 sampling profiles (F2_JUDGE_T0X + F3_JUDGE + F3_TEST_AGENT) + Anthropic SDK + Sonnet test_agent module + Day-1 Sonnet smoke test + 2 new pytest markers [Wave 1] ✓ 2026-04-29
+- [x] 05-02-PLAN.md — Canonical fixtures (search/fetch/mcp-schema) + gitleaks install (Dockerfile + package.json) + paired-decision pre-commit hook (Pitfalls #32, #33) [Wave 1] ✓ 2026-04-29
+- [x] 05-03-PLAN.md — F1 cheap deterministic checks (8 modules: bundle_size + template_artifacts + smart_id_fuzz + mcp_compliance + routing_completeness + auth_middleware + openai_compliance + examples_provenance) + failure_patterns.py decision matrix [Wave 2] ✓ 2026-04-29
+- [x] 05-04-PLAN.md — F1 subprocess checks (gitleaks + jsonschema dual-validation + tsc --noEmit) + full F1 orchestrator + fail-closed contract test [Wave 3] ✓ 2026-04-29
+- [x] 05-05-PLAN.md — F2 smell scan (rubric + 5-shuffle × 3-temperature = 15 calls/tool + numpy σ ≥ 0.4 discrimination + LAUNCH_CRITERIA threshold + L2 cache key extension + D-16 untrusted-spec sanitization) [Wave 3] ✓ 2026-04-29
+- [x] 05-06-PLAN.md — F3 server runner (wrangler dev --local + process-group cleanup + port retry + DNS-bypass scoping) + Sonnet test_agent harness (stop_reason loop + tenacity retry) + 5 sandbox adapters [Wave 4] ✓ 2026-04-30
+- [x] 05-07-PLAN.md — F3 mock clients (Cursor + Claude Desktop older + ChatGPT Deep Research) + GoldenTask loader + mock_upstream synthesizer (~80 LoC) + two-tier evaluator (rule_based + Qwen LLM judge) + run_f3 orchestrator [Wave 4] ✓ 2026-04-30
+- [x] 05-08-PLAN.md — Retry orchestrator FSM (max 2 rounds + cost cap + wall-clock guard) + cascade L2 invalidation (D-26) + QualityReport composite formula (D-28) + pipeline integration (F1 → F2 → F3) + new SSE events + GET /quality-report endpoint + strictly-additive POST request body [Wave 5] ✓ 2026-04-30
+- [x] 05-09-PLAN.md — CLI flags (--f3 / --sandbox-creds / --strict) + render_quality_report + extended SSE consumer + 30 hand-authored golden tasks (Stripe/GitHub/Notion × 10) + 5 fixture quality-report.json scaffolds + Linear/Slack mock_upstream adapters + visual review checkpoint [Wave 6] ✓ 2026-04-30
+- [x] 05-10-PLAN.md — Parametrized 5-fixture E2E test (mocked + real-LLM tiers) + real-LLM verification gate (3× pipeline run per fixture for D-42 calibration) + Phase 5 verification doc cross-referencing all 4 SC + 3 REQ + 4 owned pitfalls [Wave 7] ✓ 2026-04-30
 
 ### Phase 6: Runtime Plane
 **Workstream**: `runtime`
@@ -224,7 +235,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 | 2. Generation Engine — Architect (Pass 0+1) | 0/TBD | Not started | - |
 | 3. Generation Engine — Author (Pass 2+3+4) | 0/12 | Not started | - |
 | 4. Generation Engine — Shape & Codegen (Pass 5 + Stage E) | 0/13 | Not started | - |
-| 5. Generation Engine — Validation (Stage F) | 0/TBD | Not started | - |
+| 5. Generation Engine — Validation (Stage F) | 11/10 | Complete    | 2026-04-29 |
 | 6. Runtime Plane | 0/TBD | Not started | - |
 | 7. Frontend Wire-Up | 0/TBD | Not started | - |
 | 8. Auth + Billing | 0/TBD | Not started | - |

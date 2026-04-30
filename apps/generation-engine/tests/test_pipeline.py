@@ -261,6 +261,46 @@ def _stub_stage_d_e(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pipeline_module, "stage_e_run", _fake_stage_e)
 
 
+@pytest.fixture(autouse=True)
+def _stub_stage_f(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 5 D-31: stub F1/F2 so the pipeline-level tests stay LLM-free.
+
+    F1 deterministic-pass; F2 returns sigma=0.6 (no F3 auto-trigger). F3
+    is left untouched — these tests don't opt in (f3_enabled defaults
+    False) AND they don't supply user_golden_tasks, so the F3 path is a
+    no-op in the cold pipeline.
+    """
+    from unittest.mock import AsyncMock
+
+    from mcpgen_engine.stages.stage_f.f1_static import F1CheckOutcome, F1RunResult
+    from mcpgen_engine.stages.stage_f.f2_smell import F2RunResult
+
+    f1_pass = F1RunResult(
+        passed=True,
+        outcomes=[
+            F1CheckOutcome(
+                check_name="bundle_size",
+                passed=True,
+                error=None,
+                retry_target=None,
+                details={"kb": 0},
+            )
+        ],
+        first_failure=None,
+        subprocess_checks_pending=False,
+    )
+    f2_pass = F2RunResult(
+        tool_scores=[],
+        overall_score=4.5,
+        sigma=0.6,
+        passed=True,
+        low_confidence_run=False,
+        warnings=[],
+    )
+    monkeypatch.setattr(pipeline_module, "run_f1", AsyncMock(return_value=f1_pass))
+    monkeypatch.setattr(pipeline_module, "run_f2", AsyncMock(return_value=f2_pass))
+
+
 # ────────────────────────── Mocked-LLM helpers ─────────────────────────────
 
 
@@ -456,11 +496,11 @@ async def test_full_pipeline_emits_phase_3_sse_sequence(httpx_mock: HTTPXMock) -
     ):
         events.append(event)
 
-    # D-33: full SSE sequence.
+    # D-33 + Phase 5 D-31: full SSE sequence ends at validation_complete.
     seq = [(e.stage, e.status) for e in events]
     assert seq[0] == ("A", "started")
     assert ("A", "completed") in seq
-    assert seq[-1] == ("completed", "completed")
+    assert seq[-1] == ("validation_complete", "completed")
 
     # Stage B fires twice (pass_0 + pass_1), once started + once completed each.
     b_completed = [e for e in events if e.stage == "B" and e.status == "completed"]
@@ -518,11 +558,14 @@ async def test_full_pipeline_emits_phase_3_sse_sequence(httpx_mock: HTTPXMock) -
     assert isinstance(annotation_count, int)
     assert annotation_count == 6
 
-    # Phase 4 D-33: terminal event carries phase=shape_codegen_complete.
-    # Phase-3 author_complete survives as a sub_status on C:completed (pass_4).
+    # Phase 5 D-31: terminal event becomes validation_complete:completed
+    # carrying the QualityReport. shape_codegen_complete persists as a
+    # sub-status implicitly via E:completed (the per-stage event survives).
     final = events[-1]
     assert final.partial_result is not None
-    assert final.partial_result.get("phase") == "shape_codegen_complete"
+    assert final.stage == "validation_complete"
+    assert final.partial_result.get("phase") == "validation_complete"
+    assert "quality_report" in final.partial_result
     # Pass 4 C:completed retains sub_status=author_complete for backward compat.
     assert pass_4_done.partial_result.get("sub_status") == "author_complete"
 
@@ -581,11 +624,21 @@ async def test_second_run_zero_llm_calls(httpx_mock: HTTPXMock) -> None:
         "(expected 0 — L1 cache hit)"
     )
 
-    # Second-run terminal event must signal cache=l1_hit.
+    # Second-run terminal: Phase 5 D-31 makes validation_complete the new
+    # terminal stage; the L1 fast-path's intermediate stages still carry
+    # cache=l1_hit so consumers can show the warm path.
     final = events_2[-1]
-    assert final.stage == "completed"
+    assert final.stage == "validation_complete"
     assert final.partial_result is not None
-    assert final.partial_result.get("cache") == "l1_hit"
+    # Some intermediate event in the warm sequence carries cache=l1_hit
+    # (the F1/F2/F3 chain runs fresh on warm — they're not cached in L1
+    # per D-32). Verify at least one earlier event is the warm marker.
+    cache_markers = [
+        e
+        for e in events_2
+        if e.partial_result is not None and e.partial_result.get("cache") == "l1_hit"
+    ]
+    assert cache_markers, "expected at least one cache=l1_hit event in warm run"
 
 
 async def test_pipeline_persists_full_architect_output_to_l1(httpx_mock: HTTPXMock) -> None:

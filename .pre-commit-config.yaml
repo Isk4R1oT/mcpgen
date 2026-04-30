@@ -79,6 +79,16 @@ repos:
         files: ^packages/contracts/src/launch-criteria\.ts$
         pass_filenames: false
 
+      # Phase 5 D-48: canonical fixtures (search/fetch signatures + mcp-schema bundle) require
+      # paired decision-log entry — Pitfall #32 (OpenAI compliance) + Pitfall #33 (MCP schema pin).
+      # Mirrors launch-criteria-guard pattern.
+      - id: canonical-fixtures-paired-decision
+        name: Phase 5 canonical fixtures require paired decision doc
+        entry: bash .pre-commit-hooks/canonical-fixtures-paired-decision.sh
+        language: system
+        files: ^packages/engine-fixtures/_canonical/.*\.(json|md)$
+        pass_filenames: false
+
       # D-02 / FND-02: IR Pydantic codegen freshness check (script lands in Plan 03)
       - id: ir-codegen-check
         name: IR Pydantic codegen up-to-date

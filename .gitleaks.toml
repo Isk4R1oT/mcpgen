@@ -10,6 +10,11 @@ paths = [
   '''\.planning/.*''',
   '''claude-design-ui/.*''',
   '''README\.md''',
+  # Phase 5 — F1 secret_scan check tests legitimately embed real-shape gitleaks
+  # test vectors (Stripe sk_live, GitHub PAT) as fixtures inside Python string
+  # literals to verify the wrapper detects them. The vectors never leave tmp_path.
+  '''apps/generation-engine/tests/stages/stage_f/test_secret_scan\.py''',
+  '''apps/generation-engine/tests/stages/stage_f/test_pipeline_f1_fail\.py''',
 ]
 # Allow strings that are obviously placeholders, not real keys:
 regexes = [

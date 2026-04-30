@@ -21,7 +21,7 @@ from .keys import _canonical_json_sha256, _engine_version, l1_key, l2_key, l3_ke
 from .l1 import clear_layer as clear_l1
 from .l1 import get_l1, set_l1
 from .l2 import clear_layer as clear_l2
-from .l2 import get_l2, set_l2
+from .l2 import get_l2, invalidate_by_prefix, set_l2
 from .l3 import clear_layer as clear_l3
 from .l3 import get_l3, set_l3
 
@@ -34,6 +34,7 @@ __all__ = [
     "get_l1",
     "get_l2",
     "get_l3",
+    "invalidate_by_prefix",
     "l1_key",
     "l2_key",
     "l3_key",

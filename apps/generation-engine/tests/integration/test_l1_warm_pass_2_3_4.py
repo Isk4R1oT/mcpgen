@@ -50,6 +50,40 @@ def _isolated_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     clear_l2()
 
 
+@pytest.fixture(autouse=True)
+def _stub_stage_f(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 5 D-31: F1 deterministic-pass; F2 sigma=0.6 (no F3 auto-trigger)."""
+    from unittest.mock import AsyncMock
+
+    from mcpgen_engine.stages.stage_f.f1_static import F1CheckOutcome, F1RunResult
+    from mcpgen_engine.stages.stage_f.f2_smell import F2RunResult
+
+    f1_pass = F1RunResult(
+        passed=True,
+        outcomes=[
+            F1CheckOutcome(
+                check_name="bundle_size",
+                passed=True,
+                error=None,
+                retry_target=None,
+                details={"kb": 0},
+            )
+        ],
+        first_failure=None,
+        subprocess_checks_pending=False,
+    )
+    f2_pass = F2RunResult(
+        tool_scores=[],
+        overall_score=4.5,
+        sigma=0.6,
+        passed=True,
+        low_confidence_run=False,
+        warnings=[],
+    )
+    monkeypatch.setattr(pipeline_module, "run_f1", AsyncMock(return_value=f1_pass))
+    monkeypatch.setattr(pipeline_module, "run_f2", AsyncMock(return_value=f2_pass))
+
+
 def _build_options() -> UserOptions:
     return UserOptions(
         target_complexity="standard",
@@ -160,27 +194,38 @@ async def test_warm_run_zero_qwen_calls(monkeypatch: pytest.MonkeyPatch) -> None
         "pass_4": 0,
     }, f"GEN-12 violation: warm run invoked passes {delta}"
 
-    # Warm-run terminal event carries cache=l1_hit AND
-    # shape_codegen_complete phase (Phase 4 D-33). The Phase-3
-    # `author_complete` survives as a sub_status on C:completed (pass_4)
-    # for backward compat with Phase-2/3 CLI consumers.
+    # Phase 5 D-31: terminal becomes ``validation_complete:completed``.
+    # The L1 warm-path emits cache=l1_hit on every cached event; F1/F2
+    # run fresh on warm (D-32: F1/F3 not cached, F2 hits L2 separately)
+    # so the terminal does NOT carry the cache marker — only intermediate
+    # cached stages do.
     final = warm_events[-1]
-    assert final.stage == "completed"
+    assert final.stage == "validation_complete"
     assert final.partial_result is not None
-    assert final.partial_result.get("cache") == "l1_hit"
-    assert final.partial_result.get("phase") == "shape_codegen_complete"
+    assert final.partial_result.get("phase") == "validation_complete"
+    # Verify SOME warm-path event carries cache=l1_hit (the cached stages).
+    cache_markers = [
+        e
+        for e in warm_events
+        if e.partial_result is not None and e.partial_result.get("cache") == "l1_hit"
+    ]
+    assert cache_markers, "expected cache=l1_hit on at least one warm-run event"
 
-    # Warm run emits the FULL Phase-4 SSE sequence (D-34: every event
-    # carries cache=l1_hit so CLI can show the warm path).
+    # Warm run emits the FULL Phase-4 SSE sequence (D-34: every Phase-4
+    # cached event carries cache=l1_hit so CLI can show the warm path).
+    # Phase 5 D-31 events (F1/F2/F3/validation_complete) do NOT carry the
+    # cache marker — they run fresh against L2 / no cache per D-32.
     warm_seq = [(e.stage, e.status) for e in warm_events]
     assert sum(1 for s in warm_seq if s == ("C", "completed")) == 3
     # Phase 4 adds Stage D + Stage E exactly once each.
     assert sum(1 for s in warm_seq if s == ("D", "completed")) == 1
     assert sum(1 for s in warm_seq if s == ("E", "completed")) == 1
+    cached_stages = {"A", "B", "C", "D", "E"}
     for ev in warm_events:
-        if ev.partial_result is not None:
-            # Every event during the warm fast-path carries cache=l1_hit.
-            assert ev.partial_result.get("cache") == "l1_hit"
+        if ev.partial_result is None or ev.stage not in cached_stages:
+            continue
+        # Every Phase-4 cached event carries cache=l1_hit.
+        assert ev.partial_result.get("cache") == "l1_hit"
 
 
 async def test_warm_run_outputs_bit_identical(monkeypatch: pytest.MonkeyPatch) -> None:

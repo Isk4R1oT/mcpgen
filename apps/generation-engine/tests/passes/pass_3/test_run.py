@@ -151,7 +151,7 @@ def _patch_enrich_and_gate(
 
 
 def test_pass_3_version_is_string_one() -> None:
-    assert PASS_3_VERSION == "1"  # noqa: S105 — version string, not a credential
+    assert PASS_3_VERSION == "1"
 
 
 def test_run_is_exported() -> None:

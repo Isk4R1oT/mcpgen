@@ -155,7 +155,7 @@ def _patch_author_quality(
 
 
 def test_pass_2_version_is_string_one() -> None:
-    assert PASS_2_VERSION == "1"  # noqa: S105 — version string, not a credential
+    assert PASS_2_VERSION == "1"
 
 
 def test_run_is_exported() -> None:

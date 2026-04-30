@@ -26,6 +26,12 @@ dependencies = [
   "python-ulid>=3.1.0",
   "tiktoken>=0.7,<1",
   "jsonschema>=4.26,<5",
+  # Phase 5 — F3 test-agent path (Override doc §7.3 documented exception).
+  # Pinned per RESEARCH.md §6.10 — patch + minor bumps allowed within 0.x;
+  # major bumps are breaking and must go through a docs/decisions/ entry.
+  "anthropic>=0.96.0,<1.0",
+  # Phase 5 — F2 σ discrimination metric (np.std with ddof=0 per RESEARCH §6.5).
+  "numpy>=2.0,<3.0",
 ]
 
 [dependency-groups]
@@ -76,6 +82,7 @@ select = [
 ]
 ignore = [
   "S101",   # asserts in tests are fine
+  "ANN101", # deprecated rule (ruff >=0.5); pre-commit older ruff still emits — global ignore
   "ANN401", # `Any` already forbidden via mypy strict; this rule duplicates
   "TRY003", # long error messages are fine for engine
 ]
@@ -83,7 +90,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # S106 misfires on `pass_name="pass_0"` / `pass_version="1"` kwargs (pass-* token).
 # SLF001 is OK in tests that need to inspect on-disk cache layout via `_path_for`.
-"tests/**/*.py" = ["S101", "ANN201", "ANN001", "S106", "SLF001"]
+"tests/**/*.py" = ["S101", "S105", "ANN201", "ANN001", "S106", "SLF001"]
 # Module-level *_PROMPT constants are LLM system prompts, not credentials.
 # S105 (hardcoded password) misfires on the "PASS"/"PROMPT" name prefix.
 "src/mcpgen_engine/passes/**/prompts.py" = ["S105"]
@@ -137,6 +144,8 @@ markers = [
   "requires_openrouter: tests that need OPENROUTER_API_KEY (Day-1 smoke test)",
   "requires_node_modules: tests that need packages/codegen-templates/node_modules (wrangler binary)",
   "slow: tests that take > 5s",
+  "requires_anthropic: integration tests that call Anthropic API (skipped when ANTHROPIC_API_KEY unset or sk-ant-test-PLACEHOLDER)",
+  "requires_wrangler: integration tests that spawn `wrangler dev --local` subprocess (skipped when wrangler missing on PATH)",
 ]
 addopts = [
   "-q",

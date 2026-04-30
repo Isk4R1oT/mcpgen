@@ -33,9 +33,10 @@ References:
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request, status
@@ -159,10 +160,48 @@ async def generate(req: Request) -> dict[str, str]:
 
     options = _build_user_options(options_raw if isinstance(options_raw, dict) else {})
 
+    # Phase 5 D-35 strictly-additive request body fields (all optional).
+    f3_enabled_raw = body.get("f3_enabled", False)
+    if not isinstance(f3_enabled_raw, bool):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="f3_enabled must be a boolean",
+        )
+    f3_enabled: bool = f3_enabled_raw
+
+    sandbox_credentials_raw = body.get("sandbox_credentials")
+    sandbox_credentials: dict[str, str] | None = None
+    if sandbox_credentials_raw is not None:
+        if not isinstance(sandbox_credentials_raw, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in sandbox_credentials_raw.items()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="sandbox_credentials must be Record<string, string>",
+            )
+        sandbox_credentials = dict(sandbox_credentials_raw)
+
+    user_golden_tasks_raw = body.get("user_golden_tasks")
+    user_golden_tasks: list[dict[str, Any]] | None = None
+    if user_golden_tasks_raw is not None:
+        if not isinstance(user_golden_tasks_raw, list) or not all(
+            isinstance(t, dict) for t in user_golden_tasks_raw
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="user_golden_tasks must be a list of GoldenTask objects",
+            )
+        user_golden_tasks = list(user_golden_tasks_raw)
+
     _JOB_TABLE[job_id] = {
         "spec_url": spec_url,
         "spec_content": spec_content,
         "options": options,
+        "f3_enabled": f3_enabled,
+        "sandbox_credentials": sandbox_credentials,
+        "user_golden_tasks": user_golden_tasks,
+        "status": "accepted",
+        "quality_report": None,
     }
 
     _log.info(
@@ -268,6 +307,51 @@ async def artifacts(job_id: str) -> dict[str, Any]:
         if key in cached:
             payload[key] = cached[key]
     return payload
+
+
+# ─────────────────────────── Quality Report endpoint ──────────────────────
+
+
+# Statuses that indicate a QualityReport is available (D-36 pre-condition).
+_QR_TERMINAL_STATUSES: frozenset[str] = frozenset({"validation_complete", "failed"})
+
+
+@router.get("/api/v1/generate/{job_id}/quality-report")
+async def quality_report(job_id: str) -> dict[str, Any]:
+    """Phase 5 D-36: return the full QualityReport JSON after validation.
+
+    Pre-condition: job in ``validation_complete`` OR ``failed`` status.
+    Used by the CLI + frontend (Phase 7) as the SSE-resume fallback per
+    Pitfall #20 — clients that miss the terminal SSE event can still
+    fetch the QR from this endpoint.
+
+    Failure modes:
+      - 404 — unknown ``job_id`` OR job exists but ``quality_report`` is
+        not yet populated.
+      - 409 — job exists but is still mid-pipeline (status is neither
+        ``validation_complete`` nor ``failed``).
+    """
+    job = _JOB_TABLE.get(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"unknown job: {job_id}",
+        )
+    job_status = job.get("status", "accepted")
+    if job_status not in _QR_TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"job {job_id} not yet at validation_complete " f"(current status: {job_status})"
+            ),
+        )
+    qr = job.get("quality_report")
+    if qr is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"QualityReport not produced for job {job_id}",
+        )
+    return cast("dict[str, Any]", qr)
 
 
 # ─────────────────────────── Stage E output endpoint ───────────────────────
@@ -415,14 +499,60 @@ async def output_file(job_id: str, relative_path: str) -> Response:
             ),
         ) from exc
 
-    body = file_path.read_bytes()
-    suffix = file_path.suffix.lower()
-    if suffix in _TEXT_EXTENSIONS or file_path.name.startswith("."):
+    # CR-01 (Phase 5 review fix): Read from the canonicalised ``resolved``
+    # path under ``O_NOFOLLOW`` semantics — NOT from the unresolved
+    # ``file_path``. Two threats are mitigated here:
+    #
+    # 1. TOCTOU symlink-swap race. Between the ``resolve(strict=True)``
+    #    containment check above and the read, an attacker who can write
+    #    inside ``output_dir`` (e.g. a co-tenant on a shared host whose
+    #    ``MCPGEN_OUTPUT_DIR`` defaults to ``/tmp/mcpgen-engine-output``) can
+    #    swap a regular file for a symlink pointing outside the dir.
+    #    ``Path.read_bytes()`` re-resolves the symlink at read time, so the
+    #    body returned would be the *post-swap* target (e.g. ``/etc/passwd``).
+    # 2. Final-component symlink. If the relative path itself terminates in a
+    #    symlink that ``resolve()`` followed to a path inside the dir, the
+    #    link can be re-pointed before the read; ``O_NOFOLLOW`` refuses to
+    #    open the final component if it is a symlink, failing closed.
+    #
+    # Containment was already validated against ``resolved`` (the
+    # canonicalised target), so reading via ``resolved`` is safe. We open
+    # with ``O_NOFOLLOW`` to refuse a swap of the final component into a
+    # symlink between resolve() and open(). On filesystems where the entry
+    # is genuinely a symlink (it never is for Stage E output — Jinja2 writes
+    # regular files), ``os.open`` raises ``OSError(ELOOP)`` which we surface
+    # as 404 to avoid leaking implementation detail.
+    try:
+        fd = os.open(resolved, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as exc:
+        # ELOOP (symlink with O_NOFOLLOW) or ENOENT (raced unlink).
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"file {relative_path!r} no longer readable in output dir "
+                f"(symlink rejected or removed); reason: {exc}"
+            ),
+        ) from exc
+    try:
+        body = os.read(fd, os.fstat(fd).st_size)
+    finally:
+        os.close(fd)
+    suffix = resolved.suffix.lower()
+    if suffix in _TEXT_EXTENSIONS or resolved.name.startswith("."):
         return Response(content=body, media_type="text/plain; charset=utf-8")
     return Response(content=body, media_type="application/octet-stream")
 
 
 # ─────────────────────────── SSE wire generator ────────────────────────────
+
+
+def _record_quality_report(job_id: str, qr: dict[str, Any]) -> None:
+    """Persist QualityReport into _JOB_TABLE for GET /quality-report (D-36)."""
+    job = _JOB_TABLE.get(job_id)
+    if job is None:
+        return
+    job["quality_report"] = qr
+    job["status"] = "validation_complete"
 
 
 async def _sse_generator(
@@ -442,6 +572,10 @@ async def _sse_generator(
         spec_content=job["spec_content"],
         options=options,
         job_id=job_id,
+        f3_enabled=job.get("f3_enabled", False),
+        sandbox_credentials=job.get("sandbox_credentials"),
+        user_golden_tasks=job.get("user_golden_tasks"),
+        record_quality_report=_record_quality_report,
     ):
         if last_event_id and event.event_id <= last_event_id:
             # Already delivered on a prior connection — D-09 resume.

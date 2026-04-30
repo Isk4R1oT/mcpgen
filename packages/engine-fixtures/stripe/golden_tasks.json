@@ -1,0 +1,82 @@
+[
+  {
+    "task_id": "stripe.simple_read.find_charges_over_100",
+    "prompt": "Find all charges over $100 created in the last 30 days. Use a single search call.",
+    "expected_outcome": "Returns a non-empty list of Charge objects with amount >= 10000 (cents) created within the last 30 days.",
+    "expected_sequence": ["search"],
+    "expected_errors": null,
+    "max_iterations": 4
+  },
+  {
+    "task_id": "stripe.simple_write.create_charge_basic",
+    "prompt": "Create a $25 USD test charge for customer cus_test_basic with description 'CLI smoke test'.",
+    "expected_outcome": "upsert returns a Charge object with status in {succeeded, pending} and amount=2500.",
+    "expected_sequence": ["upsert"],
+    "expected_errors": null,
+    "max_iterations": 3
+  },
+  {
+    "task_id": "stripe.multi_step_read.search_then_fetch_customer",
+    "prompt": "Find the customer whose email is alice@example.com, then fetch the customer's full record by smart ID.",
+    "expected_outcome": "Returns a Customer object with email=alice@example.com and the full address/metadata fields populated by fetch.",
+    "expected_sequence": ["search", "fetch"],
+    "expected_errors": null,
+    "max_iterations": 5
+  },
+  {
+    "task_id": "stripe.filter_usage.list_active_subscriptions_for_customer",
+    "prompt": "List all active subscriptions for customer cus_test_filter_001 using list_objects with a filter on status='active'.",
+    "expected_outcome": "Returns a list of Subscription objects, all with status=active and customer=cus_test_filter_001.",
+    "expected_sequence": ["list_objects"],
+    "expected_errors": null,
+    "max_iterations": 4
+  },
+  {
+    "task_id": "stripe.pagination.fetch_100_charges",
+    "prompt": "List up to 100 charges for customer cus_test_pagination_001 across as many pages as needed; do not exceed 5 pages.",
+    "expected_outcome": "Returns a list with up to 100 Charge objects; the agent uses the cursor/limit pattern correctly and stops at the documented limit.",
+    "expected_sequence": ["list_objects", "list_objects"],
+    "expected_errors": null,
+    "max_iterations": 7
+  },
+  {
+    "task_id": "stripe.error_recovery.invalid_amount_rejected",
+    "prompt": "Try to create a charge for customer cus_test_invalid with a negative amount of -100. If the API rejects it, fix the request and create a $10 charge instead.",
+    "expected_outcome": "First upsert call surfaces a validation error; second upsert with amount=1000 succeeds and returns a Charge object.",
+    "expected_sequence": ["upsert", "upsert"],
+    "expected_errors": ["invalid_request_error", "amount_too_small"],
+    "max_iterations": 6
+  },
+  {
+    "task_id": "stripe.workflow.create_charge_then_capture",
+    "prompt": "Create an uncaptured $50 USD charge for customer cus_test_workflow_001, then capture the full amount on that charge.",
+    "expected_outcome": "First upsert returns a Charge with captured=false; charges_capture then returns the same charge with captured=true and the full amount captured.",
+    "expected_sequence": ["upsert", "charges_capture"],
+    "expected_errors": null,
+    "max_iterations": 5
+  },
+  {
+    "task_id": "stripe.cross_tool_reasoning.refund_largest_recent_charge",
+    "prompt": "Find the largest charge for customer cus_test_xtool_001 in the last 7 days, then refund it with reason='requested_by_customer'.",
+    "expected_outcome": "Search/list step returns multiple charges; agent selects the maximum-amount charge; charges_refund call returns a Refund object referencing that charge with the correct reason.",
+    "expected_sequence": ["list_objects", "charges_refund"],
+    "expected_errors": null,
+    "max_iterations": 6
+  },
+  {
+    "task_id": "stripe.edge_case.cancel_already_canceled_subscription",
+    "prompt": "Cancel subscription sub_test_already_canceled. If it is already canceled, surface that fact rather than retrying.",
+    "expected_outcome": "subscriptions_cancel returns the subscription with status=canceled OR an explicit 'already canceled' error; the agent reports the state without looping.",
+    "expected_sequence": ["subscriptions_cancel"],
+    "expected_errors": ["resource_already_canceled"],
+    "max_iterations": 3
+  },
+  {
+    "task_id": "stripe.authentication.read_with_invalid_key",
+    "prompt": "Attempt to list charges. Treat any 401 Unauthorized response as a credentials problem and stop — do not retry.",
+    "expected_outcome": "If credentials are valid, returns a list of charges. If invalid, surfaces a 401 error verbatim and the agent does NOT loop or call other tools.",
+    "expected_sequence": ["list_objects"],
+    "expected_errors": ["api_authentication_error", "401"],
+    "max_iterations": 2
+  }
+]

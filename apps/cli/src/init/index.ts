@@ -2,14 +2,17 @@
 //
 // Main CLI flow for `mcpgen init <spec-url>`. Wires:
 //   1. ensureEngineRunning   (auto_spawn.ts — D-44)
-//   2. POST /api/v1/generate (Idempotency-Key — D-48)
-//   3. consume SSE stream    (sse_consumer.ts — D-09)
+//   2. POST /api/v1/generate (Idempotency-Key — D-48; Stage F controls D-35)
+//   3. consume SSE stream    (sse_consumer.ts — D-09; Stage F events D-31)
 //   4. GET .../artifacts     (per-job_id materialise raw_ir/pass_0/pass_1)
-//   5. write 6-file output   (D-43 layout)
+//   5. write Stage E output  (D-43 layout)
+//   6. render QualityReport  (Plan 05-09 — D-30 / D-38; GET /quality-report
+//      fallback per Pitfall #20 / D-36)
 //
 // References:
 // - 02-CONTEXT.md D-42..D-48
 // - 02-PATTERNS.md `apps/cli/src/init.ts` row
+// - 05-CONTEXT.md D-30 / D-31 / D-35 / D-36 / D-38 / D-39
 
 import type { Subprocess } from 'bun';
 import { Command } from 'commander';
@@ -23,6 +26,7 @@ import type {
   Pass2Output,
   Pass3Output,
   Pass4Output,
+  QualityReport,
   RawIR,
 } from '@mcpgen/ir';
 
@@ -33,14 +37,21 @@ import {
 import {
   buildEngineRequestBody,
   generateIdempotencyKey,
+  loadSandboxCredentials,
   parseComplexity,
+  registerStageFOptions,
   type CliInitOptions,
   type ComplexityLevel,
 } from './options.js';
 import { ensureSafeOutputDir, writeOutputFile } from './output_dir.js';
 import { renderPackageJson } from './render_package_json.js';
 import { renderReadme } from './render_readme.js';
-import { consumeSse } from './sse_consumer.js';
+import { renderQualityReport } from './render_quality_report.js';
+import {
+  consumeSse,
+  handleStageFEvent,
+  type StageFRendererState,
+} from './sse_consumer.js';
 import {
   writeStageEOutput,
   type StageEManifestFile,
@@ -80,6 +91,12 @@ interface RawCommanderOpts {
   exclude: string[];
   /** Plan 04-14 D-3: Commander auto-camelCases --dev-local → devLocal. */
   devLocal?: boolean;
+  /** Plan 05-09 D-39: opt into F3 agent eval. */
+  f3?: boolean;
+  /** Plan 05-09 D-39: path to YAML/.env credentials file. */
+  sandboxCreds?: string;
+  /** Plan 05-09 D-39: CI-mode strict exit code. */
+  strict?: boolean;
 }
 
 /**
@@ -87,7 +104,7 @@ interface RawCommanderOpts {
  * Replaces the Phase-1 stub action.
  */
 export function registerInitCommand(program: Command): void {
-  program
+  const cmd = program
     .command('init <spec-url>')
     .description('Initialise an MCP server from an OpenAPI URL.')
     .option('--output-dir <path>', 'output directory', './mcpgen-output')
@@ -102,32 +119,46 @@ export function registerInitCommand(program: Command): void {
       '--dev-local',
       'enable dev-local build mode (substitutes tenant placeholder + relaxes ALLOWED_HOSTS for wrangler dev — DO NOT deploy)',
       false,
-    )
-    .action(async (specUrl: string, rawOpts: RawCommanderOpts) => {
-      const complexity: ComplexityLevel = parseComplexity(rawOpts.complexity);
-      const opts: CliInitOptions = {
-        outputDir: rawOpts.outputDir,
-        complexity,
-        include: rawOpts.include,
-        exclude: rawOpts.exclude,
-        devLocal: rawOpts.devLocal === true,
-      };
-      await runInit(specUrl, opts);
-    });
+    );
+  // Plan 05-09 D-39 — Stage F flags (--f3 / --sandbox-creds / --strict)
+  registerStageFOptions(cmd);
+  cmd.action(async (specUrl: string, rawOpts: RawCommanderOpts) => {
+    const complexity: ComplexityLevel = parseComplexity(rawOpts.complexity);
+    const opts: CliInitOptions = {
+      outputDir: rawOpts.outputDir,
+      complexity,
+      include: rawOpts.include,
+      exclude: rawOpts.exclude,
+      devLocal: rawOpts.devLocal === true,
+      f3Enabled: rawOpts.f3 === true,
+      strict: rawOpts.strict === true,
+    };
+    if (
+      typeof rawOpts.sandboxCreds === 'string'
+      && rawOpts.sandboxCreds !== ''
+    ) {
+      opts.sandboxCredentials = loadSandboxCredentials(rawOpts.sandboxCreds);
+    }
+    const exitCode = await runInit(specUrl, opts);
+    if (exitCode !== 0) {
+      process.exit(exitCode);
+    }
+  });
 }
 
 /**
  * Pure async entrypoint — exported for tests + composition.
  *
  * Spawns engine if needed, posts the generation request, consumes the SSE
- * stream while rendering progress, fetches the artifacts, and writes the
- * 6-file output directory. SIGTERMs the engine subprocess on every exit
- * path (success, error, signal).
+ * stream while rendering progress, fetches the artifacts, writes the Stage
+ * E output directory, then renders the QualityReport per CONTEXT D-38.
+ * Returns the desired process exit code (0 = pass, 1 = `--strict` gate
+ * tripped per D-39). SIGTERMs the engine subprocess on every exit path.
  */
 export async function runInit(
   specUrl: string,
   opts: CliInitOptions,
-): Promise<void> {
+): Promise<number> {
   registerCleanup();
   let engineProc: Subprocess | null = null;
 
@@ -167,6 +198,12 @@ export async function runInit(
     let cacheHit = false;
     let pass1FinalToolCount: number | undefined;
     let coveragePct: number | undefined;
+    let qualityReport: QualityReport | null = null;
+    const stageFState: StageFRendererState = {
+      f1StartedAt: null,
+      f2StartedAt: null,
+      f3StartedAt: null,
+    };
 
     for await (const raw of consumeSse(`${ENGINE_BASE_URL}${sseUrl}`)) {
       let parsed: unknown;
@@ -193,6 +230,13 @@ export async function runInit(
 
       renderProgress(event, stream);
 
+      // Plan 05-09 — Stage F event router. Captures the embedded
+      // QualityReport from `validation_complete:completed` per D-30.
+      const stageFResult = handleStageFEvent(event, stageFState);
+      if (stageFResult !== null && stageFResult.kind === 'validation_complete') {
+        qualityReport = stageFResult.qualityReport;
+      }
+
       if (event.stage === 'failed' && event.error !== undefined) {
         throw new Error(
           `engine failed: ${event.error.code} — ${event.error.message}`,
@@ -200,6 +244,13 @@ export async function runInit(
       }
     }
     stream.stop('Generation complete');
+
+    // Pitfall #20 / D-36 — fallback path: SSE stream may have dropped
+    // before the validation_complete event landed (or the engine is
+    // older than Phase 5). Fetch the QualityReport directly.
+    if (qualityReport === null) {
+      qualityReport = await fetchQualityReportSafely(jobId);
+    }
 
     // Fetch materialised artifacts ──────────────────────────────────────
     const fetchSpinner = spinner();
@@ -284,10 +335,58 @@ export async function runInit(
       ` coverage ${coveragePct ?? artifacts.pass_1_output.coverage_pct}% → ${outDir}/`,
     );
     outro(`${summary}${cacheNote}${coverageNote}`);
+
+    // Plan 05-09 — render the final QualityReport (D-38) and capture
+    // the strict-mode exit code (D-39). Persist the report to disk for
+    // CI consumers per D-40 layout.
+    let exitCode = 0;
+    if (qualityReport !== null) {
+      await writeOutputFile(
+        outDir,
+        'quality-report.json',
+        `${JSON.stringify(qualityReport, null, 2)}\n`,
+      );
+      exitCode = renderQualityReport(qualityReport, {
+        strict: opts.strict === true,
+      });
+    } else if (opts.strict === true) {
+      // No QualityReport AND strict mode → fail closed; the engine should
+      // always emit one in Phase 5+. Older engines (Phase 4) won't.
+      console.log(
+        pc.yellow(
+          'No QualityReport returned by engine — strict mode requires Phase 5+ engine.',
+        ),
+      );
+      exitCode = 1;
+    }
+    return exitCode;
   } finally {
     if (engineProc !== null) {
       engineProc.kill('SIGTERM');
     }
+  }
+}
+
+/**
+ * Pitfall #20 / D-36 fallback: when the SSE stream drops before the
+ * `validation_complete:completed` event, the CLI re-fetches the
+ * QualityReport via `GET /api/v1/generate/{job_id}/quality-report`.
+ *
+ * Returns null if the endpoint 404s (engine older than Phase 5) or any
+ * network error occurs — the caller must tolerate the absence and
+ * decide whether `--strict` should treat that as a failure.
+ */
+async function fetchQualityReportSafely(
+  jobId: string,
+): Promise<QualityReport | null> {
+  try {
+    const resp = await fetch(
+      `${ENGINE_BASE_URL}/api/v1/generate/${jobId}/quality-report`,
+    );
+    if (!resp.ok) return null;
+    return (await resp.json()) as QualityReport;
+  } catch {
+    return null;
   }
 }
 

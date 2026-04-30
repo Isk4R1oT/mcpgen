@@ -253,6 +253,47 @@ def _stub_stage_d_e(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pipeline_module, "stage_e_run", _fake_stage_e)
 
 
+@pytest.fixture(autouse=True)
+def _stub_stage_f(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 5 D-31: stub F1 + F2 so SSE / API tests stay fast.
+
+    F1 returns ``passed=True`` (so F2 runs). F2 returns ``passed=True`` +
+    sigma=0.6 so F3 doesn't auto-trigger. F3 is left unmocked — it only
+    runs when ``f3_enabled=True`` AND golden tasks are supplied; the API
+    tests in this module never opt in.
+    """
+    from unittest.mock import AsyncMock
+
+    from mcpgen_engine import pipeline as pipeline_module
+    from mcpgen_engine.stages.stage_f.f1_static import F1CheckOutcome, F1RunResult
+    from mcpgen_engine.stages.stage_f.f2_smell import F2RunResult
+
+    f1_pass = F1RunResult(
+        passed=True,
+        outcomes=[
+            F1CheckOutcome(
+                check_name="bundle_size",
+                passed=True,
+                error=None,
+                retry_target=None,
+                details={"kb": 0},
+            )
+        ],
+        first_failure=None,
+        subprocess_checks_pending=False,
+    )
+    f2_pass = F2RunResult(
+        tool_scores=[],
+        overall_score=4.5,
+        sigma=0.6,
+        passed=True,
+        low_confidence_run=False,
+        warnings=[],
+    )
+    monkeypatch.setattr(pipeline_module, "run_f1", AsyncMock(return_value=f1_pass))
+    monkeypatch.setattr(pipeline_module, "run_f2", AsyncMock(return_value=f2_pass))
+
+
 @pytest.fixture(name="client")
 def fastapi_client() -> TestClient:
     from mcpgen_engine.main import app
@@ -443,9 +484,10 @@ def test_sse_stream_emits_phase_3_stage_sequence(
     client: TestClient,
     httpx_mock: HTTPXMock,
 ) -> None:
-    """D-33: SSE stream emits the Phase-4 16-event sequence.
+    """D-33 + D-31: SSE stream emits the Phase-4 sequence + Phase-5 F1/F2 chain.
 
-    A → B(x2) → C(x3) → D(x1) → E(x1) → completed (shape_codegen_complete).
+    Phase 4 backbone: A → B(x2) → C(x3) → D(x1) → E(x1).
+    Phase 5 D-31: + F1 → F2 → validation_complete (F3 is opt-in).
 
     Also verifies the wire format ``id:\\nevent:\\ndata:\\n\\n`` per Phase-1 D-09.
     """
@@ -492,11 +534,15 @@ def test_sse_stream_emits_phase_3_stage_sequence(
     assert sum(1 for s in stages_seen if s == ("D", "completed")) == 1
     assert sum(1 for s in stages_seen if s == ("E", "started")) == 1
     assert sum(1 for s in stages_seen if s == ("E", "completed")) == 1
-    assert stages_seen[-1] == ("completed", "completed")
-    # Phase 4 D-33: terminal phase is `shape_codegen_complete`. Phase-3
-    # `author_complete` survives as a sub_status on C:completed (pass_4)
-    # for backward compat with Phase-2/3 CLI consumers.
-    assert events[-1]["data"]["partial_result"]["phase"] == "shape_codegen_complete"
+    # Phase 5 D-31: F1 + F2 fire after Stage E; terminal becomes
+    # `validation_complete:completed` carrying the QualityReport.
+    assert ("F1", "started") in stages_seen
+    assert ("F1", "completed") in stages_seen
+    assert ("F2", "started") in stages_seen
+    assert ("F2", "completed") in stages_seen
+    assert stages_seen[-1] == ("validation_complete", "completed")
+    assert events[-1]["data"]["partial_result"]["phase"] == "validation_complete"
+    assert "quality_report" in events[-1]["data"]["partial_result"]
     pass_4_completed = next(
         e
         for e in events
