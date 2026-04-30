@@ -26,6 +26,7 @@ import { sseCallbackRoute } from './routes/internal/v1/sse-callback.js';
 import { cancelGenerationRoute } from './routes/internal/v1/cancel-generation.js';
 import { spikeSseRoute } from './routes/_spike/sse.js';
 import { driftRoute } from './routes/v1/drift.js';
+import { deploymentsRoute } from './routes/v1/deployments.js';
 import { inngest } from './inngest/client.js';
 import { functions } from './inngest/functions/index.js';
 
@@ -83,6 +84,11 @@ protectedApp.route('/billing/portal', portalRoute);
 // driftRoute self-prefixes /deployments/:id/drift-events,
 // /drift-events/:id/regenerate, and /deployments/:id (PATCH).
 protectedApp.route('/', driftRoute);
+// Plan 09-03 / D-18: Phase-7 BFF carry-forward — list deployments + toggle
+// public_badge. deploymentsRoute self-prefixes /deployments and
+// /deployments/:id/badge-public so it composes with driftRoute (different
+// methods + paths; no collision).
+protectedApp.route('/', deploymentsRoute);
 app.route('/api/v1', protectedApp);
 
 export default app;
