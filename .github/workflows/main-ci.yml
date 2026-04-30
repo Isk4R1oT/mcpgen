@@ -118,6 +118,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: git fetch --no-tags --depth=0 origin main
       - uses: pnpm/action-setup@v4
         with:
           version: 10
@@ -126,9 +129,26 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Visual-lock guard (file-diff vs origin/main)
+        run: bash .github/workflows/scripts/visual-lock-guard.sh
       - run: pnpm --filter @mcpgen/web run typecheck
       - run: pnpm --filter @mcpgen/web run build
-      - run: pnpm --filter @mcpgen/web run test
+      - run: pnpm --filter @mcpgen/web run test:unit
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/web/package.json') }}
+      - name: Install Playwright browsers (chromium only for CI)
+        run: pnpm --filter @mcpgen/web exec playwright install --with-deps chromium
+      - name: Playwright integration tests (fixture mode)
+        env:
+          MCPGEN_FRONTEND_MODE: fixtures
+        run: pnpm --filter @mcpgen/web run test:e2e
+      - name: Playwright visual-lock screenshot diff
+        env:
+          MCPGEN_FRONTEND_MODE: fixtures
+        run: pnpm --filter @mcpgen/web run test:visual
 
   ops:
     needs: detect-changes

@@ -1,22 +1,35 @@
 #!/usr/bin/env bash
-# CONTEXT specifics + FE-05: apps/web/src/styles/ and apps/web/src/components/ui/ are LOCKED
-# after the initial MCP-Gen.zip unzip commit. Frontend phase = wire-up only; no visual changes.
+# CONTEXT D-03 + FE-05: locked UI assets ship from claude-design-ui/MCP-Gen.zip
+# unzipped flat into apps/web/src/. The following files are LOCKED — no visual /
+# layout / typography / copy changes are permitted in Phase 7 (wire-up phase):
+#   apps/web/src/MCPGen.html
+#   apps/web/src/app.jsx
+#   apps/web/src/screen-*.jsx (9 files)
+#   apps/web/src/ui.jsx
+#   apps/web/src/tokens.jsx
+#   apps/web/src/tweaks-panel.jsx
+#   apps/web/src/global.css
+#   apps/web/src/uploads/
 #
-# Escape hatch: drop a marker file `apps/web/.unzip-commit-allowed` alongside the unzip commit;
-# this hook deletes the marker after seeing it once, so subsequent commits are guarded again.
+# Escape hatch: locked-file edits MUST land paired with an ADR
+# `docs/decisions/<YYYY-MM-DD>-ui-lock-bump-<slug>.md` (the CI guard at
+# .github/workflows/scripts/visual-lock-guard.sh enforces the same pattern at PR time).
 set -euo pipefail
 
 changed=$(git diff --cached --name-only)
-UI_LOCKED_PATHS='^apps/web/src/(styles|components/ui)/'
+UI_LOCKED_PATHS='^apps/web/src/(MCPGen\.html|app\.jsx|screen-.*\.jsx|ui\.jsx|tokens\.jsx|tweaks-panel\.jsx|global\.css|uploads/)$'
 
 if echo "$changed" | grep -qE "$UI_LOCKED_PATHS"; then
-  # Allow the initial unzip commit (one-shot marker file).
-  if [[ -f apps/web/.unzip-commit-allowed ]]; then
-    rm -f apps/web/.unzip-commit-allowed
-    exit 0
-  fi
-  echo "ERROR: apps/web/src/styles/ or apps/web/src/components/ui/ is LOCKED."
-  echo "       Per CONTEXT specifics + FE-05: claude-design-ui/MCP-Gen.zip ships unchanged."
-  echo "       Frontend phase (Phase 7) is wire-up ONLY — no visual / layout / typography / copy changes."
+  echo "ERROR: locked UI file touched. Per CONTEXT D-03 + FE-05:"
+  echo "       apps/web/src/{MCPGen.html, app.jsx, screen-*.jsx, ui.jsx, tokens.jsx,"
+  echo "                     tweaks-panel.jsx, global.css, uploads/} are LOCKED."
+  echo "       Frontend phase (Phase 7) is wire-up ONLY — no visual / layout /"
+  echo "       typography / copy changes."
+  echo ""
+  echo "       If you genuinely need to change a locked asset:"
+  echo "         1. Create docs/decisions/$(date -u +%Y-%m-%d)-ui-lock-bump-<slug>.md"
+  echo "            explaining why the visual lock must be broken."
+  echo "         2. git add the ADR in the SAME commit as the locked-file change."
+  echo "         3. Re-run git commit (CI guard re-checks at PR time)."
   exit 1
 fi

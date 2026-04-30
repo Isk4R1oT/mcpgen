@@ -95,11 +95,13 @@
 
 ### Frontend (FE) — Phase 7 (UI is LOCKED in `claude-design-ui/MCP-Gen.zip`)
 
-- [ ] **FE-01**: Landing page (already designed) wired to live `/api/v1/generate` job submission with `Idempotency-Key` header
+- [x] **FE-01
+**: Landing page (already designed) wired to live `/api/v1/generate` job submission with `Idempotency-Key` header
 - [ ] **FE-02**: Generation playground consumes SSE callbacks per stage, recovers from disconnect via Postgres state read + `last-event-id` resume [P1: pitfall #20]
 - [ ] **FE-03**: Preview screen shows generated tool list, descriptions, parameters, annotations, response config, full code visible at every step (transparency principle)
 - [ ] **FE-04**: One-click deploy from preview; dashboard shows deployed servers, usage events, costs, F2/F3 quality badge (premium/verified/standard/needs_review)
-- [ ] **FE-05**: Frontend phase = wire-up only; visual / layout / typography / copy must NOT be modified — `claude-design-ui/MCP-Gen.zip` ships unchanged into `apps/web/src/`
+- [x] **FE-05
+**: Frontend phase = wire-up only; visual / layout / typography / copy must NOT be modified — `claude-design-ui/MCP-Gen.zip` ships unchanged into `apps/web/src/`
 
 ### GTM / Launch (GTM) — Phase 10
 
@@ -234,7 +236,7 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | FE-02 | Phase 7 | Pending |
 | FE-03 | Phase 7 | Pending |
 | FE-04 | Phase 7 | Pending |
-| FE-05 | Phase 7 | Pending |
+| FE-05 | Phase 7 | Complete (07-01) |
 | GTM-01 | Phase 10 | Pending |
 | GTM-02 | Phase 10 | Pending |
 | GTM-03 | Phase 10 | Pending |
