@@ -83,7 +83,8 @@
 - [x] **CTRL-05**: R2 holds three buckets (`mcpgen-specs`, `mcpgen-artifacts` 30-day TTL, `mcpgen-public-cache`) with no PII or credentials persisted; never log spec content
 - [x] **CTRL-06**: Stripe Billing + Meters API supports Free (1 F3 eval/mo), Pro (5/mo included), Pay-as-you-go ($0.50/eval), with per-generation cost cap ($0.50 free / $2.00 pro) enforced server-side
 - [x] **CTRL-07**: Quota enforcement uses TimescaleDB hourly aggregates as quota truth (real-time) and Stripe Meters as billing eventual; daily reconciliation alerts on >2% drift; cost cap exceeded → hard fail with partial result + bill [P1: pitfall #16]
-- [ ] **CTRL-08**: Sentry (TS + Python with source maps), BetterStack (logs + uptime + CF Queue depth alert), Langfuse v4 (LLM tracing via OTel) wired across all components; Sentry `beforeSend` strips auth headers and spec content
+- [x] **CTRL-08
+**: Sentry (TS + Python with source maps), BetterStack (logs + uptime + CF Queue depth alert), Langfuse v4 (LLM tracing via OTel) wired across all components; Sentry `beforeSend` strips auth headers and spec content
 - [x] **CTRL-09**: Inngest function IDs are stable strings (`drift-watcher-v1`, `usage-reconciler-v1`); orphan audit in Phase 9 [P2: pitfall #21]
 
 ### CLI (CLI) — Phases 2, 6

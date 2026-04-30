@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 9 context gathered
-last_updated: "2026-04-30T11:23:35.077Z"
+status: executing
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-04-30T12:06:10.642Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 83
-  completed_plans: 76
-  percent: 92
+  completed_plans: 77
+  percent: 93
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-26)
 
 **Core value:** Generated MCP servers measurably outperform hand-written ones on agent task success rate — paste an OpenAPI URL → 60 seconds later you have a deployed MCP server that scores ≥4.0 on F2 smell rubric and ≥70% F3 agent task success on golden tasks for that API.
-**Current focus:** Phase 07 — frontend-wire-up
+**Current focus:** Phase 9 — Observability & Polish
 
 ## Current Position
 
-Phase: 08
-Plan: Not started
-Status: Ready to plan
+Phase: 9 (Observability & Polish) — EXECUTING
+Plan: 2 of 11
+Status: Ready to execute
 Last activity: 2026-04-30
 
-Progress: [██████████] 100%
+Progress: [█████████░] 93%
 
 ## Next
 
@@ -79,6 +79,7 @@ parameter spec + Pass 4 annotations).
 | Phase 02-generation-engine-architect-pass-0-1 P09 | 17min | 5 tasks | 18 files |
 | Phase 04 P14 | ~180min | 3 tasks | 15 files |
 | Phase 04 P15 | 90 | 3 tasks | 17 files |
+| Phase 09 P01 | 33min | 3 tasks tasks | 10 created + 9 modified files |
 
 ## Accumulated Context
 
@@ -162,6 +163,11 @@ Recent decisions affecting current work:
 - dev_local=False default at CLI flag, contracts, and scaffold parameter layers
 - McpServer.registerTool(name, config, cb) is canonical SDK v1 (1.6+) form for outputSchema-bearing tools — deprecated 5-arg server.tool() silently drops outputSchema
 - json_schema_to_zod Jinja2 filter converts Pass 5 JSON Schema dicts to Zod TypeScript expressions — SDK AnySchema requires Zod types, not plain JSON objects
+- Plan 09-01: thin-shim apps/web/src/lib/sentry/redact.ts preserves Phase 7 plan 07-06's 17 vitest unit tests via backward-compat aliases (REDACTED_HEADERS array shape) while delegating implementation to shared @mcpgen/contracts/sentry-redaction.redactBeforeSend
+- Plan 09-01: apps/dispatch wraps {fetch: app.fetch} ExportedHandler via withSentry, then re-attaches port to wrapped handler — Bun's {port,fetch} shape is not an ExportedHandler but withSentry accepts ExportedHandler only; compose dance preserves both Bun port-export and Sentry CF Workers wrapper contract
+- Plan 09-01: Stage E template sentry_redact.ts.j2 inlines denylist (Option a) with 'Phase 9 D-03 convergence' pinning comment — tenant Workers ship as stand-alone bundles without @mcpgen/contracts workspace dep
+- Plan 09-01: cross-app test isolation — apps/dispatch sentry assertions moved to apps/dispatch/tests/instrumentation.test.ts because TS rootDir constraints reject cross-app imports from apps/api/tests
+- Plan 09-01: sentryOptionsFor return type explicit CloudflareOptions across apps/api + apps/dispatch — lets withSentry callback typing compose via Sentry structural typing (ErrorEvent extends SentryEventLike)
 
 ### Pending Todos
 
@@ -188,8 +194,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 9 context gathered
-Resume file: --resume-file
+Last session: 2026-04-30T12:06:10.633Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: None
 
 **Planned Phase:** 9 (Observability & Polish) — 11 plans — 2026-04-30T11:23:35.070Z
