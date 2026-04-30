@@ -88,3 +88,26 @@ export async function sendMauAlert(env: ResendEnv, mau: number): Promise<void> {
       `Runbook: docs/runbooks/logto-pro-upgrade.md`,
   });
 }
+
+// CTRL-08 / D-21 — outbox depth alert (replaces CF Queue depth alert per Phase 8 D-22).
+// Same shape as sendMauAlert: ops-email recipient, plaintext body, single Resend call.
+export async function sendOutboxDepthAlert(
+  env: ResendEnv,
+  pending: number,
+  threshold: number,
+): Promise<void> {
+  const resend = new Resend(env.RESEND_API_KEY);
+  await resend.emails.send({
+    from: env.OPS_FROM_EMAIL ?? DEFAULT_OPS_FROM,
+    to: [env.OPS_EMAIL],
+    subject: `Outbox depth ${String(pending)} (> ${String(threshold)})`,
+    text:
+      `usage_events_outbox has ${String(pending)} rows pending older than 5 minutes\n` +
+      `(threshold: ${String(threshold)}). Stripe Meters emitter likely lagging.\n` +
+      `\n` +
+      `Investigate:\n` +
+      `  - apps/api logs for stripe-meters-emit-v1 errors\n` +
+      `  - Inngest dashboard for failed runs\n` +
+      `  - Stripe API status\n`,
+  });
+}
