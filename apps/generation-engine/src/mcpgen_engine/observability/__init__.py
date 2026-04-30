@@ -11,6 +11,8 @@ also do `from mcpgen_engine.observability import redact_before_send`.
 from __future__ import annotations
 
 from .langfuse_otel import configure_langfuse_otel
+from .run_tracing import run_with_tracing
+from .scrubbing import combined_scrub_callback
 from .sentry_redaction import (
     REDACTED,
     REDACTED_HEADERS,
@@ -24,6 +26,8 @@ __all__ = [
     "REDACTED_HEADERS",
     "SENSITIVE_STRING_PATTERNS",
     "VARIABLE_AUTH_HEADER_RE",
+    "combined_scrub_callback",
     "configure_langfuse_otel",
     "redact_before_send",
+    "run_with_tracing",
 ]

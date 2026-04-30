@@ -36,6 +36,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from mcpgen_engine.llm.agent_factory import make_agent
 from mcpgen_engine.llm.sampling import PASS_2_SETTINGS
+from mcpgen_engine.observability import run_with_tracing
 from mcpgen_engine.passes.pass_2.classify import select_template
 from mcpgen_engine.passes.pass_2.prompts import (
     PASS_2_ACTION_SYSTEM_PROMPT,
@@ -146,7 +147,14 @@ async def _run_with_transient_retry(agent: Agent[None, Description], prompt: str
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            result = await agent.run(prompt, model_settings=PASS_2_SETTINGS)
+            # TODO(09-05): thread generation_id through pass_2.run signature.
+            result = await run_with_tracing(
+                agent,
+                prompt,
+                session_id="unknown",
+                stage="pass-2-author",
+                model_settings=PASS_2_SETTINGS,
+            )
         except httpx.HTTPError as exc:
             last_exc = exc
             _log.warning(

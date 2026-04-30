@@ -68,6 +68,7 @@ from mcpgen_engine.llm.sampling import (
     F2_JUDGE_SETTINGS_T02,
     F2_JUDGE_SETTINGS_T05,
 )
+from mcpgen_engine.observability import run_with_tracing
 
 from .judge_prompts import build_judge_prompt
 from .rubric import COMPONENTS, RubricScore
@@ -152,7 +153,14 @@ async def _judge_run_with_retry(
     temp_setting: Any,
 ) -> RubricScore:
     """Single judge call with bounded exponential backoff on transient errors."""
-    result = await judge_agent.run(prompt, model_settings=temp_setting)
+    # TODO(09-05): thread generation_id through run_f2 signature.
+    result = await run_with_tracing(
+        judge_agent,
+        prompt,
+        session_id="unknown",
+        stage="stage-f-2-smell",
+        model_settings=temp_setting,
+    )
     return result.output
 
 

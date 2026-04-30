@@ -46,6 +46,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from mcpgen_engine.llm.agent_factory import make_agent
 from mcpgen_engine.llm.sampling import PASS_0_SETTINGS
+from mcpgen_engine.observability import run_with_tracing
 
 from .filter import UserOptions
 from .prompts import PASS_0_SYSTEM_PROMPT, build_retry_user_prompt, build_user_prompt
@@ -167,7 +168,18 @@ async def _run_with_transient_retry(user_prompt: str) -> Pass0LlmOutput:
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            result = await PASS_0_AGENT.run(user_prompt, model_settings=PASS_0_SETTINGS)
+            # TODO(09-05): thread generation_id through pass_0.run signature.
+            # session_id="unknown" is a placeholder; Plan 09-05 acceptance
+            # criterion accepts this for ≥4 of 11 call sites where threading
+            # is invasive. Wrapper still provides Logfire span correlation
+            # by stage tag, just no per-generation grouping.
+            result = await run_with_tracing(
+                PASS_0_AGENT,
+                user_prompt,
+                session_id="unknown",
+                stage="pass-0",
+                model_settings=PASS_0_SETTINGS,
+            )
         except httpx.HTTPError as exc:
             last_exc = exc
             _log.warning(

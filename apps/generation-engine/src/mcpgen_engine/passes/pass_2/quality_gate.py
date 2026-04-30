@@ -37,6 +37,7 @@ from pydantic_ai import Agent
 # tools individually, which is not a Plan 03-04 contract.
 from mcpgen_engine.llm.agent_factory import make_agent
 from mcpgen_engine.llm.sampling import INLINE_GATE_SETTINGS
+from mcpgen_engine.observability import run_with_tracing
 from mcpgen_engine.passes.pass_2.authoring import _author_one as _retry_author_one
 from mcpgen_engine.passes.pass_2.validation import render_description_markdown
 
@@ -135,7 +136,14 @@ async def _judge_one(
     iff every score is >= ``_RUBRIC_THRESHOLD`` (3).
     """
     prompt = _build_judge_prompt(tool.name, tool.type, description)
-    result = await _QUALITY_GATE_AGENT.run(prompt, model_settings=INLINE_GATE_SETTINGS)
+    # TODO(09-05): thread generation_id through quality_gate_all_tools signature.
+    result = await run_with_tracing(
+        _QUALITY_GATE_AGENT,
+        prompt,
+        session_id="unknown",
+        stage="pass-2-quality-gate",
+        model_settings=INLINE_GATE_SETTINGS,
+    )
     scores = result.output
     passes = (
         scores.purpose >= _RUBRIC_THRESHOLD

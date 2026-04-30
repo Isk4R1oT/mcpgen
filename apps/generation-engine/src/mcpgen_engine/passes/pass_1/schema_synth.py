@@ -61,6 +61,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from mcpgen_engine.llm.agent_factory import make_agent
 from mcpgen_engine.llm.sampling import PASS_1_SETTINGS
+from mcpgen_engine.observability import run_with_tracing
 
 from .classify import ExtraTool, UniversalToolClass
 from .prompts import (
@@ -252,7 +253,14 @@ async def _universal_run_with_transient_retry(prompt: str) -> _UniversalToolsLlm
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            result = await PASS_1_UNIVERSAL_AGENT.run(prompt, model_settings=PASS_1_SETTINGS)
+            # TODO(09-05): thread generation_id through pass_1.run signature.
+            result = await run_with_tracing(
+                PASS_1_UNIVERSAL_AGENT,
+                prompt,
+                session_id="unknown",
+                stage="pass-1-universal",
+                model_settings=PASS_1_SETTINGS,
+            )
         except httpx.HTTPError as exc:
             last_exc = exc
             _log.warning(
@@ -282,7 +290,14 @@ async def _extra_run_with_transient_retry(prompt: str) -> Tool1:
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            result = await PASS_1_EXTRA_AGENT.run(prompt, model_settings=PASS_1_SETTINGS)
+            # TODO(09-05): thread generation_id through pass_1.run signature.
+            result = await run_with_tracing(
+                PASS_1_EXTRA_AGENT,
+                prompt,
+                session_id="unknown",
+                stage="pass-1-extra",
+                model_settings=PASS_1_SETTINGS,
+            )
         except httpx.HTTPError as exc:
             last_exc = exc
             _log.warning(

@@ -21,6 +21,31 @@ os.environ.setdefault("OPENROUTER_API_KEY", "sk-or-test-PLACEHOLDER")
 # succeeds without a real key.
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-PLACEHOLDER")
 
+# Plan 09-05 Task 2: pipeline tests now invoke `run_with_tracing` (a logfire
+# span wrapper around every `agent.run` call). Logfire emits a
+# `LogfireNotConfiguredWarning` whenever a span opens without a prior
+# `logfire.configure()` — pytest's `filterwarnings=error` then promotes that
+# to a test failure. Configure once at collection time with
+# `send_to_logfire=False` (the engine's production invariant) so spans are
+# created silently. Production main.py wires `configure_langfuse_otel()`
+# during startup; this conftest line is the equivalent for tests that don't
+# go through that bootstrap.
+import logfire as _logfire
+from opentelemetry import metrics as _otel_metrics
+from opentelemetry.metrics import NoOpMeterProvider as _NoOpMeterProvider
+
+# `metrics=False` + NoOp meter provider sidesteps the
+# logfire-1.3.2/opentelemetry-sdk-1.41 `_ProxyCounter.add` arity mismatch
+# (logfire's span processor wrapper invokes a metrics counter with
+# positional args the SDK 1.41+ proxy rejects). Production wires no metrics
+# either, so this matches runtime.
+_otel_metrics.set_meter_provider(_NoOpMeterProvider())
+_logfire.configure(
+    send_to_logfire=False,
+    service_name="mcpgen-engine-test",
+    metrics=False,
+)
+
 
 @pytest.fixture(autouse=True)
 def _sandbox_env(monkeypatch: pytest.MonkeyPatch) -> None:

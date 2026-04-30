@@ -42,6 +42,7 @@ from pydantic_ai import Agent
 
 from mcpgen_engine.llm.agent_factory import make_agent
 from mcpgen_engine.llm.sampling import INLINE_GATE_SETTINGS
+from mcpgen_engine.observability import run_with_tracing
 
 # ─────────────────────────── Module-level constants ────────────────────────
 
@@ -163,7 +164,14 @@ async def _judge_one_pass_3(
     iff every score is >= ``_RUBRIC_THRESHOLD_PASS_3`` (3).
     """
     prompt = _build_judge_prompt_pass_3(tool_name, schema)
-    result = await _QUALITY_GATE_AGENT_PASS_3.run(prompt, model_settings=INLINE_GATE_SETTINGS)
+    # TODO(09-05): thread generation_id through quality_gate_all_tools signature.
+    result = await run_with_tracing(
+        _QUALITY_GATE_AGENT_PASS_3,
+        prompt,
+        session_id="unknown",
+        stage="pass-3-quality-gate",
+        model_settings=INLINE_GATE_SETTINGS,
+    )
     scores = result.output
     passes = (
         scores.naming >= _RUBRIC_THRESHOLD_PASS_3

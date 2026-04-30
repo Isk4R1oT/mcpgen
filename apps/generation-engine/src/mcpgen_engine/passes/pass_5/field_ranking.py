@@ -49,6 +49,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from mcpgen_engine.llm.agent_factory import make_agent
 from mcpgen_engine.llm.sampling import PASS_5_SETTINGS
+from mcpgen_engine.observability import run_with_tracing
 from mcpgen_engine.passes.pass_5.output_schema import OutputSchemaSpec
 from mcpgen_engine.passes.pass_5.prompts import (
     PASS_5_FIELD_RANKING_SYSTEM_PROMPT,
@@ -196,7 +197,14 @@ async def _run_with_transient_retry(prompt: str) -> FieldRanking:
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            result = await PASS_5_FIELD_RANKING_AGENT.run(prompt, model_settings=PASS_5_SETTINGS)
+            # TODO(09-05): thread generation_id through pass_5.run signature.
+            result = await run_with_tracing(
+                PASS_5_FIELD_RANKING_AGENT,
+                prompt,
+                session_id="unknown",
+                stage="pass-5-field-ranking",
+                model_settings=PASS_5_SETTINGS,
+            )
         except httpx.HTTPError as exc:
             last_exc = exc
             _log.warning(

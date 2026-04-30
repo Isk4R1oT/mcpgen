@@ -53,6 +53,7 @@ from pydantic_ai import Agent
 from mcpgen_engine.launch_criteria import LAUNCH_CRITERIA
 from mcpgen_engine.llm.agent_factory import make_agent
 from mcpgen_engine.llm.sampling import F3_JUDGE_SETTINGS
+from mcpgen_engine.observability import run_with_tracing
 
 from .mock_clients import (
     ChatGPTDeepResearchMockClient,
@@ -284,7 +285,14 @@ async def llm_judge_eval(*, task: dict[str, Any], traj: Any) -> F3JudgeScore:
     JUDGE_AGENT comment are the runtime defenses against drift.
     """
     prompt = _format_judge_prompt(task, traj)
-    result = await JUDGE_AGENT.run(prompt, model_settings=F3_JUDGE_SETTINGS)
+    # TODO(09-05): thread generation_id through run_f3 signature.
+    result = await run_with_tracing(
+        JUDGE_AGENT,
+        prompt,
+        session_id="unknown",
+        stage="stage-f-3-judge",
+        model_settings=F3_JUDGE_SETTINGS,
+    )
     return result.output
 
 

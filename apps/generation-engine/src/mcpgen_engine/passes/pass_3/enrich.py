@@ -32,6 +32,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from mcpgen_engine.llm.agent_factory import make_agent
 from mcpgen_engine.llm.sampling import PASS_3_SETTINGS
+from mcpgen_engine.observability import run_with_tracing
 from mcpgen_engine.passes.pass_3.extract import ParameterSpec
 from mcpgen_engine.passes.pass_3.prompts import (
     PASS_3_SYSTEM_PROMPT,
@@ -165,7 +166,14 @@ async def _run_with_transient_retry(prompt: str) -> ParameterEnrichment:
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            result = await PASS_3_ENRICHMENT_AGENT.run(prompt, model_settings=PASS_3_SETTINGS)
+            # TODO(09-05): thread generation_id through pass_3.run signature.
+            result = await run_with_tracing(
+                PASS_3_ENRICHMENT_AGENT,
+                prompt,
+                session_id="unknown",
+                stage="pass-3-enrich",
+                model_settings=PASS_3_SETTINGS,
+            )
         except httpx.HTTPError as exc:
             last_exc = exc
             _log.warning(

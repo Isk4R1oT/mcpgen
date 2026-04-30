@@ -30,9 +30,17 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+from .scrubbing import combined_scrub_callback
+
 
 def configure_langfuse_otel() -> None:
-    """Wire Logfire → OTel → Langfuse. No-op if LANGFUSE_PUBLIC_KEY/SECRET_KEY are unset."""
+    """Wire Logfire → OTel → Langfuse. No-op if LANGFUSE_PUBLIC_KEY/SECRET_KEY are unset.
+
+    Phase 9 Plan 09-05 (D-06 + D-07): registers ``combined_scrub_callback`` so
+    Logfire's default ``/session/`` scrubber preserves ``langfuse.session.id``
+    (Pitfall #1) and >10K-char spec attributes are replaced with sha256
+    markers (D-07).
+    """
     public_key = os.environ.get("LANGFUSE_PUBLIC_KEY", "")
     secret_key = os.environ.get("LANGFUSE_SECRET_KEY", "")
     endpoint = os.environ.get(
@@ -41,7 +49,13 @@ def configure_langfuse_otel() -> None:
     )
 
     # Logfire: do not forward to Logfire SaaS; we use it only for OTel SDK init.
-    logfire.configure(send_to_logfire=False, service_name="mcpgen-generation-engine")
+    # ScrubbingOptions(callback=...) overrides the default scrubber selectively
+    # — see observability/scrubbing.py for the chain.
+    logfire.configure(
+        send_to_logfire=False,
+        service_name="mcpgen-generation-engine",
+        scrubbing=logfire.ScrubbingOptions(callback=combined_scrub_callback),
+    )
 
     if not (public_key and secret_key):
         # Phase 1 default — no Langfuse credentials → no exporter wired; spans drop locally.

@@ -41,6 +41,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from mcpgen_engine.llm.agent_factory import make_agent
 from mcpgen_engine.llm.sampling import PASS_4_SETTINGS
+from mcpgen_engine.observability import run_with_tracing
 from mcpgen_engine.passes.pass_4.prompts import (
     PASS_4_JUDGE_SYSTEM_PROMPT,
     build_judge_prompt,
@@ -114,7 +115,14 @@ async def _run_with_transient_retry(prompt: str) -> _LlmJudgeOutput:
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            result = await PASS_4_JUDGE_AGENT.run(prompt, model_settings=PASS_4_SETTINGS)
+            # TODO(09-05): thread generation_id through pass_4.run signature.
+            result = await run_with_tracing(
+                PASS_4_JUDGE_AGENT,
+                prompt,
+                session_id="unknown",
+                stage="pass-4-judge",
+                model_settings=PASS_4_SETTINGS,
+            )
         except httpx.HTTPError as exc:
             last_exc = exc
             _log.warning(
