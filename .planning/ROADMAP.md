@@ -257,7 +257,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 | 6. Runtime Plane | 0/TBD | Not started | - |
 | 7. Frontend Wire-Up | 0/TBD | Not started | - |
 | 8. Auth + Billing | 0/TBD | Not started | - |
-| 9. Observability & Polish | 0/11 | Not started | - |
+| 9. Observability & Polish | 2/11 | In progress | 2026-04-30 |
 | 10. Launch | 0/TBD | Not started | - |
 
 ---
