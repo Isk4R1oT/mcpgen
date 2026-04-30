@@ -23,6 +23,11 @@
     },
     "codegen:check": {
       "outputs": []
+    },
+    "sourcemaps:upload": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "cache": false
     }
   }
 }

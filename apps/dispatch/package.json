@@ -9,7 +9,8 @@
     "deploy": "wrangler deploy --upload-source-maps",
     "typecheck": "tsc --noEmit",
     "test": "vitest --passWithNoTests",
-    "lint": "echo \"no lint step in @mcpgen/dispatch (covered by workspace eslint via pnpm -r lint)\""
+    "lint": "echo \"no lint step in @mcpgen/dispatch (covered by workspace eslint via pnpm -r lint)\"",
+    "sourcemaps:upload": "@sentry/cli sourcemaps upload --release ${SENTRY_RELEASE:-$(git rev-parse --short HEAD)} dist/"
   },
   "dependencies": {
     "@mcpgen/contracts": "workspace:*",

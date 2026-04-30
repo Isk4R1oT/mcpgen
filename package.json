@@ -13,6 +13,7 @@
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "sourcemaps:upload": "bash scripts/sourcemaps/upload-all.sh",
     "prepare": "if [ -d .git ] && command -v pre-commit >/dev/null 2>&1; then pre-commit install --hook-type pre-commit --hook-type commit-msg || true; fi"
   },
   "devDependencies": {

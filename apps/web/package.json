@@ -15,7 +15,8 @@
     "test:unit": "vitest --run",
     "test:e2e": "playwright test --config=playwright.config.ts",
     "test:visual": "playwright test --config=playwright.visual-lock.config.ts",
-    "preview:fixtures": "MCPGEN_FRONTEND_MODE=fixtures next start"
+    "preview:fixtures": "MCPGEN_FRONTEND_MODE=fixtures next start",
+    "sourcemaps:upload": "echo 'apps/web uses @sentry/nextjs withSentryConfig — auto-upload during build'"
   },
   "dependencies": {
     "@logto/next": "^4.2.10",

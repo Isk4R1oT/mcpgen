@@ -48,6 +48,14 @@ dev = [
 [tool.uv.sources]
 mcpgen-ir = { path = "../../packages/ir", editable = true }
 
+# ─── Source maps upload (CTRL-08 / D-05) ──────────────────────────────────────
+# Phase 9 wires the orchestrator command (scripts/sourcemaps/upload-all.sh) but
+# leaves apps/generation-engine deferred to Phase 10: local Python runs from
+# source so there is no PyInstaller bundle to map. Phase 10 invocation:
+#   sentry-cli sourcemaps upload --release "$VERSION" --upload-source dist/
+# SENTRY_AUTH_TOKEN is provisioned by CI in Phase 10 — see .env.example for the
+# CI-only env contract (NEVER add SENTRY_AUTH_TOKEN to .env.local).
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
