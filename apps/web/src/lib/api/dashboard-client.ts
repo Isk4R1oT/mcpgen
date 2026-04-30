@@ -14,80 +14,34 @@
 //   - .planning/phases/07-frontend-wire-up/07-CONTEXT.md D-22 (badge-public
 //     opt-in toggle), D-24 (server-name collision rename modal)
 
-import { z } from 'zod';
-
 import { IDEMPOTENCY_KEY_HEADER } from '@mcpgen/contracts';
+// Plan 09-03 / D-18 promotion: schemas now live in packages/contracts/src/
+// dashboard-api.ts as the cross-package source of truth. The local re-export
+// preserves every existing import path used by the dashboard data layer
+// (and the 11 Phase-7 unit tests in tests/unit/lib/api/dashboard-client.test.ts)
+// without touching call sites.
+import {
+  DeploymentSchema,
+  DeploymentsListResponseSchema as DeploymentsResponseSchema,
+  UsageHourlyRowSchema,
+  UsageHourlyResponseSchema,
+  DeployResponseSchema,
+  type Deployment,
+  type UsageHourlyRow,
+  type DeployResponse,
+} from '@mcpgen/contracts/dashboard-api';
 
 import { parseCollisionResponse, type CollisionResponse } from '@/lib/claude-desktop/collision';
 import { getOrCreateIdempotencyKey } from '@/lib/idempotency-key';
 
-// TODO(phase-9): Promote these to packages/contracts/src/dashboard-api.ts
-// when the BFF closes the Phase-7 carry-forward (GET /deployments + /usage/
-// hourly + POST /deploy/[id] + PATCH /deployments/[id]/badge-public). Until
-// then, the schemas live here as the wire-shape source of truth.
-
-// ─── Deployment ────────────────────────────────────────────────────────────
-
-const DeploymentSchema = z.object({
-  deployment_id: z.string().uuid(),
-  generation_id: z.string().uuid(),
-  server_name: z.string().min(1),
-  server_url: z.string().url(),
-  auth_mode: z.enum(['passthrough', 'stored', 'oauth']),
-  deployed_at: z.string().datetime(),
-  // The aggregate quality_report column is a free-form JSONB at the DB level;
-  // strictly validating it here would couple the dashboard to every Phase-5
-  // strictly-additive field. We surface it as the IR's QualityReport shape via
-  // the public type alias, but the wire validator is intentionally loose so
-  // BFF schema additions do not break the dashboard.
-  quality_report: z.unknown().nullable(),
-  public_badge: z.boolean(),
-});
-export type Deployment = z.infer<typeof DeploymentSchema>;
-
-const DeploymentsResponseSchema = z.object({
-  deployments: z.array(DeploymentSchema),
-});
-
-// ─── UsageHourlyRow ─────────────────────────────────────────────────────────
-//
-// Mirrors architecture §7.2 TimescaleDB continuous aggregate `usage_hourly`.
-
-const UsageHourlyRowSchema = z.object({
-  deployment_id: z.string().uuid(),
-  hour_bucket: z.string().datetime(),
-  call_count: z.number().int().nonnegative(),
-  total_latency_ms: z.number().int().nonnegative(),
-  total_cost_usd: z.number().nonnegative().nullable(),
-  error_count: z.number().int().nonnegative(),
-});
-export type UsageHourlyRow = z.infer<typeof UsageHourlyRowSchema>;
-
-const UsageHourlyResponseSchema = z.object({
-  rows: z.array(UsageHourlyRowSchema),
-});
-
-// ─── DeployResponse ────────────────────────────────────────────────────────
-
-const DeployResponseSchema = z.object({
-  deployment_id: z.string().uuid(),
-  server_name: z.string().min(1),
-  server_url: z.string().url(),
-  // Claude Desktop config block — server-side built per CONTEXT D-23. Optional
-  // because fixture-mode synthesizes it client-side via lib/claude-desktop/config.
-  claude_desktop_config: z
-    .object({
-      mcpServers: z.record(
-        z.string(),
-        z.object({
-          url: z.string().url(),
-          headers: z.record(z.string(), z.string()).optional(),
-        }),
-      ),
-    })
-    .optional(),
-});
-export type DeployResponse = z.infer<typeof DeployResponseSchema>;
+export {
+  DeploymentSchema,
+  DeploymentsResponseSchema,
+  UsageHourlyRowSchema,
+  UsageHourlyResponseSchema,
+  DeployResponseSchema,
+};
+export type { Deployment, UsageHourlyRow, DeployResponse };
 
 // ─── Result types ──────────────────────────────────────────────────────────
 

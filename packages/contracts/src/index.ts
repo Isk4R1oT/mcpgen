@@ -15,3 +15,25 @@ export * from './engine-internal-api.js';
 export * from './billing-types.js';
 // ─── Phase 9 (CTRL-08 / D-03) ──────────────────────────────────────────────
 export * from './sentry-redaction.js';
+// ─── Phase 9 (D-18 / Plan 09-03) ───────────────────────────────────────────
+// Selective re-export: `Deployment` already exists in db-types as the Drizzle
+// $inferSelect row type (DB shape). Wire-shape consumers should deep-import
+// `@mcpgen/contracts/dashboard-api` to access the wire `Deployment` type.
+// Schemas + non-colliding wire types stay barrel-exported for ergonomic use.
+export {
+  DeploymentSchema,
+  DeploymentsListResponseSchema,
+  UsageHourlyRowSchema,
+  UsageHourlyResponseSchema,
+  DeployResponseSchema,
+  BadgePublicRequestSchema,
+  BadgePublicResponseSchema,
+} from './dashboard-api.js';
+export type {
+  DeploymentsListResponse,
+  UsageHourlyRow,
+  UsageHourlyResponse,
+  DeployResponse,
+  BadgePublicRequest,
+  BadgePublicResponse,
+} from './dashboard-api.js';
