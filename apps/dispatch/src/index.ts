@@ -11,6 +11,7 @@
 
 import { Hono } from 'hono';
 
+import { sentryOptionsFor, withSentry } from './instrumentation.js';
 import { authMiddleware } from './middleware/auth.js';
 import { capabilityGate } from './middleware/capabilityGate.js';
 import { hostHeaderValidation } from './middleware/hostHeaderValidation.js';
@@ -46,7 +47,17 @@ app.use('/t/*', smartIdFuzz);                          // D-03 / pitfall #1 cros
 app.all('/t/:name/*', forwardToTenant);                // multi-port proxy
 app.all('*', (c) => c.json({ error: 'not_a_tenant_path', path: c.req.path }, 404));
 
+// Phase 9 (Pitfall #3 / D-03): wire Sentry init via the shared helper.
+// `@sentry/cloudflare` `withSentry` expects an `ExportedHandler` ({fetch}),
+// not Bun's `{port, fetch}` shape — so we wrap an inner handler and attach
+// `port` to the wrapped result so Bun still picks up the port-export hint.
+// Empty `SENTRY_DSN` → SDK no-op (preserved from apps/api/src/instrumentation.ts).
+const sentryWrappedHandler = withSentry(
+  (env: Bindings) => sentryOptionsFor(env),
+  { fetch: app.fetch } satisfies ExportedHandler<Bindings>,
+);
+
 // Bun (Phase 6):
-export default { port: 8789, fetch: app.fetch };
+export default { port: 8789, fetch: sentryWrappedHandler.fetch };
 // Phase 10 (CF Workers — same source, different export form):
-// export default app;
+// export default sentryWrappedHandler;

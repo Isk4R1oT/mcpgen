@@ -2,13 +2,27 @@
 // Pitfall #12 mitigation per CONTEXT D-23: strip auth headers + body
 // credentials from every Sentry event before transmission.
 //
+// Phase 9 D-03 convergence: keep this denylist in sync with
+// packages/contracts/src/sentry-redaction.ts (the cross-app single source of
+// truth consumed by apps/web, apps/api, apps/dispatch, generation-engine).
+// Generated tenant Workers cannot import the shared helper directly because
+// the codegen output is published as a stand-alone Worker bundle without a
+// workspace dependency on @mcpgen/contracts — the denylist is therefore
+// inlined here, but its CONTENT must match the shared module verbatim.
+//
 // REDACT_HEADERS is the union of:
-//   1. Hardcoded universal auth headers — `authorization`, `x-upstream-auth`,
-//      `cookie`, `set-cookie`.
-//   2. Spec-declared auth headers from `Pass0Output.auth_requirements[*]
+//   1. Hardcoded universal auth headers — Phase 9 expansion: `authorization`,
+//      `x-upstream-auth`, `cookie`, `set-cookie`, `stripe-account`,
+//      `stripe-signature`, `x-webhook-signature`.
+//   2. Variable auth header regex `/^x-.*-(auth|token|key|secret)$/i` covers
+//      extensible custom headers without per-spec updates.
+//   3. Spec-declared auth headers from `Pass0Output.auth_requirements[*]
 //      .header_name` — injected at codegen time as the `auth_headers`
 //      Jinja2 loop variable (already lowercased + deduplicated by
 //      `runtime.py::_extract_spec_auth_headers`).
+//
+// SENSITIVE_STRING_PATTERNS scrub free-form `event.message` bodies for
+// Bearer / sk_live_ / sk_test_ / ghp_ / JWT shapes — added Phase 9.
 //
 // REDACT_BODY_KEYS covers the top-level body keys most commonly leaking
 // credentials. **v1 limitation (NOTE 6 — Phase 9 follow-up):** the redactor
@@ -24,15 +38,34 @@
 // `ErrorEvent` (NOT the broader `Event`) per CloudflareOptions.
 import type { ErrorEvent, EventHint } from "@sentry/cloudflare";
 
+// Phase 9 D-03 convergence: 7 universal auth headers (lowercase, compared
+// case-insensitively).
 const REDACT_HEADERS = new Set<string>([
   "authorization",
   "x-upstream-auth",
   "cookie",
   "set-cookie",
+  "stripe-account",
+  "stripe-signature",
+  "x-webhook-signature",
 {% for h in auth_headers %}
   "{{ h }}",
 {% endfor %}
 ]);
+
+// Phase 9 D-03: variable auth header regex catches custom headers like
+// `X-Custom-Token`, `X-Service-Auth`, `X-Whatever-Secret` without enumerating
+// them ahead of time.
+const VARIABLE_AUTH_HEADER_RE = /^x-.*-(auth|token|key|secret)$/i;
+
+// Phase 9 D-03: free-form sensitive string patterns applied to `event.message`.
+const SENSITIVE_STRING_PATTERNS: ReadonlyArray<RegExp> = [
+  /Bearer\s+\S+/g,
+  /sk_live_[A-Za-z0-9]{16,}/g,
+  /sk_test_[A-Za-z0-9]{16,}/g,
+  /ghp_[A-Za-z0-9]{16,}/g,
+  /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,
+];
 
 const REDACT_BODY_KEYS = new Set<string>([
 {% for k in redact_body_keys %}
@@ -43,17 +76,19 @@ const REDACT_BODY_KEYS = new Set<string>([
 const REDACTED = "[Redacted by mcpgen]";
 
 /**
- * Sentry `beforeSend` hook — strips sensitive headers + top-level body keys.
+ * Sentry `beforeSend` hook — strips sensitive headers + top-level body keys
+ * + free-form message string-pattern scrub (Phase 9 D-03).
  *
  * v1 contract: walks `event.request.headers`, `event.request.data`
- * (TOP-LEVEL keys ONLY), and `event.breadcrumbs[*].data.http_request_headers`.
- * Recursive body walk is a Phase 9 follow-up (NOTE 6).
+ * (TOP-LEVEL keys ONLY), `event.breadcrumbs[*].data.http_request_headers`,
+ * and `event.message`. Recursive body walk is a Phase 9 follow-up (NOTE 6).
  */
 export function redactSensitive(event: ErrorEvent, _hint: EventHint): ErrorEvent | null {
   const req = event.request;
   if (req?.headers) {
     for (const k of Object.keys(req.headers)) {
-      if (REDACT_HEADERS.has(k.toLowerCase())) {
+      const lk = k.toLowerCase();
+      if (REDACT_HEADERS.has(lk) || VARIABLE_AUTH_HEADER_RE.test(lk)) {
         req.headers[k] = REDACTED;
       }
     }
@@ -73,12 +108,21 @@ export function redactSensitive(event: ErrorEvent, _hint: EventHint): ErrorEvent
       const headers = bd?.http_request_headers;
       if (headers) {
         for (const k of Object.keys(headers)) {
-          if (REDACT_HEADERS.has(k.toLowerCase())) {
+          const lk = k.toLowerCase();
+          if (REDACT_HEADERS.has(lk) || VARIABLE_AUTH_HEADER_RE.test(lk)) {
             headers[k] = REDACTED;
           }
         }
       }
     }
+  }
+  // Phase 9 D-03: scrub free-form message string for Bearer / sk_*/ ghp_ / JWT.
+  if (typeof event.message === "string") {
+    let m = event.message;
+    for (const re of SENSITIVE_STRING_PATTERNS) {
+      m = m.replace(re, REDACTED);
+    }
+    event.message = m;
   }
   return event;
 }
