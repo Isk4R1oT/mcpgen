@@ -13,7 +13,8 @@
     "./idempotency": "./src/idempotency.ts",
     "./db-schema": "./src/db-schema.ts",
     "./billing-types": "./src/billing-types.ts",
-    "./inngest-functions": "./src/inngest-functions.ts"
+    "./inngest-functions": "./src/inngest-functions.ts",
+    "./sentry-redaction": "./src/sentry-redaction.ts"
   },
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json",

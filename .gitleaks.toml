@@ -15,6 +15,15 @@ paths = [
   # literals to verify the wrapper detects them. The vectors never leave tmp_path.
   '''apps/generation-engine/tests/stages/stage_f/test_secret_scan\.py''',
   '''apps/generation-engine/tests/stages/stage_f/test_pipeline_f1_fail\.py''',
+  # Phase 9 D-12 / Pitfall #7 — cross-language Sentry-redaction leak-vector
+  # fixture; sentinels are intentionally Stripe-shaped so they exercise the
+  # SENSITIVE_STRING_PATTERNS path. Real keys are blocked by gitleaks elsewhere.
+  '''tests/fixtures/leak-vectors\.json''',
+  '''packages/contracts/src/sentry-redaction\.test\.ts''',
+  '''packages/contracts/src/sentry-redaction\.ts''',
+  '''apps/generation-engine/tests/observability/test_sentry_redaction\.py''',
+  '''apps/generation-engine/tests/security/test_pii_redaction\.py''',
+  '''apps/api/tests/security/sentry-redaction\.test\.ts''',
 ]
 # Allow strings that are obviously placeholders, not real keys:
 regexes = [

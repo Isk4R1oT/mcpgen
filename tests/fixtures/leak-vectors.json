@@ -1,0 +1,85 @@
+{
+  "_doc": "Phase 9 D-12 / Pitfall #12 cross-language leak-vector fixture. Consumed by both TS (vitest) and Py (pytest) regression suites to enforce cross-language equivalence of `redactBeforeSend` / `redact_before_send`. Sentinel strings: MCPGEN_LEAK_CANARY_2026Q2 (non-Stripe) + sk_live_REDACTION_TEST_DO_NOT_USE_AS_REAL_KEY_2026Q2 (Stripe-shaped). Allowlisted in .gitleaks.toml per Pitfall #7.",
+  "vectors": [
+    {
+      "name": "auth_header_bearer",
+      "input_event": {
+        "request": {
+          "headers": {
+            "Authorization": "Bearer sk_live_REDACTION_TEST_DO_NOT_USE_AS_REAL_KEY_2026Q2"
+          }
+        }
+      },
+      "expected_no_match": [
+        "sk_live_REDACTION_TEST_DO_NOT_USE_AS_REAL_KEY_2026Q2",
+        "Bearer sk_live_"
+      ]
+    },
+    {
+      "name": "x_upstream_auth",
+      "input_event": {
+        "request": {
+          "headers": {
+            "X-Upstream-Auth": "ghp_MCPGEN_LEAK_CANARY_2026Q2_AAAAA"
+          }
+        }
+      },
+      "expected_no_match": [
+        "ghp_MCPGEN_LEAK_CANARY_2026Q2_AAAAA"
+      ]
+    },
+    {
+      "name": "cookie",
+      "input_event": {
+        "request": {
+          "headers": {
+            "Cookie": "session=MCPGEN_LEAK_CANARY_2026Q2_COOKIE"
+          }
+        }
+      },
+      "expected_no_match": [
+        "MCPGEN_LEAK_CANARY_2026Q2_COOKIE"
+      ]
+    },
+    {
+      "name": "spec_body",
+      "input_event": {
+        "request": {
+          "url": "https://api.example.com/v1/generate",
+          "data": {
+            "spec": "openapi: 3.0.0\nMCPGEN_LEAK_CANARY_2026Q2_SPEC_BODY"
+          }
+        }
+      },
+      "expected_no_match": [
+        "MCPGEN_LEAK_CANARY_2026Q2_SPEC_BODY",
+        "openapi: 3.0.0"
+      ]
+    },
+    {
+      "name": "error_message",
+      "input_event": {
+        "message": "Bearer MCPGEN_LEAK_CANARY_2026Q2_TOKEN expired during request"
+      },
+      "expected_no_match": [
+        "MCPGEN_LEAK_CANARY_2026Q2_TOKEN",
+        "Bearer MCPGEN_LEAK_CANARY_2026Q2_TOKEN"
+      ]
+    },
+    {
+      "name": "extra_spec",
+      "input_event": {
+        "extra": {
+          "spec": "openapi: 3.0.0\nMCPGEN_LEAK_CANARY_2026Q2_EXTRA",
+          "openapi_yaml": "MCPGEN_LEAK_CANARY_2026Q2_OPENAPI_YAML",
+          "raw_ir": "MCPGEN_LEAK_CANARY_2026Q2_RAW_IR"
+        }
+      },
+      "expected_no_match": [
+        "MCPGEN_LEAK_CANARY_2026Q2_EXTRA",
+        "MCPGEN_LEAK_CANARY_2026Q2_OPENAPI_YAML",
+        "MCPGEN_LEAK_CANARY_2026Q2_RAW_IR"
+      ]
+    }
+  ]
+}

@@ -13,3 +13,5 @@ export * from './storage.js';
 export * from './plan-tier.js';
 export * from './engine-internal-api.js';
 export * from './billing-types.js';
+// ─── Phase 9 (CTRL-08 / D-03) ──────────────────────────────────────────────
+export * from './sentry-redaction.js';
