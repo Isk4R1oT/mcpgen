@@ -222,7 +222,7 @@ Plans:
 - [ ] 09-04-PLAN.md — BFF endpoints `GET /usage/hourly` + `GET /deploy/[generationId]` + claude_desktop_config snippet (D-18 part 2) [Wave 2]
 - [ ] 09-05-PLAN.md — Langfuse session_id correlation: Wave 0 spike + run_with_tracing wrapper across 10 sites + Logfire scrubbing-callback override + spec content scrubber (D-06, D-07) [Wave 2]
 - [ ] 09-06-PLAN.md — Inngest orphan audit static-source AST scan with bidirectional set-equality (D-14) [Wave 2]
-- [ ] 09-07-PLAN.md — Source maps upload orchestrator + per-app commands + skip-when-no-token (D-05) [Wave 2]
+- [x] 09-07-PLAN.md — Source maps upload orchestrator + per-app commands + skip-when-no-token (D-05) [Wave 2] ✓ 2026-04-30 — TDD RED+GREEN; `scripts/sourcemaps/upload-all.sh` repo-root orchestrator (chmod +x) with skip-when-no-token guard (D-01 + D-05); per-app `sourcemaps:upload` scripts in apps/api + apps/dispatch (sentry-cli) + apps/web no-op stub (auto-upload via @sentry/nextjs); turbo task registered (cache=false, ^build dep); `.env.example` documents CI-only `SENTRY_AUTH_TOKEN` w/ T-9-sourcemaps-01 callout; 4 vitest assertions pass; bash empty-token run exits 0 with skip msg; apps/generation-engine deferred to Phase 10 (local Python from source). Phase 10 carry-forward: provision `SENTRY_AUTH_TOKEN` + per-app `SENTRY_PROJECT_*` IDs in CI secret store; wire `pnpm sourcemaps:upload` after `wrangler deploy` and `next build`. See `.planning/phases/09-observability-polish/09-07-SUMMARY.md`.
 - [ ] 09-08-PLAN.md — Cross-tenant smart-ID fuzz F1 (5×5) + dispatch runtime guard test (D-08, D-09) [Wave 3]
 - [ ] 09-09-PLAN.md — 2024-protocol mock client + multi-client smoke runbook (D-10, D-11) [Wave 3]
 - [ ] 09-10-PLAN.md — PII leak-audit script with mocked Sentry events adapter (D-13 + Phase 10 carry-forward) [Wave 3]
@@ -257,7 +257,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 | 6. Runtime Plane | 0/TBD | Not started | - |
 | 7. Frontend Wire-Up | 0/TBD | Not started | - |
 | 8. Auth + Billing | 0/TBD | Not started | - |
-| 9. Observability & Polish | 2/11 | In progress | 2026-04-30 |
+| 9. Observability & Polish | 6/11 | In progress | 2026-04-30 |
 | 10. Launch | 0/TBD | Not started | - |
 
 ---

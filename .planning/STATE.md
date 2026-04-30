@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-06-PLAN.md
-last_updated: "2026-04-30T15:34:05.016Z"
+stopped_at: Completed 09-07-PLAN.md
+last_updated: "2026-04-30T15:35:35.686Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 83
-  completed_plans: 81
-  percent: 98
+  completed_plans: 82
+  percent: 99
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 9 (Observability & Polish) — EXECUTING
-Plan: 6 of 11
+Plan: 7 of 11
 Status: Ready to execute
 Last activity: 2026-04-30
 
-Progress: [██████████] 98%
+Progress: [██████████] 99%
 
 ## Next
 
@@ -84,6 +84,7 @@ parameter spec + Pass 4 annotations).
 | Phase 09 P03 | 9min | 3 tasks tasks | 11 files (6 created, 5 modified) files |
 | Phase 09 P04 | 13min | 2 tasks tasks | 7 files (5 created, 2 modified) files |
 | Phase 09 P06 | 3min | 1 task tasks | 1 file (created) files |
+| Phase 09-observability-polish P07 | 12min | 1 task (TDD) tasks | 8 files (3 created, 5 modified) files |
 
 ## Accumulated Context
 
@@ -184,6 +185,10 @@ Recent decisions affecting current work:
 - Plan 09-04: buildClaudeDesktopConfig pure helper at apps/api/src/lib/claude-desktop-config.ts emits X-Upstream-Auth literal placeholder string only for passthrough mode (T-9-bff-auth-08; never serializes real upstream key per RUN-03 pass-through invariant); stored / oauth modes emit no headers
 - Plan 09-06: anti-hardcode regex /id:\s*['"][a-z][a-z0-9-]*-v\d+['"]/ chosen over broader literal patterns — rejects only id-versioned literals so legitimate string ids in other contexts (event names, log messages) pass; T-9-orphan-01 mitigation
 - Plan 09-06: TypeScript noUncheckedIndexedAccess required Record<string, string | undefined> cast + explicit toBeDefined() guard before set-add; clearer test failure message than relying on Set.add(undefined) coercion
+- Plan 09-07: skip-when-no-token guard at top of scripts/sourcemaps/upload-all.sh — exits 0 immediately when SENTRY_AUTH_TOKEN is empty/unset, preserves D-01 local-mode invariant across all 4 app upload paths
+- Plan 09-07: SENTRY_AUTH_TOKEN documented as CI-only in .env.example with explicit T-9-sourcemaps-01 callout (developer-machine compromise = prod source-map write access); Phase 10 CI provisions
+- Plan 09-07: DRY_RUN env var gates per-app sentry-cli invocation in orchestrator instead of process-substitution mocking — keeps tests fast, deterministic, and human-runnable
+- Plan 09-07: turbo.json sourcemaps:upload registered with cache=false (network side effects) and dependsOn ^build (per-app dist/ must exist)
 
 ### Pending Todos
 
@@ -210,8 +215,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-30T15:34:05.010Z
-Stopped at: Completed 09-06-PLAN.md
+Last session: 2026-04-30T15:35:25.465Z
+Stopped at: Completed 09-07-PLAN.md
 Resume file: None
 
 **Planned Phase:** 9 (Observability & Polish) — 11 plans — 2026-04-30T11:23:35.070Z
