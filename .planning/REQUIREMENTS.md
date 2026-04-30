@@ -97,9 +97,9 @@
 
 - [x] **FE-01
 **: Landing page (already designed) wired to live `/api/v1/generate` job submission with `Idempotency-Key` header
-- [ ] **FE-02**: Generation playground consumes SSE callbacks per stage, recovers from disconnect via Postgres state read + `last-event-id` resume [P1: pitfall #20]
-- [ ] **FE-03**: Preview screen shows generated tool list, descriptions, parameters, annotations, response config, full code visible at every step (transparency principle)
-- [ ] **FE-04**: One-click deploy from preview; dashboard shows deployed servers, usage events, costs, F2/F3 quality badge (premium/verified/standard/needs_review)
+- [x] **FE-02**: Generation playground consumes SSE callbacks per stage, recovers from disconnect via Postgres state read + `last-event-id` resume [P1: pitfall #20]
+- [x] **FE-03**: Preview screen shows generated tool list, descriptions, parameters, annotations, response config, full code visible at every step (transparency principle)
+- [x] **FE-04**: One-click deploy from preview; dashboard shows deployed servers, usage events, costs, F2/F3 quality badge (premium/verified/standard/needs_review)
 - [x] **FE-05
 **: Frontend phase = wire-up only; visual / layout / typography / copy must NOT be modified — `claude-design-ui/MCP-Gen.zip` ships unchanged into `apps/web/src/`
 
