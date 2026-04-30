@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-10-PLAN.md
-last_updated: "2026-04-30T16:00:37.361Z"
+stopped_at: Completed 09-09-PLAN.md
+last_updated: "2026-04-30T16:03:40.876Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 83
-  completed_plans: 84
+  completed_plans: 86
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 9 (Observability & Polish) — EXECUTING
-Plan: 9 of 11
+Plan: 11 of 11
 Status: Ready to execute
 Last activity: 2026-04-30
 
@@ -87,6 +87,8 @@ parameter spec + Pass 4 annotations).
 | Phase 09-observability-polish P07 | 12min | 1 task (TDD) tasks | 8 files (3 created, 5 modified) files |
 | Phase 09 P05 | 50min | 3 tasks | 19 files |
 | Phase 09 P10 | 5min | 2 tasks tasks | 7 files (6 created, 1 modified) files |
+| Phase 09-observability-polish P08 | 7min | 2 tasks tasks | 2 files (created) files |
+| Phase 09-observability-polish P09 | 25min | 2 tasks tasks | 3 files (2 created + 1 summary) files |
 
 ## Accumulated Context
 
@@ -198,6 +200,11 @@ Recent decisions affecting current work:
 - Plan 09-10: SentryEventsAdapter mock-now-real-later substitution mirrors Phase 8 D-23 StorageAdapter pattern; same shape (interface + Phase-9 mock + Phase-10 real impl + env flag SENTRY_EVENTS_ADAPTER=mock|real swap) makes Phase 10 carry-forward a single-file change
 - Plan 09-10: leak-audit script CLI surface intentionally narrow (--mode mock|real only); test seeding via env-fixture path SENTRY_EVENTS_MOCK_FIXTURE_PATH keeps gitleaks-safe (sentinels live only in tmp test fixtures) and avoids polluting operator-facing flags
 - Plan 09-10: 4 distinct exit codes (0 PASS / 1 FAIL leak-found / 2 unexpected error / 3 mode-real-not-implemented) lets operator scripts dispatch on failure mode; --mode real returns 3 cleanly distinguishes Phase-10-pending from leak-found
+- Plan 09-08: chose deterministic regex set algebra over Stage E codegen iteration for the 5x5 cross-tenant smart-ID fuzz — same correctness guarantee, 25x cheaper, LLM/network-free, runs in <1s; collision-injection self-test proves the harness catches future Stage E template regressions
+- Plan 09-08: dispatch Test 5 (mixed-tenant array-of-IDs) committed as a real it(...) instead of the plan's it.todo fallback — Phase 6 smartIdFuzz already inspects array values via recursive collectSmartIdCandidates; threat T-9-cross-tenant-04 disposition upgraded from accept to mitigate
+- Plan 09-09: in-process Python port of capabilityGate.ts mirrors TS byte-for-byte (lex string compare on protocolVersion, deepcopy + pop for outputSchema strip); real-dispatch coverage stays in F3
+- Plan 09-09: @pytest.mark.integration NOT used because pyproject.toml strict-markers + integration marker unregistered — file location tests/integration/ is the operative marker
+- Plan 09-09: ChatGPT Deep Research multi-client smoke runbook requires cloudflared/ngrok tunneling because OpenAI Connectors need publicly reachable URLs (the only one of 3 clients that cannot point at localhost directly)
 
 ### Pending Todos
 
@@ -224,8 +231,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-30T16:00:37.356Z
-Stopped at: Completed 09-10-PLAN.md
+Last session: 2026-04-30T16:03:40.871Z
+Stopped at: Completed 09-09-PLAN.md
 Resume file: None
 
 **Planned Phase:** 9 (Observability & Polish) — 11 plans — 2026-04-30T11:23:35.070Z
