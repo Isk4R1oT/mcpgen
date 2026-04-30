@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-03-PLAN.md
-last_updated: "2026-04-30T12:37:41.284Z"
+stopped_at: Completed 09-04-PLAN.md
+last_updated: "2026-04-30T12:57:34.821Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 83
-  completed_plans: 79
-  percent: 95
+  completed_plans: 80
+  percent: 96
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 ## Current Position
 
 Phase: 9 (Observability & Polish) — EXECUTING
-Plan: 4 of 11
+Plan: 5 of 11
 Status: Ready to execute
 Last activity: 2026-04-30
 
-Progress: [██████████] 95%
+Progress: [██████████] 96%
 
 ## Next
 
@@ -82,6 +82,7 @@ parameter spec + Pass 4 annotations).
 | Phase 09 P01 | 33min | 3 tasks tasks | 10 created + 9 modified files |
 | Phase 09 P02 | 18min | 3 tasks | 7 files |
 | Phase 09 P03 | 9min | 3 tasks tasks | 11 files (6 created, 5 modified) files |
+| Phase 09 P04 | 13min | 2 tasks tasks | 7 files (5 created, 2 modified) files |
 
 ## Accumulated Context
 
@@ -175,6 +176,11 @@ Recent decisions affecting current work:
 - Plan 09-03: BFF endpoint method/body MUST match frontend Route Handler proxy — PATCH /badge-public + body { public_badge: boolean }, NOT POST + { public }; the frontend tests + 14 dashboard-client tests assert the proxy contract verbatim and changing it would 502 dashboard live mode
 - Plan 09-03: selective barrel re-export from packages/contracts/src/index.ts excludes wire-shape Deployment to avoid TS2308 collision with the Drizzle InferSelectModel Deployment in db-types.ts; wire-shape consumers deep-import @mcpgen/contracts/dashboard-api for the wire type alias
 - Plan 09-03: deploymentBelongsToOrg extracted to apps/api/src/lib/auth-helpers.ts (verbatim move from drift.ts:48-62) so deployment-list / badge-public / future deploy-status routes share the canonical 4-table JOIN IDOR predicate; drift.ts now imports rather than defines
+- Plan 09-04: BFF /deploy/:generationId is POST not GET — frontend Route Handler proxy uses POST with optional override_name body and Idempotency-Key header; following Plan 09-03 frontend-proxy-wins precedent
+- Plan 09-04: /usage/hourly aggregates raw usage_events with date_trunc('hour', e.time) instead of querying the usage_hourly matview because the matview lacks upstream_latency_ms / cost; single statement produces every wire-shape field; total_cost_usd stays NULL until Stripe Meters wires Phase 10
+- Plan 09-04: /usage/hourly does NOT implement pagination — UsageHourlyResponseSchema exposes only { rows: [...] }; frontend Route Handler does not pass limit/offset; honoring contract truth (Plan 09-03 deviation pattern)
+- Plan 09-04: generationBelongsToOrg sister helper added to auth-helpers.ts for routes keyed by generation_id (3-table JOIN generations → projects → org_id); same false-on-either-condition contract as deploymentBelongsToOrg so 404-not-403 defense in depth holds
+- Plan 09-04: buildClaudeDesktopConfig pure helper at apps/api/src/lib/claude-desktop-config.ts emits X-Upstream-Auth literal placeholder string only for passthrough mode (T-9-bff-auth-08; never serializes real upstream key per RUN-03 pass-through invariant); stored / oauth modes emit no headers
 
 ### Pending Todos
 
@@ -201,8 +207,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-30T12:37:41.277Z
-Stopped at: Completed 09-03-PLAN.md
+Last session: 2026-04-30T12:57:34.814Z
+Stopped at: Completed 09-04-PLAN.md
 Resume file: None
 
 **Planned Phase:** 9 (Observability & Polish) — 11 plans — 2026-04-30T11:23:35.070Z
