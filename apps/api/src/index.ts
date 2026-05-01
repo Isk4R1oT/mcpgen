@@ -36,6 +36,7 @@
 //   - .planning/phases/08-auth-billing/08-PATTERNS.md §A (5-layer mounting precedent)
 
 import { Hono } from 'hono';
+import { csrf } from 'hono/csrf';
 import { serve } from 'inngest/hono';
 import { LAUNCH_CRITERIA } from '@mcpgen/contracts';
 
@@ -143,7 +144,42 @@ export function buildApp(env: Bindings): Hono<{ Bindings: Bindings; Variables: V
 
   // ─── Layer 5: Protected user-JWT sub-app (composed below) ─────────────
   // Auth middleware is registered BEFORE any sub-routes (gotcha #1).
+  // csrf() is mounted BEFORE authMiddleware (Plan 09.1-09 / RESEARCH §9 OQ-3
+  // resolution) — defence-in-depth against cross-origin POST hijack of the
+  // claim_generation flow (T-9.1-claim). Hono's csrf middleware only
+  // triggers on form-style Content-Types (text/plain | x-www-form-urlencoded
+  // | multipart/form-data); JSON POSTs are not CSRF-vulnerable because they
+  // require a CORS preflight cross-origin. Origin allowlist covers prod
+  // canonical, Vercel preview subdomains, and localhost in non-production.
+  //
+  // Wrapping note: csrf() is invoked only when the request actually carries
+  // an `Origin` header. Production browsers ALWAYS set Origin on non-GET
+  // cross-origin requests, so absence of Origin = same-origin (or
+  // server-side fetch — e.g. CF Worker → CF Worker, M2M, vitest mock
+  // app.fetch). Without this guard, Hono's csrf middleware rejects ALL
+  // protected POST requests that omit Content-Type because the default
+  // `text/plain` matches its form-style trigger and missing Origin is
+  // treated as "not allowed". The guard preserves CSRF protection against
+  // browser cross-origin POSTs (which always carry Origin) while keeping
+  // server-side and unit-test traffic unaffected.
   const protectedApp = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+  const csrfMiddleware = csrf({
+    origin: (origin) => {
+      if (origin === 'https://mcpgen.app') return true;
+      if (/^https:\/\/mcpgen-.*\.vercel\.app$/.test(origin)) return true;
+      if (process.env['NODE_ENV'] !== 'production' && origin === 'http://localhost:3000') {
+        return true;
+      }
+      return false;
+    },
+  });
+  protectedApp.use('*', async (c, next) => {
+    if (c.req.header('origin') === undefined) {
+      await next();
+      return;
+    }
+    await csrfMiddleware(c, next);
+  });
   protectedApp.use('*', authMiddleware);
 
   // ─── Public /api/v1 routes — ALWAYS anonymous-allowed (D-07 + D-08) ───

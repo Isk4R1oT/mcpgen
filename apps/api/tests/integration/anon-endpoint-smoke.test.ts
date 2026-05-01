@@ -24,8 +24,9 @@
 //   4. POST /api/v1/deploy/ephemeral with cookie → 202 + placeholder URL.
 //   5. POST /api/v1/claim_generation no JWT → 401 (gated by authMiddleware).
 //   6. POST /api/v1/claim_generation JWT-only (no cookie) → 400 no_anon_session.
-//   7. POST /api/v1/claim_generation JWT + cookie → 501 not_implemented
-//      (plan 09.1-09 fills the real flow).
+//   7. POST /api/v1/claim_generation JWT + cookie → 200 with
+//      `{ claimed_count, deployments_retagged }` (plan 09.1-09 replaced the
+//      501 stub from plan 09.1-03 with the full atomic claim flow).
 //
 // References:
 //   - .planning/phases/09.1-anonymous-hero-flow/09.1-03-PLAN.md Task 3
@@ -271,8 +272,27 @@ describe.skipIf(!HAS_DB)('anon endpoint smoke (live DB)', () => {
     expect(body.error).toBe('no_anon_session');
   });
 
-  it('Smoke 7: POST /api/v1/claim_generation JWT + cookie → 501 not_implemented', async () => {
+  it('Smoke 7: POST /api/v1/claim_generation JWT + cookie → 200 (plan 09.1-09 atomic claim)', async () => {
     if (!seeded) throw new Error('seeded fixture not initialized');
+    // The default jose mock returns `organization_id: 'org_test_foreign'`
+    // which is a non-uuid string. The claim handler runs the UPDATE with
+    // that string in `claimed_by_org_id` (uuid column). Use a real UUID by
+    // overriding the mock for this single test via a fresh app construction
+    // that reads the same env. Because `vi.mocked(jwtVerify)` was set at
+    // module-load time and mutating it per-test is the canonical approach
+    // (see auth-gate-position.test.ts), call vi.mocked here.
+    const { jwtVerify } = await import('jose');
+    const mockedVerify = vi.mocked(jwtVerify);
+    mockedVerify.mockImplementationOnce(
+      async () =>
+        ({
+          payload: {
+            aud: 'http://localhost:3000',
+            sub: 'user_test',
+            organization_id: seeded!.orgId,
+          },
+        }) as unknown as Awaited<ReturnType<typeof jwtVerify>>,
+    );
     const app = buildApp(envFor() as unknown as Parameters<typeof buildApp>[0]);
     const res = await app.fetch(
       new Request('http://api/api/v1/claim_generation', {
@@ -284,9 +304,13 @@ describe.skipIf(!HAS_DB)('anon endpoint smoke (live DB)', () => {
       }),
       envFor(),
     );
-    expect(res.status).toBe(501);
-    const body = (await res.json()) as { pending_plan: string };
-    expect(body.pending_plan).toBe('09.1-09');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      claimed_count: number;
+      deployments_retagged: number;
+    };
+    expect(body.claimed_count).toBe(1);
+    expect(body.deployments_retagged).toBe(0);
   });
 });
 
