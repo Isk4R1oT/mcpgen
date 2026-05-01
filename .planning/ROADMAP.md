@@ -239,7 +239,8 @@ Plans:
   2. Privacy + ToS + Pricing page is published; pricing matches code-enforced quotas exactly (Free 1 F3/mo, Pro 5/mo, PAYG $0.50/eval, cost cap $0.50/$2.00)
   3. Soft launch W7: 20 invited users complete the paste-URL → 60s → deployed MCP server flow with F2 ≥4.0 and F3 ≥0.7 on top-5 APIs; P0 issues fixed before public launch
   4. Public launch W9: Show HN + Product Hunt + Reddit posts go live the same day; Logto MAU monitoring active; first 100 signups are recorded; demo videos for the 5 popular APIs published
-**Plans**: TBD
+**Plans**:
+- [x] 10-03-PLAN.md — Thread `generation_id` through 12 placeholder sites (CTRL-08 D-06 item 1) + initial REFRESH for `usage_hourly` matview (D-06 item 2) [Wave 1] ✓ 2026-05-01 — TDD RED `c9c56a8` + GREEN `db293e3` (19 production files + 17 test fixtures: signature update keyword-only `generation_id`, every `session_id="unknown"` placeholder removed, sentinel grep returns 0 matches; 13/13 threading tests pass) + matview migration `e62aed2` (`20260501000000_phase10_initial_matview_refresh.sql` — non-concurrent first-time REFRESH; `drizzle-kit:check` exits 0). Closes Phase 9 carry-forward `code_followups[0]` + `code_followups[3]`. Items 3 (outbox dedup) + 4 (`/usage/hourly` pagination) deferred to v1.1 per CONTEXT D-06 (no user-visible benefit at launch). See `.planning/phases/10-launch/10-03-SUMMARY.md`.
 
 ## Progress
 
@@ -258,7 +259,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 | 7. Frontend Wire-Up | 0/TBD | Not started | - |
 | 8. Auth + Billing | 0/TBD | Not started | - |
 | 9. Observability & Polish | 6/11 | In progress | 2026-04-30 |
-| 10. Launch | 0/TBD | Not started | - |
+| 10. Launch | 1/14 | In progress | - |
 
 ---
 
