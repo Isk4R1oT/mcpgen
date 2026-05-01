@@ -234,7 +234,20 @@ Plans:
 **Goal**: Restore the original UX intent from `docs/mcpgen-ux-flow.md` §1.1 ("От пасты URL до рабочего MCP-сервера в Claude Desktop — меньше минуты. Без регистрации.") + `07-CONTEXT.md` D-18 ("anonymous users can paste a URL and run free-tier generation; auth gate at deploy step; first authenticated generation is 'claimed' from the anonymous session"). Discovered via local-stack testing 2026-04-30: BFF `/api/v1/generate` returns 401 to anonymous users, breaking the landing-page hero flow. The anonymous path was specced in Phase 7 but never implemented in Phase 8 (the M2M-only auth middleware blocks ALL `/api/v1/*` paths regardless of route type).
 **Depends on**: Phase 9 (must land before Phase 10 launch)
 **Requirements**: GTM-01 partial (60-second hero flow without signup), CTRL-02 amendment (auth boundary repositioned)
-**Plans**: TBD via `/gsd-discuss-phase 9.1` → `/gsd-plan-phase 9.1`
+**Plans**: 13 plans, 1 wave (focused fix-phase per CONTEXT)
+- [ ] 09.1-01-PLAN.md — Commit SSR window-guard fix on 11 locked JSX files + paired UI-lock-bump ADR (D-10; unblocks local stack + CI; RESEARCH G-1) [Wave 1]
+- [ ] 09.1-02-PLAN.md — BFF auth refactor: per-route policy via Hono sub-app + BFF_ANONYMOUS_GATE env-var switch (D-01 + D-07; CTRL-02-amend) [Wave 1]
+- [ ] 09.1-03-PLAN.md — New BFF endpoints: anon-aware /generate + /jobs/:id/stream + /deploy/ephemeral + /claim_generation stub + cookie/fixation lib (D-04 + D-08; T-9.1-claim) [Wave 1]
+- [ ] 09.1-04-PLAN.md — Drizzle migration: anonymous_generations + anon_generation_log hypertable + app_secrets + deployments.{anon_session_id, expires_at} + generations.cached_from_generation_id (D-09 + OQ-2; Pitfall #4) [Wave 1]
+- [ ] 09.1-05-PLAN.md — IP-hash daily-salt + 1/IP/24h rate limiter + 24h grace window (D-02 + D-11; RESEARCH G-4; Pitfall #5) [Wave 1]
+- [ ] 09.1-06-PLAN.md — L1 cache hit reuse for anon path: spec-hash lookup via Stage A canonicalization + cached SSE replay + cache-hit metadata (D-05 + ANON-05; OQ-2; Pitfall #6; RESEARCH §10 reuses _canonicalize) [Wave 1]
+- [ ] 09.1-07-PLAN.md — Frontend integration: middleware route-gate + 4 anon components via jsx-bridge wrapper (D-10; FE-05 visual-lock invariant preserved) [Wave 1]
+- [ ] 09.1-08-PLAN.md — Anon ephemeral CFWP deploy via single-namespace tag strategy (D-03; OQ-1 resolution; Pitfall #11 honored; RESEARCH G-3) [Wave 1]
+- [ ] 09.1-09-PLAN.md — claim_generation flow + Hono csrf middleware on protectedApp (D-04; OQ-3 resolution; T-9.1-claim end-to-end mitigation) [Wave 1]
+- [ ] 09.1-10-PLAN.md — 3 Inngest crons (anon-tenant-cleanup-v1 + anon-rate-limit-cleanup-v1 + anon-salt-rotate-v1) + BetterStack heartbeat runbook (D-06 + D-11; CTRL-09 register; Pitfall #3 cost runaway) [Wave 1]
+- [ ] 09.1-11-PLAN.md — Playwright E2E: full anon flow + 1/IP/24h regression + T-9.1-claim session-fixation regression (ANON-01..05) [Wave 1]
+- [ ] 09.1-12-PLAN.md — Privacy policy input for Phase 10 plan 10-09 (cross-phase ask; GDPR Article 4(5) pseudonymization disclosure; D-11) [Wave 1]
+- [ ] 09.1-13-PLAN.md — Phase verification doc: original 401→202 bug repro + decision trail + W7 operator carry-forward [Wave 1]
 
 ### Phase 10: Launch
 **Workstream**: `main`
