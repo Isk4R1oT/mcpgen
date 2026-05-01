@@ -19,6 +19,8 @@
 // migration file in place).
 
 import {
+  type AnyPgColumn,
+  bigserial,
   boolean,
   customType,
   date,
@@ -131,6 +133,15 @@ export const generations = pgTable('generations', {
   // CHECK constraint (triggered_by IN ('user', 'drift_auto', 'drift_manual')) lives in migration SQL.
   cumulative_cost_usd: numeric('cumulative_cost_usd', { precision: 10, scale: 4 }).notNull().default('0'),
   triggered_by: text('triggered_by').notNull().default('user'),
+  // ─── Phase 9.1 additions (OQ-2 / D-05 cache attribution) ─────────
+  // Self-FK. Set when this generation row was served from L1 cache (D-05).
+  // NULL for original generations. Cache-source lookup query in Plan 09.1-06
+  // filters `WHERE cached_from_generation_id IS NULL` to skip cache pointers.
+  // Migration: 20260501010000_phase09_1_anon_flow.sql.
+  cached_from_generation_id: uuid('cached_from_generation_id').references(
+    (): AnyPgColumn => generations.id,
+    { onDelete: 'set null' },
+  ),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,6 +170,19 @@ export const deployments = pgTable('deployments', {
   // dashboard UI. Wave 2 BFF endpoint POST /api/v1/deployments/[id]/badge-public
   // toggles this column. Migration: 20260430000000_phase9_badge_public.sql.
   public_badge: boolean('public_badge').notNull().default(false),
+  // ─── Phase 9.1 additions (D-09 / D-03 anon ephemeral support) ───
+  // anon_session_id links an ephemeral anon deployment back to the
+  // anonymous_generations row that created it. NULL for permanent (post-claim
+  // or paid). expires_at is set to created_at + 24h for anon deploys; NULL
+  // for permanent. The anon-tenant-expiry cron (Plan 09.1-10) hard-deletes
+  // rows where expires_at < NOW(). Partial index `deploy_expires_idx`
+  // (declared in SQL only) makes this an index scan.
+  // Migration: 20260501010000_phase09_1_anon_flow.sql.
+  anon_session_id: text('anon_session_id').references(
+    (): AnyPgColumn => anonymous_generations.anon_session_id,
+    { onDelete: 'set null' },
+  ),
+  expires_at: timestamp('expires_at', { withTimezone: true }),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -346,4 +370,70 @@ export const mau_log = pgTable('mau_log', {
   mau_count: integer('mau_count').notNull(),
   alerted: boolean('alerted').notNull().default(false),
   sampled_at: timestamp('sampled_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 9.1 — Anonymous hero flow (D-09 / D-11 / OQ-2)
+//
+// Three new tables + two column extensions (above on `generations` and
+// `deployments`). All powered by migration
+// `20260501010000_phase09_1_anon_flow.sql`. Partial indexes
+// (`anon_gen_unclaimed_idx`, `deploy_expires_idx`, `gen_cached_from_idx`)
+// and the TimescaleDB `create_hypertable()` call live in SQL only — Drizzle
+// Kit does not emit those natively (mirrors the `usage_events` hypertable
+// pattern in `infrastructure/neon/migrations/20260427000000_init_schema.sql`).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// One row per anonymous session. `anon_session_id` is a ULID set in the
+// `mcpgen_anon_session` HttpOnly cookie (D-04). `claimed_by_org_id` is set
+// by POST /api/v1/claim_generation when a user signs up. Partial index
+// `anon_gen_unclaimed_idx` (SQL-only) powers the 7d unclaimed cleanup cron.
+export const anonymous_generations = pgTable(
+  'anonymous_generations',
+  {
+    anon_session_id: text('anon_session_id').primaryKey(),
+    generation_id: uuid('generation_id')
+      .notNull()
+      .references(() => generations.id, { onDelete: 'cascade' }),
+    ip_hash: text('ip_hash').notNull(), // sha256(daily_salt + raw_ip) per D-11
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    claimed_at: timestamp('claimed_at', { withTimezone: true }),
+    claimed_by_org_id: uuid('claimed_by_org_id').references(() => organizations.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (t) => ({
+    sessionIdx: index('anon_gen_session_idx').on(t.anon_session_id),
+  }),
+);
+
+// TimescaleDB hypertable for IP rate-limit log. BIGSERIAL because no global
+// uniqueness needed and high insert rate. `create_hypertable('anon_generation_log',
+// 'created_at', chunk_time_interval => INTERVAL '1 day')` runs in migration SQL
+// (per RESEARCH §"Pitfall #4": 1-day chunks for tight 30d retention via
+// drop_chunks). Btree index on (ip_hash, created_at DESC) powers the
+// `WHERE ip_hash = $1 AND created_at >= NOW() - INTERVAL '24h'` query.
+export const anon_generation_log = pgTable(
+  'anon_generation_log',
+  {
+    id: bigserial('id', { mode: 'bigint' }).notNull(),
+    ip_hash: text('ip_hash').notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    ipTimeIdx: index('anon_log_ip_time_idx').on(t.ip_hash, t.created_at.desc()),
+  }),
+);
+
+// Daily-rotating salt store (D-11). Keys: 'daily_salt_current',
+// 'daily_salt_previous'. The first daily_salt_current row is seeded by the
+// migration via `encode(gen_random_bytes(32), 'hex')`; the anon-salt-rotate
+// cron (Plan 09.1-10) promotes current→previous and writes a fresh current
+// row at 00:00 UTC daily. Future phases may add more keys (webhook signing,
+// session signing, etc.) — single-table KV avoids one table per secret kind.
+export const app_secrets = pgTable('app_secrets', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  rotates_at: timestamp('rotates_at', { withTimezone: true }),
 });
