@@ -72,9 +72,14 @@ vi.mock('jose', () => ({
 
 vi.mock('../src/db.js', () => {
   function execute(_query: { queryChunks?: unknown }): Promise<{ rows: unknown[] }> {
-    // Reconstruct the SQL text + params from queryChunks the same way
-    // tests/routes/drift.test.ts does. Drizzle interleaves StringChunks
-    // (with `.value: string[]`) and raw param values.
+    // Reconstruct SQL text + params from Drizzle queryChunks. Empirically
+    // (drizzle-orm 0.45.x):
+    //   - StringChunk objects: constructor.name === 'StringChunk', shape
+    //     `{ value: string[] }` — emitted SQL fragments.
+    //   - Plain JS arrays passed via `${arr}` (e.g. `ANY(${ipHashes})`) — raw
+    //     `Array` instances that contain the actual param values.
+    //   - Raw primitives (string / number / boolean) — single param scalars.
+    // Distinguish StringChunks from arrays-as-params via constructor name.
     const chunks = (_query.queryChunks ?? []) as Array<unknown>;
     let sqlText = '';
     const params: unknown[] = [];
@@ -83,10 +88,20 @@ vi.mock('../src/db.js', () => {
         params.push(c);
         continue;
       }
-      const chunkVal = (c as { value?: string[] }).value;
-      if (Array.isArray(chunkVal)) {
-        sqlText += chunkVal.join('');
-      } else if (c !== null && typeof c === 'object' && 'value' in (c as object)) {
+      if (c === null || typeof c !== 'object') continue;
+      const ctorName = (c as { constructor?: { name?: string } }).constructor?.name;
+      if (ctorName === 'StringChunk') {
+        const v = (c as { value?: string[] }).value;
+        if (Array.isArray(v)) sqlText += v.join('');
+        continue;
+      }
+      // Plain Array param (e.g. `ANY(${ipHashes})`).
+      if (Array.isArray(c)) {
+        params.push(c);
+        continue;
+      }
+      // Wrapped param: `{ value: ... }` shape.
+      if ('value' in (c as object)) {
         params.push((c as { value: unknown }).value);
       }
     }
@@ -148,19 +163,19 @@ const ENV: Record<string, unknown> = {
   BFF_ANONYMOUS_GATE: 'playground',
 };
 
-function postGenerate(opts: {
+async function postGenerate(opts: {
   ip: string | null;
   cookie?: string;
   bearer?: string;
 }): Promise<Response> {
-  const app = buildApp(ENV as Parameters<typeof buildApp>[0]);
+  const app = buildApp(ENV as unknown as Parameters<typeof buildApp>[0]);
   const headers = new Headers();
   headers.set('Content-Type', 'application/json');
   headers.set('Idempotency-Key', 'gen_01HXAAAAAAAAAAAAAAAAAAAAA1');
   if (opts.ip !== null) headers.set('CF-Connecting-IP', opts.ip);
   if (opts.cookie) headers.set('Cookie', `mcpgen_anon_session=${opts.cookie}`);
   if (opts.bearer) headers.set('Authorization', `Bearer ${opts.bearer}`);
-  return app.fetch(
+  return await app.fetch(
     new Request('http://x/api/v1/generate', {
       method: 'POST',
       headers,

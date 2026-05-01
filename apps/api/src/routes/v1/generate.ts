@@ -48,6 +48,7 @@ import {
 
 import { db } from '../../db.js';
 import type { AuthContext } from '../../middleware/auth.js';
+import { anonRateLimit } from '../../middleware/anon-rate-limit.js';
 import { ensureAnonSession } from '../../lib/anon-session.js';
 
 interface GenerateRouteBindings {
@@ -58,6 +59,10 @@ interface GenerateRouteVariables {
   // Optional because this route lives on the public app — anon callers have
   // no auth context.
   auth?: AuthContext;
+  // Plan 09.1-05: stamped by the anon-rate-limit middleware. Carries the
+  // CURRENT-salt sha256 of the caller's IP so the anonymous_generations
+  // INSERT below uses the same hash as the rate-limit log row.
+  rateLimitedIpHash?: string;
 }
 
 export const generateRoute = new Hono<{
@@ -70,9 +75,15 @@ export const generateRoute = new Hono<{
 // catches unhandled exceptions; we deliberately swallow here so the route
 // can still acknowledge the request and the engine retry layer (plan
 // 09.1-06) can recover the missing rows from cache later).
+//
+// Plan 09.1-05: `ipHash` arrives from the anon-rate-limit middleware via
+// `c.var.rateLimitedIpHash` and replaces the prior `'pending'` placeholder.
+// Falls back to `'pending'` only when the middleware did not stamp a hash
+// (defense-in-depth — should not happen in normal anon flow).
 async function persistAnonGeneration(args: {
   generationId: string;
   anonSessionId: string;
+  ipHash: string;
 }): Promise<boolean> {
   try {
     // The placeholder row mirrors the columns set by Phase 8 generations
@@ -92,14 +103,14 @@ async function persistAnonGeneration(args: {
       INSERT INTO anonymous_generations (
         anon_session_id, generation_id, ip_hash, created_at
       ) VALUES (
-        ${args.anonSessionId}, ${args.generationId}, 'pending', NOW()
+        ${args.anonSessionId}, ${args.generationId}, ${args.ipHash}, NOW()
       )
       ON CONFLICT (anon_session_id) DO NOTHING
     `);
     return true;
   } catch (err) {
-    // Log + continue. Plan 09.1-05 / 09.1-06 will tighten this once the
-    // anon-org sentinel + rate-limit middleware land.
+    // Log + continue. Plan 09.1-06 will tighten this once the anon-org
+    // sentinel + cache-hit replay land.
     console.warn('persistAnonGeneration failed; continuing with cookie + 202', {
       generationId: args.generationId,
       error: err instanceof Error ? err.message : String(err),
@@ -108,7 +119,7 @@ async function persistAnonGeneration(args: {
   }
 }
 
-generateRoute.post('/', async (c) => {
+generateRoute.post('/', anonRateLimit, async (c) => {
   // ─── 1. Validate body against the frozen contract ────────────────────────
   let body: unknown;
   try {
@@ -135,8 +146,13 @@ generateRoute.post('/', async (c) => {
   }
 
   // ─── 4. Persist placeholder rows (anon path) ─────────────────────────────
+  // Plan 09.1-05: read the IP hash stamped by the anon-rate-limit middleware
+  // and write it into anonymous_generations.ip_hash (replacing the historical
+  // 'pending' placeholder). Defense-in-depth fallback: 'pending' if the
+  // middleware did not run (should not happen on the anon path).
   if (anonSessionId !== null) {
-    await persistAnonGeneration({ generationId: jobId, anonSessionId });
+    const ipHash = c.var.rateLimitedIpHash ?? 'pending';
+    await persistAnonGeneration({ generationId: jobId, anonSessionId, ipHash });
   }
 
   // ─── 5. Read Idempotency-Key header (logged for now; full dedup in 09.1-05) ─

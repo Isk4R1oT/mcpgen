@@ -36,3 +36,25 @@ SENTRY_DSN=
 #               + playground all public). Gate sits AFTER playground (only
 #               /download + /deploy/permanent + /dashboard remain protected).
 BFF_ANONYMOUS_GATE=playground
+
+# ─── Phase 09.1 D-02: anonymous rate-limit (1 generation / IP / 24h) ──────
+# The anon-rate-limit middleware (apps/api/src/middleware/anon-rate-limit.ts)
+# bypasses requests originating from localhost and private RFC1918 ranges so
+# `pnpm test`, `pnpm dev`, and CI smoke runs are NEVER throttled. The bypass
+# list is hardcoded in `isLocalhostIp()` (see apps/api/src/lib/anon-ip-hash.ts):
+#   - 127.0.0.1 (IPv4 loopback)
+#   - ::1       (IPv6 loopback)
+#   - 192.168.* (RFC1918 home networks)
+#   - 10.*      (RFC1918 corp networks)
+# 172.16.0.0/12 is intentionally NOT in the bypass list — VPN exit nodes
+# commonly land there and we want them subject to the gate.
+#
+# Production traffic always carries a CF-Connecting-IP set by Cloudflare at
+# the edge; that header CANNOT be spoofed by the client (CF strips client-
+# supplied versions). In local dev the middleware falls back to
+# x-forwarded-for first hop, then to 127.0.0.1.
+#
+# No env var is required for the bypass. The IP-hash daily-salt rotation
+# pattern (D-11) lives in the `app_secrets` table seeded by migration
+# 20260501010000_phase09_1_anon_flow.sql; the daily 00:00 UTC rotation is
+# wired in plan 09.1-10.
