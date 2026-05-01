@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: "Phase 9.1 plan 01 complete (ed4f8dc): SSR window guards + paired ADR + hook upgrade; SSR build passes; ready to start plan 09.1-02 (BFF auth refactor)"
-last_updated: "2026-05-01T10:43:42Z"
-last_activity: 2026-05-01 -- Phase 09.1 plan 01 executed
+stopped_at: "Phase 9.1 COMPLETE (13/13 plans): 401→202 bug fix verified via auth-gate-position.test.ts (26/26 PASS); ANON-01..05 appended to REQUIREMENTS.md; Phase 10 launch UNBLOCKED. See 09.1-PHASE-VERIFICATION.md"
+last_updated: "2026-05-01T20:45:00Z"
+last_activity: 2026-05-01 -- Phase 09.1 closed (13 plans complete; verification doc + REQUIREMENTS.md + STATE.md updated)
 progress:
   total_phases: 11
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 110
-  completed_plans: 89
-  percent: 81
+  completed_plans: 102
+  percent: 93
 ---
 
 # Project State
@@ -25,18 +25,21 @@ See: .planning/PROJECT.md (updated 2026-04-26)
 
 ## Current Position
 
-Phase: 09.1 (anonymous-hero-flow) — EXECUTING
-Plan: 2 of 13 (next)
-Status: Executing Phase 09.1 (1/13 plans complete)
-Last activity: 2026-05-01 -- Phase 09.1 plan 01 executed (ed4f8dc): SSR window guards + paired ADR + hook upgrade
+Phase: 09.1 (anonymous-hero-flow) — COMPLETE (13/13 plans)
+Plan: n/a (phase closed)
+Status: Phase 09.1 verified — 401→202 bug fix proven; ANON-01..05 in REQUIREMENTS.md
+Last activity: 2026-05-01 -- Phase 09.1 closed; Phase 10 launch UNBLOCKED. See `.planning/phases/09.1-anonymous-hero-flow/09.1-PHASE-VERIFICATION.md`
 
-Progress: [████████░░] ~81%
+Progress: [█████████░] ~93%
 
 ## Next
 
-Continue with Phase 10 plans 10-01, 10-02, 10-04..10-14 per `.planning/phases/10-launch/`.
-Plan 10-03 unblocks post-launch debugging (Langfuse session correlation) +
-post-launch hotfix migrations (`drizzle-kit push` matview block resolved).
+Phase 10 launch is UNBLOCKED (`Depends on: Phase 9, Phase 9.1` per ROADMAP).
+Plan 10-03 already complete (Langfuse session correlation + matview REFRESH).
+Continue with remaining Phase 10 plans per `.planning/phases/10-launch/`:
+10-01, 10-02, 10-04..10-14 + W7 operator carry-forward items from
+`09.1-PHASE-VERIFICATION.md` §6 (BetterStack heartbeat, privacy@ inbox,
+CF token least-privilege scope, G-3 sandbox smoke-test, live `pnpm dev` Playwright run).
 
 ## Performance Metrics
 
@@ -91,6 +94,7 @@ post-launch hotfix migrations (`drizzle-kit push` matview block resolved).
 | Phase 09-observability-polish P09 | 25min | 2 tasks tasks | 3 files (2 created + 1 summary) files |
 | Phase 09 P11 | 23min | 3 tasks tasks | 9 created + 3 modified files files |
 | Phase 09.1 P01 | 3min | 4 tasks | 14 files (11 JSX guarded + 1 ADR + 1 hook upgraded + 1 hook unit test) |
+| Phase 09.1 P13 | ~15min | 4 tasks | 4 files (PHASE-VERIFICATION.md + REQUIREMENTS.md + STATE.md + ROADMAP.md) |
 
 ## Accumulated Context
 
@@ -241,8 +245,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-01T10:43:42Z
-Stopped at: Phase 9.1 plan 01 complete (ed4f8dc): SSR window guards in 11 locked JSX + paired UI-lock-bump ADR + check-ui-locked.sh upgraded with paired-ADR escape hatch + new check-ui-locked.test.sh; pnpm --filter web build exits 0 (10/10 SSR pages); next plan 09.1-02 (BFF auth refactor: per-route policy via Hono sub-app)
+Last session: 2026-05-01T20:45:00Z
+Stopped at: Phase 9.1 COMPLETE (13/13 plans). Verification doc `.planning/phases/09.1-anonymous-hero-flow/09.1-PHASE-VERIFICATION.md` proves 401→202 fix via 26-case auth-gate-position.test.ts; ANON-01..05 appended to REQUIREMENTS.md (total v1 58→63); STATE marks phase complete. Phase 10 launch UNBLOCKED.
 Resume file: None
 
-**Planned Phase:** 10 (Launch) — 14 plans — 2026-04-30T16:14:39Z
+**Planned Phase:** 10 (Launch) — 14 plans — 2026-04-30T16:14:39Z (10-03 already complete; 13 plans remaining)

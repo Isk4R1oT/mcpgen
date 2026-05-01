@@ -247,7 +247,7 @@ Plans:
 - [x] 09.1-10-PLAN.md — 3 Inngest crons (anon-tenant-cleanup-v1 + anon-rate-limit-cleanup-v1 + anon-salt-rotate-v1) + BetterStack heartbeat runbook (D-06 + D-11; CTRL-09 register; Pitfall #3 cost runaway) [Wave 6] ✓ 2026-05-01 — 3 Inngest functions registered (`anon-tenant-cleanup-v1` 15min + `anon-rate-limit-cleanup-v1` daily 04:00 UTC drop_chunks + `anon-salt-rotate-v1` daily 00:00 UTC); BetterStack heartbeat runbook for cost-runaway alert; orphan audit clean (10 IDs ↔ 10 functions). 282/62-skip/0-fail full api suite. See `09.1-10-SUMMARY.md`.
 - [x] 09.1-11-PLAN.md — Playwright E2E: full anon flow + 1/IP/24h regression + T-9.1-claim session-fixation regression (ANON-01..05) [Wave 7] ✓ 2026-05-01 — `anon-flow.spec.ts` (ANON-01..05 happy path + cache-hit branch), `anon-rate-limit.spec.ts` (overage 429 + 127.0.0.1 bypass + UI surfacing), `anon-claim-fixation.spec.ts` (T-9.1-claim cookie rotation + malformed-cookie re-issue). Playwright now lists 23 tests across 13 files. See `09.1-11-SUMMARY.md`.
 - [x] 09.1-12-PLAN.md — Privacy policy input for Phase 10 plan 10-09 (cross-phase ask; GDPR Article 4(5) pseudonymization disclosure; D-11) [Wave 7] ✓ 2026-05-01 — `09.1-PRIVACY-INPUT.md` (verbatim disclosure language, 7 GDPR citations, 7-row retention table, Article 17 erasure path, 5/5 must-do/must-not-do guardrails for plan 10-09). DOC-ONLY. Carry-forward: provision `privacy@mcpgen.app` inbox at W7. See `09.1-12-SUMMARY.md`.
-- [ ] 09.1-13-PLAN.md — Phase verification doc: original 401→202 bug repro + decision trail + W7 operator carry-forward [Wave 1]
+- [x] 09.1-13-PLAN.md — Phase verification doc: original 401→202 bug repro + decision trail + W7 operator carry-forward [Wave 8] ✓ 2026-05-01 — `09.1-PHASE-VERIFICATION.md` (8 sections: bug repro before/after with 26/26 PASS auth-gate-position.test.ts output embedded as After-evidence; D-01..D-12 + ANON-01..05 + CTRL-02-amend decision trail; OQ-1..3 resolved; G-1/G-3/G-4 closed; test evidence summary 282 api / 117 web / 50 anon-headline / 23 Playwright registered + 7 operator-gated; W7 carry-forward; Phase 10 launch UNBLOCKED). REQUIREMENTS.md updated with ANON-01..05 (v1 total 58→63); STATE marks phase complete. See `09.1-13-SUMMARY.md`.
 
 ### Phase 10: Launch
 **Workstream**: `main`
@@ -280,6 +280,7 @@ Phases 6, 7, 8 can run in parallel with Phases 2–5 (each consumes Phase-1 cont
 | 7. Frontend Wire-Up | 0/TBD | Not started | - |
 | 8. Auth + Billing | 0/TBD | Not started | - |
 | 9. Observability & Polish | 6/11 | In progress | 2026-04-30 |
+| 9.1. Anonymous Hero Flow + Claim Generation | 13/13 | Complete    | 2026-05-01 |
 | 10. Launch | 1/14 | In progress | - |
 
 ---

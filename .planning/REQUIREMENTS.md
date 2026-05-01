@@ -104,6 +104,14 @@
 - [x] **FE-05
 **: Frontend phase = wire-up only; visual / layout / typography / copy must NOT be modified — `claude-design-ui/MCP-Gen.zip` ships unchanged into `apps/web/src/`
 
+### Anonymous Hero Flow (ANON) — Phase 9.1
+
+- [x] **ANON-01**: Anonymous user completes paste-URL → generation → preview → quality WITHOUT signup, in 60s wall-clock on cached spec or ≤2 min on fresh spec
+- [x] **ANON-02**: 1 anonymous generation per IP per 24h enforced via TimescaleDB log; 429 with explicit signup CTA on overage
+- [x] **ANON-03**: 24-hour ephemeral MCPGen Cloud deploy URL works without signup; auto-deletes at 24h via Inngest cron
+- [x] **ANON-04**: HttpOnly cookie-based anonymous session links generations to user post-signup via POST /api/v1/claim_generation; Postgres claim_at + claimed_by_org_id columns updated atomically
+- [x] **ANON-05**: Spec-hash cache hit (quality ≥ verified, ≤7d old) returns cached generation in <1s with cache-hit metadata in SSE event-id=0
+
 ### GTM / Launch (GTM) — Phase 10
 
 - [ ] **GTM-01**: Quickstart docs (Mintlify or Docusaurus) tested by an external developer end-to-end
@@ -238,6 +246,11 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | FE-03 | Phase 7 | Pending |
 | FE-04 | Phase 7 | Pending |
 | FE-05 | Phase 7 | Complete (07-01) |
+| ANON-01 | Phase 9.1 | Complete (09.1-02, 09.1-03, 09.1-06, 09.1-07, 09.1-11) |
+| ANON-02 | Phase 9.1 | Complete (09.1-04, 09.1-05, 09.1-10, 09.1-11) |
+| ANON-03 | Phase 9.1 | Complete (09.1-04, 09.1-08, 09.1-10) |
+| ANON-04 | Phase 9.1 | Complete (09.1-03, 09.1-04, 09.1-09) |
+| ANON-05 | Phase 9.1 | Complete (09.1-04, 09.1-06) |
 | GTM-01 | Phase 10 | Pending |
 | GTM-02 | Phase 10 | Pending |
 | GTM-03 | Phase 10 | Pending |
@@ -246,8 +259,8 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | OPS-03 | Phase 1 (cross-phase) | Complete (01-01, 01-02, 01-07 — runbook documenting the convention) |
 
 **Coverage:**
-- v1 requirements: 58 total (FND-15, GEN-13, RUN-7, CTRL-9, CLI-3, FE-5, GTM-3, OPS-3)
-- Mapped to phases: 58
+- v1 requirements: 63 total (FND-15, GEN-13, RUN-7, CTRL-9, CLI-3, FE-5, ANON-5, GTM-3, OPS-3)
+- Mapped to phases: 63
 - Unmapped: 0 ✓
 
 **Per-phase requirement counts:**
@@ -263,12 +276,13 @@ Every v1 REQ-ID maps to exactly one phase. Phase IDs follow `docs/mcpgen-gsd-spr
 | Phase 7: Frontend Wire-Up | 5 | FE-01..05 |
 | Phase 8: Auth + Billing | 6 | CTRL-02..07 |
 | Phase 9: Observability & Polish | 2 | CTRL-08, CTRL-09 |
+| Phase 9.1: Anonymous Hero Flow | 5 | ANON-01..05 |
 | Phase 10: Launch | 3 | GTM-01..03 |
-| **Total** | **58** | (no orphans, no duplicates) |
+| **Total** | **63** | (no orphans, no duplicates) |
 
-> Note: a counting correction was applied during traceability — the prior summary stated 49 v1 requirements, but the actual sum across categories is FND-15 + GEN-13 + RUN-7 + CTRL-9 + CLI-3 + FE-5 + GTM-3 + OPS-3 = **58**. The mapping is complete.
+> Note: a counting correction was applied during traceability — the prior summary stated 49 v1 requirements, but the actual sum across categories is FND-15 + GEN-13 + RUN-7 + CTRL-9 + CLI-3 + FE-5 + GTM-3 + OPS-3 = **58**. Phase 9.1 (inserted 2026-04-30) added ANON-01..05 → revised total **63**.
 
 ---
 
 *Requirements defined: 2026-04-26*
-*Last updated: 2026-04-26 — traceability filled by `gsd-roadmapper`*
+*Last updated: 2026-05-01 — Phase 9.1 ANON-01..05 appended (plan 09.1-13)*
