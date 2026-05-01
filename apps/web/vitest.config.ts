@@ -12,10 +12,16 @@ import { resolve } from 'node:path';
 
 export default defineConfig({
   test: {
-    include: ['tests/unit/**/*.test.ts'],
+    include: ['tests/unit/**/*.test.ts', 'tests/unit/**/*.test.tsx', 'tests/*.test.ts', 'tests/*.test.tsx'],
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     globals: false,
+  },
+  // React 19 + automatic JSX runtime (apps/web does not import React in every
+  // .tsx file because Next 15 + tsconfig.json `jsx: preserve` rely on the
+  // automatic runtime). Vitest's esbuild transform needs to be told the same.
+  esbuild: {
+    jsx: 'automatic',
   },
   resolve: {
     alias: {

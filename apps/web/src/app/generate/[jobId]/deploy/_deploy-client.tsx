@@ -16,8 +16,12 @@ interface LocalLockedSample {
   save: number;
 }
 
+// Plan 09.1-07 — switch consumer to DeployScreenWithAnonChrome wrapper
+// (composes AnonDeployCta ABOVE the locked Deploy screen with state-conditional
+// copy and endpoint per CONTEXT D-08).
 const DeployClient = dynamic(
-  () => import('@/lib/jsx-bridge/screens').then((m) => ({ default: m.DeployWrapper })),
+  () =>
+    import('@/lib/jsx-bridge/wrapper').then((m) => ({ default: m.DeployScreenWithAnonChrome })),
   { ssr: false },
 );
 

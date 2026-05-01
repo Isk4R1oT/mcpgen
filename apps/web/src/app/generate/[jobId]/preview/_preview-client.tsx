@@ -18,8 +18,12 @@ interface LocalLockedSample {
   save: number;
 }
 
+// Plan 09.1-07 — switch consumer to PreviewScreenWithAnonChrome wrapper
+// (composes AnonSignupCta BELOW the locked Preview screen, byte-identical to
+// the locked baseline when isAnonymous=false).
 const PreviewClient = dynamic(
-  () => import('@/lib/jsx-bridge/screens').then((m) => ({ default: m.PreviewWrapper })),
+  () =>
+    import('@/lib/jsx-bridge/wrapper').then((m) => ({ default: m.PreviewScreenWithAnonChrome })),
   { ssr: false },
 );
 

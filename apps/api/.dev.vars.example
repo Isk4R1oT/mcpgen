@@ -75,3 +75,14 @@ CF_ACCOUNT_ID=
 # credentials. Phase 10 launch enablement removes the deferral and provisions
 # the real CF resources.
 MCPGEN_LOCAL_COMPUTE=1
+
+# ─── Phase 09.1 D-06 + Pitfall #3 — anon cleanup BetterStack heartbeat ────
+# Consumed by apps/api/src/inngest/functions/anon-tenant-cleanup.ts. Pinged
+# at the end of every successful run (every 15 min) so BetterStack alerts
+# when the cron silently fails (cost-runaway risk: ~$80/day worst case).
+#
+# Provisioning is a W7 operator action — see
+# `docs/runbooks/anon-cleanup-betterstack-alert.md` for the click-path.
+# Phases 1–9 run with this var unset; the cron logs a warning and continues
+# (D-01 graceful pattern, mirrors BETTERSTACK_OUTBOX_HEARTBEAT_URL).
+BETTERSTACK_ANON_CLEANUP_HEARTBEAT_URL=
