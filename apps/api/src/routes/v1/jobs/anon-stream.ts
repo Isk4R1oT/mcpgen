@@ -260,18 +260,54 @@ jobsAnonStreamRoute.get('/:id/stream', async (c) => {
     }
   }
 
-  // Fresh path / db_unavailable / no cache-hit FK → existing Phase 8 stub.
-  // Plan 09.1-06 explicitly does NOT regress the fresh-job stream; that
-  // continues to live in apps/api/src/routes/v1/jobs/stream.ts.
+  // Fresh path → proxy engine SSE stream.
+  // POST-09.1 patch: replace the historical stub with a real engine SSE
+  // proxy so anon callers see live Stage A→F events while OpenRouter passes
+  // run upstream. The BFF jobId equals the engine's jobId (we passed it as
+  // Idempotency-Key in /api/v1/generate kickoff).
+  const engineEndpoint =
+    (c.env as { ENGINE_ENDPOINT?: string }).ENGINE_ENDPOINT ?? 'http://localhost:8000';
   return streamSSE(c, async (stream) => {
-    await stream.writeSSE({
-      data: JSON.stringify({
-        job_id: jobId,
-        resumed_from_event_id: lastEventId ?? null,
-        pending_plan: '09.1-06',
-      }),
-      event: 'phase09_1_03_stub',
-      id: '01HXAAAAAAAAAAAAAAAAAAAAA1',
-    });
+    const upstreamHeaders: Record<string, string> = {};
+    if (lastEventId) upstreamHeaders[LAST_EVENT_ID_HEADER] = lastEventId;
+    let upstreamResp: Response;
+    try {
+      upstreamResp = await fetch(
+        `${engineEndpoint}/api/v1/generate/${jobId}/stream`,
+        { headers: upstreamHeaders },
+      );
+    } catch (err) {
+      await stream.writeSSE({
+        event: 'engine_unreachable',
+        data: JSON.stringify({
+          error: 'engine_unreachable',
+          message: err instanceof Error ? err.message : String(err),
+          job_id: jobId,
+        }),
+        id: '01HXAAAAAAAAAAAAAAAAAAAAA1',
+      });
+      return;
+    }
+    if (!upstreamResp.ok || upstreamResp.body === null) {
+      await stream.writeSSE({
+        event: 'engine_error',
+        data: JSON.stringify({
+          error: 'engine_error',
+          status: upstreamResp.status,
+          job_id: jobId,
+        }),
+        id: '01HXAAAAAAAAAAAAAAAAAAAAA1',
+      });
+      return;
+    }
+    // Pipe raw SSE chunks through. The engine produces fully-framed
+    // `id:\nevent:\ndata:\n\n` records — pass them verbatim.
+    const reader = upstreamResp.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      await stream.write(decoder.decode(value, { stream: true }));
+    }
   });
 });

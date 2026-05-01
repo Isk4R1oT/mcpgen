@@ -66,6 +66,8 @@ import {
 
 interface GenerateRouteBindings {
   ENVIRONMENT: string;
+  ENGINE_ENDPOINT?: string;
+  BFF_DISABLE_ANON_CACHE?: string;
 }
 
 interface GenerateRouteVariables {
@@ -190,8 +192,13 @@ generateRoute.post('/', anonRateLimit, async (c) => {
   // is owned by Phase 8 / engine kickoff). On cache HIT we replace the minted
   // jobId with the new child generations.id so the SSE replay handler can
   // load the cached payload via `cached_from_generation_id`.
+  //
+  // POST-09.1 patch: when `BFF_DISABLE_ANON_CACHE=1` the cache lookup is
+  // bypassed so every anon request always hits the real engine + LLM.
+  // Anon protection (rate limit + cost cap) provides the spend ceiling.
+  const cacheDisabled = c.env.BFF_DISABLE_ANON_CACHE === '1';
   let cacheHit = false;
-  if (anonSessionId !== null) {
+  if (anonSessionId !== null && !cacheDisabled) {
     const ipHash = c.var.rateLimitedIpHash ?? 'pending';
     try {
       const specHash = await computeSpecHash(parsed.data);
@@ -233,6 +240,43 @@ generateRoute.post('/', anonRateLimit, async (c) => {
   if (anonSessionId !== null && !cacheHit) {
     const ipHash = c.var.rateLimitedIpHash ?? 'pending';
     await persistAnonGeneration({ generationId: jobId, anonSessionId, ipHash });
+  }
+
+  // ─── 5b. Real engine kickoff (cache MISS path) ───────────────────────────
+  // POST-09.1 patch: actually call the engine for fresh anon generations.
+  // Engine accepts our `gen_<ULID>` jobId via the `Idempotency-Key` header
+  // and uses it as its own job_id, so subsequent SSE proxy lookups by the
+  // same id work end-to-end. Fail-open if engine is unreachable — the SSE
+  // stream handler will surface the error to the client.
+  if (!cacheHit) {
+    const engineEndpoint = c.env.ENGINE_ENDPOINT ?? 'http://localhost:8000';
+    try {
+      const engineResp = await fetch(`${engineEndpoint}/api/v1/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          [IDEMPOTENCY_KEY_HEADER]: jobId,
+        },
+        body: JSON.stringify({
+          spec_url: parsed.data.spec_url,
+          spec_content: parsed.data.spec_content,
+          options: parsed.data.options ?? {},
+        }),
+      });
+      if (!engineResp.ok) {
+        const errBody = await engineResp.text().catch(() => '<no body>');
+        console.warn('engine kickoff failed; SSE stream will surface error', {
+          jobId,
+          status: engineResp.status,
+          body: errBody.slice(0, 200),
+        });
+      }
+    } catch (err) {
+      console.warn('engine fetch threw; SSE stream will surface error', {
+        jobId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // ─── 6. Read Idempotency-Key header (logged for now; full dedup in 09.1-05) ─

@@ -86,3 +86,10 @@ MCPGEN_LOCAL_COMPUTE=1
 # Phases 1–9 run with this var unset; the cron logs a warning and continues
 # (D-01 graceful pattern, mirrors BETTERSTACK_OUTBOX_HEARTBEAT_URL).
 BETTERSTACK_ANON_CLEANUP_HEARTBEAT_URL=
+
+# ─── POST-09.1 patch — disable anon cache lookup ───────────────────────────
+# When set to "1", apps/api/src/routes/v1/generate.ts skips the L1 cache hit
+# branch from plan 09.1-06 and always kicks off a fresh engine pipeline.
+# Useful for end-to-end live testing of the OpenRouter inference path.
+# Anon protection (rate limit + cost cap) provides the spend ceiling.
+BFF_DISABLE_ANON_CACHE=0
