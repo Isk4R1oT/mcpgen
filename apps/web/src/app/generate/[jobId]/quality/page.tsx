@@ -12,9 +12,27 @@ interface Params {
   params: Promise<{ jobId: string }>;
 }
 
+interface CacheHitShape {
+  original_quality: number;
+  served_from: string;
+}
+
 interface JobStatusShape {
   status: string;
-  partial_result?: { quality_report?: unknown };
+  partial_result?: { quality_report?: unknown; cache_hit?: CacheHitShape };
+}
+
+// Plan 09.1-07 — cache-hit metadata is surfaced via SSE event 0
+// (CONTEXT D-05). When the BFF replays a cached generation, the server-side
+// status fetch returns the same metadata under partial_result.cache_hit so
+// that the QualityScreenWithAnonChrome wrapper can render the badge above
+// the locked QualityReport screen on first render.
+function readCacheHit(job: JobStatusShape | null): CacheHitShape | null {
+  const hit = job?.partial_result?.cache_hit;
+  if (hit === undefined) return null;
+  if (typeof hit.original_quality !== 'number') return null;
+  if (typeof hit.served_from !== 'string') return null;
+  return { original_quality: hit.original_quality, served_from: hit.served_from };
 }
 
 const fetchJobStatusServerSide = async (
@@ -38,11 +56,13 @@ export default async function QualityPage({ params }: Params): Promise<ReactElem
     process.env.MCPGEN_PUBLIC_URL ?? `http://localhost:${process.env.PORT ?? '3000'}`;
   const job = await fetchJobStatusServerSide(jobId, origin);
   const qualityReport = job?.partial_result?.quality_report as QualityReportType | undefined;
+  const cacheHit = readCacheHit(job);
 
   return (
     <QualityClientShell
       jobId={jobId}
       {...(qualityReport !== undefined ? { qualityReport } : {})}
+      {...(cacheHit !== null ? { cacheHit } : {})}
     />
   );
 }

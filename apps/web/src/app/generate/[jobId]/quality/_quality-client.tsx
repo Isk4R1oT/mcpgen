@@ -7,6 +7,8 @@ import type { ReactElement } from 'react';
 
 import type { QualityReport as QualityReportType } from '@mcpgen/ir';
 
+import type { CacheHitMetadata } from '@/components/anon-cache-hit-badge';
+
 // See _stream-client.tsx for explanation: do NOT import SAMPLE_APIS at
 // module scope — triggers SSR `window is not defined` crash.
 
@@ -18,8 +20,12 @@ interface LocalLockedSample {
   save: number;
 }
 
+// Plan 09.1-07 — switch consumer to QualityScreenWithAnonChrome wrapper
+// (composes AnonBanner + AnonCacheHitBadge ABOVE the locked QualityReport
+// screen, byte-identical to the locked baseline when isAnonymous=false).
 const QualityClient = dynamic(
-  () => import('@/lib/jsx-bridge/screens').then((m) => ({ default: m.QualityReportWrapper })),
+  () =>
+    import('@/lib/jsx-bridge/wrapper').then((m) => ({ default: m.QualityScreenWithAnonChrome })),
   { ssr: false },
 );
 
@@ -34,14 +40,20 @@ const FALLBACK_SAMPLE: LocalLockedSample = {
 interface Props {
   jobId: string;
   qualityReport?: QualityReportType;
+  cacheHit?: CacheHitMetadata | null;
 }
 
-export default function QualityClientShell({ jobId, qualityReport }: Props): ReactElement {
+export default function QualityClientShell({
+  jobId,
+  qualityReport,
+  cacheHit,
+}: Props): ReactElement {
   return (
     <QualityClient
       jobId={jobId}
       sample={FALLBACK_SAMPLE}
       {...(qualityReport !== undefined ? { qualityReport } : {})}
+      {...(cacheHit !== undefined ? { cacheHit } : {})}
     />
   );
 }
