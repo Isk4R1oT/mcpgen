@@ -63,12 +63,27 @@ const formatDetailValue = (key: string, value: unknown): string => {
   return JSON.stringify(value);
 };
 
+const SUB_PHASE_LABELS: Record<string, string> = {
+  pass_0: 'pass 0 — naming endpoints',
+  pass_1: 'pass 1 — six-tool consolidation',
+  pass_2: 'pass 2 — descriptions',
+  pass_3: 'pass 3 — parameters',
+  pass_4: 'pass 4 — annotations',
+  pass_5: 'pass 5 — response shaping',
+  validation_complete: 'pipeline complete',
+};
+
 const formatDetail = (partial: Record<string, unknown> | undefined): string => {
   if (!partial) return '';
-  const entries = Object.entries(partial)
+  const phase = typeof partial.phase === 'string' ? partial.phase : null;
+  const phaseLabel = phase !== null ? (SUB_PHASE_LABELS[phase] ?? phase) : null;
+  const dataEntries = Object.entries(partial)
     .filter(([k]) => k !== 'phase' && k !== 'sub_status')
     .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${formatDetailValue(k, v)}`);
-  return entries.join(' · ');
+  if (phaseLabel === null && dataEntries.length === 0) return '';
+  if (phaseLabel === null) return dataEntries.join(' · ');
+  if (dataEntries.length === 0) return phaseLabel;
+  return `${phaseLabel} · ${dataEntries.join(' · ')}`;
 };
 
 export default function LiveStreamLog({ jobId, onDone, onCancel }: Props): ReactElement {
@@ -120,8 +135,9 @@ export default function LiveStreamLog({ jobId, onDone, onCancel }: Props): React
     ? STAGES.findIndex((s) => s.id === runningStage.id) + 1
     : completedCount;
 
-  // Crude time estimate: average stage takes ~20s; remaining = (total - completed) * 20.
-  const remainingSec = Math.max(0, (STAGES.length - completedCount) * 20);
+  // Crude time estimate: average stage takes ~30s for LLM-heavy passes (B, C),
+  // ~10s for deterministic passes (D, E, F1). Use 30s as a coarse upper bound.
+  const remainingSec = Math.max(0, (STAGES.length - completedCount) * 30);
 
   return (
     <div className="mc-screen mc-grain" style={{ minHeight: '100vh' }}>
