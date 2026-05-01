@@ -64,10 +64,6 @@ function envFor(environment: string): Record<string, unknown> {
   };
 }
 
-interface CookieAttrs {
-  value: string;
-}
-
 function findAnonSetCookieValue(res: Response): string | null {
   const headers = res.headers;
   const all =
