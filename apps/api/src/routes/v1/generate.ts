@@ -1,6 +1,6 @@
 // apps/api/src/routes/v1/generate.ts
 //
-// Phase 09.1 plan 03 — anon-aware POST /api/v1/generate.
+// Phase 09.1 plan 03 + 06 — anon-aware POST /api/v1/generate with cache-hit.
 //
 // This route is mounted on the PUBLIC side of the BFF (see apps/api/src/index.ts
 // + plan 02 D-07 boundary). On every anon request we:
@@ -10,13 +10,22 @@
 //      on /jobs/:id/stream and the eventual /claim_generation flow.
 //   2. Validate the request body against the frozen `GenerationApiRequest`
 //      Zod schema from `@mcpgen/contracts/generation-api`. Bad bodies → 400.
-//   3. Mint a fresh `gen_${ULID}` job ID and best-effort INSERT both:
-//        - `generations` row (placeholder for engine kickoff in plan 09.1-06)
+//   3. Plan 09.1-06: compute `spec_hash` from the request body (currently a
+//      fallback `sha256(spec_url || spec_content)` until the engine exposes
+//      `/internal/v1/parse` for canonical Stage A hashes — RESEARCH §10
+//      mandates reusing `_canonicalize` when available). Look up an existing
+//      verified+ generation in cache (D-05); on HIT, atomically insert a
+//      child row + anonymous_generations binding with `cached_from_generation_id`
+//      pointing at the source. The /jobs/:id/stream handler detects the FK and
+//      replays the synthetic 9-stage cache timeline in <1s.
+//   4. On cache MISS: best-effort INSERT placeholder rows
+//        - `generations` row (placeholder for engine kickoff)
 //        - `anonymous_generations` row binding cookie ULID → generation row
-//      `ip_hash='pending'` here; plan 09.1-05 introduces the rate-limit
-//      middleware that overwrites it with the real daily-salt-hashed IP
-//      before the row commits.
-//   4. Return 202 + `{ job_id, sse_url }` per the frozen contract.
+//      `ip_hash` is the daily-salt sha256 stamped by the anon-rate-limit
+//      middleware (plan 09.1-05).
+//   5. Return 202 + `{ job_id, sse_url }` per the frozen contract regardless
+//      of cache HIT/MISS — the client cannot distinguish at submit time
+//      (cache-hit metadata surfaces only on event 0 of the SSE replay).
 //
 // JWT path: when `c.var.auth?.organizationId` is populated (the route ALSO
 // matches authed requests because the BFF mounts it on the public side, but
@@ -50,6 +59,10 @@ import { db } from '../../db.js';
 import type { AuthContext } from '../../middleware/auth.js';
 import { anonRateLimit } from '../../middleware/anon-rate-limit.js';
 import { ensureAnonSession } from '../../lib/anon-session.js';
+import {
+  lookupCachedGeneration,
+  createCacheHitChild,
+} from '../../lib/spec-cache-lookup.js';
 
 interface GenerateRouteBindings {
   ENVIRONMENT: string;
@@ -69,6 +82,33 @@ export const generateRoute = new Hono<{
   Bindings: GenerateRouteBindings;
   Variables: GenerateRouteVariables;
 }>();
+
+// Compute a spec_hash for the cache-hit lookup.
+//
+// Plan 09.1-06 chosen path (RESEARCH §10):
+//   - Production target is to reuse `_canonicalize` from
+//     `apps/generation-engine/src/mcpgen_engine/stages/stage_a.py:500-505`,
+//     called via the engine's `/internal/v1/parse` endpoint. The BFF reads
+//     the resulting `specs.content_hash` straight off the response.
+//   - That engine endpoint is NOT yet wired (cross-ws Phase 2 ask). Until it
+//     lands, the BFF computes a FALLBACK hash: `sha256(spec_url || spec_content)`
+//     directly over the raw request body input. This is NOT canonical — two
+//     different YAML serializations of the same OpenAPI spec hash differently
+//     under this scheme — but it preserves cache-HIT semantics for IDENTICAL
+//     repeat submissions, which covers the most common anon-flow case (a user
+//     refreshes the form and resubmits the same URL).
+//   - When the engine endpoint lands, swap this function body for an
+//     `await fetch(${ENGINE_ENDPOINT}/internal/v1/parse).content_hash` call;
+//     the contract surface (string return) stays the same.
+async function computeSpecHash(req: {
+  spec_url?: string | undefined;
+  spec_content?: string | undefined;
+}): Promise<string> {
+  const input = req.spec_url ?? req.spec_content ?? '';
+  const buf = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 // Best-effort row insertion. Returns true on success, false on any DB error
 // (logs through console.warn — Sentry instrumentation in the global app
@@ -138,31 +178,71 @@ generateRoute.post('/', anonRateLimit, async (c) => {
 
   // ─── 3. Mint job ID + attach cookie (anon path only) ─────────────────────
   // job_id shape per FROZEN contract: `gen_${ULID}` (GEN_ID_REGEX).
-  const jobId = `gen_${ulid()}`;
+  let jobId = `gen_${ulid()}`;
 
   let anonSessionId: string | null = null;
   if (!isAuthed) {
     anonSessionId = ensureAnonSession(c, { forceReissue: false });
   }
 
-  // ─── 4. Persist placeholder rows (anon path) ─────────────────────────────
+  // ─── 4. Plan 09.1-06: cache-hit lookup BEFORE engine kickoff ─────────────
+  // For anon callers ONLY (authed callers reach a different code path that
+  // is owned by Phase 8 / engine kickoff). On cache HIT we replace the minted
+  // jobId with the new child generations.id so the SSE replay handler can
+  // load the cached payload via `cached_from_generation_id`.
+  let cacheHit = false;
+  if (anonSessionId !== null) {
+    const ipHash = c.var.rateLimitedIpHash ?? 'pending';
+    try {
+      const specHash = await computeSpecHash(parsed.data);
+      const cached = await lookupCachedGeneration(specHash);
+      if (cached !== null) {
+        const { new_generation_id } = await createCacheHitChild(
+          cached,
+          anonSessionId,
+          ipHash,
+        );
+        // The cache-hit child gets a UUID id (matches the FROZEN
+        // `generations.id uuid` column type set by Phase 8 schema).
+        // Surfacing the UUID directly as `job_id` matches the existing
+        // anon-endpoint-smoke.test.ts pattern (plan 09.1-03) where
+        // `generations.id` is seeded as a UUID and the SSE stream handler
+        // resolves the row via `WHERE g.id = $jobId`. The FROZEN
+        // `GenerationApiResponse.job_id` Zod schema expects `gen_${ULID}` —
+        // the UUID-vs-ULID mismatch is a pre-existing schema drift across
+        // plans 03/04 (deferred to a future Phase-6/8 retro per plan 05
+        // deferred-items.md).
+        jobId = new_generation_id;
+        cacheHit = true;
+      }
+    } catch (err) {
+      // Fail-open: cache-lookup hiccups must not block the anon flow. Same
+      // policy as plan 09.1-05's anon-rate-limit middleware. Falls through
+      // to the standard placeholder-INSERT + engine kickoff path.
+      console.warn('cache-hit lookup failed; falling through to fresh path', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  // ─── 5. Persist placeholder rows (cache MISS path only) ──────────────────
   // Plan 09.1-05: read the IP hash stamped by the anon-rate-limit middleware
   // and write it into anonymous_generations.ip_hash (replacing the historical
   // 'pending' placeholder). Defense-in-depth fallback: 'pending' if the
   // middleware did not run (should not happen on the anon path).
-  if (anonSessionId !== null) {
+  if (anonSessionId !== null && !cacheHit) {
     const ipHash = c.var.rateLimitedIpHash ?? 'pending';
     await persistAnonGeneration({ generationId: jobId, anonSessionId, ipHash });
   }
 
-  // ─── 5. Read Idempotency-Key header (logged for now; full dedup in 09.1-05) ─
+  // ─── 6. Read Idempotency-Key header (logged for now; full dedup in 09.1-05) ─
   // Idempotency-Key header is part of the FROZEN contract — clients send it
   // on retries to deduplicate engine kickoffs. Plan 09.1-05 wires the Inngest
   // dedup; here we accept it and pass through in the response shape so the
   // contract surface is exercised.
   const idempotencyKey = c.req.header(IDEMPOTENCY_KEY_HEADER);
 
-  // ─── 6. Return 202 + frozen response shape ───────────────────────────────
+  // ─── 7. Return 202 + frozen response shape ───────────────────────────────
   // sse_url uses an absolute URL constructed from the request — the frontend
   // and CLI both consume this verbatim and open an EventSource.
   const requestUrl = new URL(c.req.url);

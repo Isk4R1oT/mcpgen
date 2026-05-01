@@ -22,9 +22,11 @@
 //                that minted the row OR an org JWT that has claimed it, the
 //                handler returns 403 unconditionally.
 //
-// SSE body: this plan stubs the actual replay timeline. Plan 09.1-06 fills
-// the cache-hit replay path; the existing pending_callbacks-driven replay
-// path lives in apps/api/src/routes/v1/jobs/stream.ts and stays the
+// SSE body: plan 09.1-06 fills the cache-hit replay path. When the row's
+// `cached_from_generation_id` is set, the stream replays a synthetic 9-stage
+// timeline derived from the source row (via `buildCacheReplayTimeline`)
+// instead of waiting on the engine. The existing pending_callbacks-driven
+// replay path lives in apps/api/src/routes/v1/jobs/stream.ts and stays the
 // authoritative implementation for fresh-job streams.
 //
 // References:
@@ -40,6 +42,11 @@ import { LAST_EVENT_ID_HEADER } from '@mcpgen/contracts';
 import { db } from '../../../db.js';
 import type { AuthContext } from '../../../middleware/auth.js';
 import { readAnonSession } from '../../../lib/anon-session.js';
+import {
+  buildCacheReplayTimeline,
+  streamCacheReplayTimeline,
+  type CachedGen,
+} from '../../../lib/cache-replay-timeline.js';
 
 interface JobsAnonStreamBindings {
   ENVIRONMENT: string;
@@ -156,6 +163,61 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
   return c.json({ job_id: jobId, status: 'queued', pending_plan: '09.1-06' }, 200);
 });
 
+// Plan 09.1-06: load the cache-hit source payload for a job that has its
+// `cached_from_generation_id` FK set. Returns null when the job is not a
+// cache-hit child (i.e. fresh path) or when the source row was deleted
+// (FK is ON DELETE SET NULL — defensive null handling).
+async function loadCachedSource(jobId: string): Promise<CachedGen | null> {
+  const r = await db.execute(sql`
+    SELECT
+      g.cached_from_generation_id  AS cached_from_id,
+      cg.id                        AS source_id,
+      cg.quality_score             AS source_quality,
+      cg.created_at                AS source_created_at,
+      cg.ir                        AS source_ir,
+      cg.quality_report            AS source_quality_report
+    FROM generations g
+    LEFT JOIN generations cg ON cg.id = g.cached_from_generation_id
+    WHERE g.id = ${jobId}
+    LIMIT 1
+  `);
+  const row = r.rows[0] as
+    | {
+        cached_from_id: string | null;
+        source_id: string | null;
+        source_quality: string | number | null;
+        source_created_at: string | Date | null;
+        source_ir: { final_tools?: unknown } | null;
+        source_quality_report: unknown;
+      }
+    | undefined;
+  if (!row || row.cached_from_id === null || row.source_id === null) return null;
+
+  const qs = typeof row.source_quality === 'string'
+    ? Number(row.source_quality)
+    : row.source_quality ?? 0;
+
+  const createdRaw = row.source_created_at;
+  const createdAt = createdRaw instanceof Date
+    ? createdRaw
+    : createdRaw !== null
+    ? new Date(createdRaw)
+    : new Date();
+
+  const ir = row.source_ir;
+  const finalTools = ir && typeof ir === 'object' && 'final_tools' in ir
+    ? ir.final_tools
+    : (ir ?? null);
+
+  return {
+    generation_id: row.source_id,
+    quality_score: qs,
+    created_at: createdAt,
+    final_tools: finalTools,
+    quality_report: row.source_quality_report,
+  };
+}
+
 // ─── GET /:id/stream  — SSE replay ─────────────────────────────────────────
 jobsAnonStreamRoute.get('/:id/stream', async (c) => {
   const { decision, jobId } = await resolveAuthSignals(c);
@@ -165,9 +227,42 @@ jobsAnonStreamRoute.get('/:id/stream', async (c) => {
   if (decision === 'forbidden') {
     return c.json({ error: 'forbidden', job_id: jobId }, 403);
   }
-  // Both 'authorized' and 'db_unavailable' (test env) fall through to the
-  // SSE handshake. Plan 09.1-06 fills in the real cache-replay timeline.
+
   const lastEventId = c.req.header(LAST_EVENT_ID_HEADER);
+
+  // Plan 09.1-06: cache-hit replay branch. Authorized jobs whose
+  // `cached_from_generation_id` is set replay the synthetic timeline derived
+  // from the source row's `final_tools` + `quality_report`. Total wall-clock
+  // <1s per D-05 SLA (timeline test 7 + integration test 3 enforce this).
+  if (decision === 'authorized') {
+    let cached: CachedGen | null = null;
+    try {
+      cached = await loadCachedSource(jobId);
+    } catch (err) {
+      // Lookup hiccup — fall through to the legacy stub. Avoids 500ing the
+      // SSE on transient DB failure.
+      console.warn('cache-replay source lookup failed; falling through to stub', {
+        jobId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    if (cached !== null) {
+      const timeline = buildCacheReplayTimeline(jobId, cached);
+      return streamSSE(c, async (stream) => {
+        for await (const frame of streamCacheReplayTimeline(timeline, lastEventId ?? null)) {
+          // streamCacheReplayTimeline already produces fully-framed SSE chunks
+          // (`id:\nevent:\ndata:\n\n`), so write them verbatim. Hono's
+          // streamSSE.writeSSE adds its own framing — instead, write directly
+          // through the underlying stream.
+          await stream.write(frame);
+        }
+      });
+    }
+  }
+
+  // Fresh path / db_unavailable / no cache-hit FK → existing Phase 8 stub.
+  // Plan 09.1-06 explicitly does NOT regress the fresh-job stream; that
+  // continues to live in apps/api/src/routes/v1/jobs/stream.ts.
   return streamSSE(c, async (stream) => {
     await stream.writeSSE({
       data: JSON.stringify({
