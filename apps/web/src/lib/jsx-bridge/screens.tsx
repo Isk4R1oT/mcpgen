@@ -26,6 +26,7 @@ import {
   type UsageHourlyRow,
 } from '@/lib/api/dashboard-client';
 import { useGenerationSSE } from '@/lib/sse/use-generation-sse';
+import LiveStreamLog from '@/components/live-stream-log';
 import { badgeLabel, badgeTier, type BadgeTier } from '@/lib/quality-badge';
 import {
   buildClaudeProtocolHref,
@@ -51,9 +52,9 @@ import {
   Preview,
   QualityReport,
   SAMPLE_APIS,
-  StreamLog,
   type LockedSample,
 } from './index';
+// StreamLog (locked) replaced by LiveStreamLog in StreamLogWrapper — import dropped.
 
 // --- LandingWrapper — Plan 07-02 FE-01 submit flow ------------------------
 //
@@ -237,20 +238,14 @@ export interface StreamLogWrapperProps {
 
 export function StreamLogWrapper({ jobId, sample }: StreamLogWrapperProps): ReactElement {
   const router = useRouter();
-  const { status } = useGenerationSSE(jobId);
-
-  useEffect(() => {
-    if (status === 'completed') router.push(`/generate/${jobId}/preview`);
-  }, [status, jobId, router]);
-
+  // POST-09.1 patch: live SSE stream display replaces canned screen-stream.jsx.
+  // The locked file is preserved on disk untouched; we just don't render it.
+  // `sample` prop kept on signature for upstream compatibility but unused here.
+  void sample;
   return (
-    <StreamLog
-      sample={sample}
-      onDone={() => {
-        // Locked timer also fires onDone after its internal simulation; treat
-        // it as a fallback navigation when SSE happens to outpace the timer.
-        router.push(`/generate/${jobId}/preview`);
-      }}
+    <LiveStreamLog
+      jobId={jobId}
+      onDone={() => router.push(`/generate/${jobId}/preview`)}
       onCancel={() => router.back()}
     />
   );

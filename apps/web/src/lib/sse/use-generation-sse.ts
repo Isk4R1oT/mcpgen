@@ -119,7 +119,10 @@ export function useGenerationSSE(jobId: string): {
           const { done, value } = await reader.read();
           if (done) break;
           if (cancelled) return;
-          if (value.event !== undefined && value.event !== '' && value.event !== 'message') continue;
+          // POST-09.1 fix: engine tags events with `event: A/B/C/D/E/F1/F2/F3/completed/failed`.
+          // Do NOT filter by event field — it's the same value as `payload.stage`.
+          // Only skip frames with no data (heartbeats / comments).
+          if (value.data === undefined || value.data === '') continue;
 
           let payload: unknown;
           try {
@@ -132,8 +135,16 @@ export function useGenerationSSE(jobId: string): {
           const parsed = parseResult.data;
           appendEvent(parsed);
           lastSeenId = parsed.event_id;
-          if (parsed.stage === 'completed' || parsed.stage === 'failed') {
-            setStatus(parsed.stage);
+          // POST-09.1 fix: engine emits `stage="validation_complete"` as the
+          // terminal success marker (apps/generation-engine/.../pipeline.py:596).
+          // Treat it as the canonical "completed" for the frontend so the
+          // wrapper navigates to /preview when the pipeline finishes.
+          if (
+            parsed.stage === 'completed' ||
+            parsed.stage === 'failed' ||
+            parsed.stage === 'validation_complete'
+          ) {
+            setStatus(parsed.stage === 'failed' ? 'failed' : 'completed');
             return;
           }
         }
