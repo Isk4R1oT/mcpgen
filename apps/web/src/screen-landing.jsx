@@ -28,7 +28,7 @@ function Landing({ onMakeIt, onSelectSample, sample, urlText, setUrlText }) {
             <a className="mc-link mc-mono" style={{ fontSize: 12 }}>docs</a>
             <a className="mc-link mc-mono" style={{ fontSize: 12 }}>pricing</a>
             <a className="mc-link mc-mono" style={{ fontSize: 12 }}>github</a>
-            <Btn kind="ink" size="sm">sign in</Btn>
+            <a href="/api/auth/logto/sign-in" style={{ textDecoration: 'none' }}><Btn kind="ink" size="sm">sign in</Btn></a>
           </>
         }
       />
