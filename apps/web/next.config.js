@@ -27,6 +27,15 @@ const BFF_PROXY_TARGET = process.env.MCPGEN_BFF_URL || 'http://localhost:8787';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // POST-09.1 patch: Next.js dev server gzip-compresses every response by
+  // default, which buffers SSE chunks until the gzip window fills (~16 KB)
+  // and breaks streaming for fetch-based EventSource consumers (the engine's
+  // per-stage events are ~250 bytes each — they never accumulate enough to
+  // trigger a flush mid-pipeline). The browser saw `sse: streaming` but no
+  // events until the entire 2-3 minute pipeline finished. Disabling compress
+  // restores immediate chunk delivery; production gzip belongs at the CDN
+  // edge (Vercel handles it for non-SSE routes automatically).
+  compress: false,
   async rewrites() {
     return {
       beforeFiles: [
