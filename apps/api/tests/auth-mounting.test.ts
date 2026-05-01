@@ -1,9 +1,15 @@
 // apps/api/tests/auth-mounting.test.ts
 //
-// Verifies the 5-layer mounting in apps/api/src/index.ts:
+// Verifies the layered mounting in apps/api/src/index.ts after the
+// Phase 09.1 plan 02 per-route refactor (D-07):
 //   - /health and /health/launch-criteria bypass auth (public layer 1+2)
 //   - /api/inngest bypasses auth (public layer 3)
-//   - /api/v1/* requires Authorization (protected layer 5)
+//   - /api/v1/dashboard requires Authorization (protectedApp catch-all)
+//   - /internal/v1/* requires Authorization (M2M sub-app)
+//
+// Anon-allowed /api/v1 routes (generate, jobs, deploy/ephemeral) and the
+// gate-conditional preview/quality/playground are covered separately by
+// auth-gate-position.test.ts.
 //
 // jose is mocked so the protected sub-app can be exercised without a live JWKS.
 
@@ -25,7 +31,7 @@ const ENV = {
   ENVIRONMENT: 'test',
 };
 
-describe('5-layer mounting', () => {
+describe('layered mounting', () => {
   it('GET /health bypasses auth (no Authorization header)', async () => {
     const res = await app.fetch(new Request('http://x/health'), ENV);
     expect(res.status).toBe(200);
@@ -44,12 +50,21 @@ describe('5-layer mounting', () => {
     expect(res.status).not.toBe(401);
   });
 
-  it('GET /api/v1/anything returns 401 without Authorization', async () => {
-    const res = await app.fetch(new Request('http://x/api/v1/jobs/abc/stream'), ENV);
+  it('GET /api/v1/dashboard returns 401 without Authorization (always-protected)', async () => {
+    const res = await app.fetch(new Request('http://x/api/v1/dashboard'), ENV);
     expect(res.status).toBe(401);
     const body = (await res.json()) as { error: string; reason: string };
     expect(body.error).toBe('unauthorized');
     expect(body.reason).toBe('missing_bearer');
+  });
+
+  it('GET /api/v1/jobs/:id/stream is anon-allowed after Phase 09.1 plan 02 (D-07)', async () => {
+    // Pre-09.1 this returned 401; the per-route refactor moves /jobs to the
+    // public side so the anon hero flow can stream SSE without a Logto JWT.
+    // The route-level cookie scoping (D-04) lands in plan 09.1-03; here we
+    // only assert the auth boundary stops 401-ing.
+    const res = await app.fetch(new Request('http://x/api/v1/jobs/abc/stream'), ENV);
+    expect(res.status).not.toBe(401);
   });
 
   it('GET /internal/v1/anything returns 401 without Authorization', async () => {
