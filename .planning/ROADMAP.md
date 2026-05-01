@@ -21,6 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Frontend Wire-Up** - Wire locked Claude-Design UI to Generation API + SSE + dashboard (NO visual changes) (completed 2026-04-30 — 6/6 plans, 0 quality findings remaining; 5 carry-forward UAT items tracked in 07-HUMAN-UAT.md)
 - [x] **Phase 8: Auth + Billing** - Logto (email + GitHub) + Stripe Meters + quotas + cost cap + Drift Watcher with IR-diff (completed 2026-04-27 — ops workstream)
 - [ ] **Phase 9: Observability & Polish** - Sentry/Langfuse/BetterStack integrated + cross-tenant fuzz + multi-client smoke + Inngest orphan audit
+- [ ] **Phase 9.1: Anonymous Hero Flow + Claim Generation** - INSERTED 2026-04-30. Restore D-18 from `07-CONTEXT.md`: ungate `/api/v1/generate` for anonymous users (preview/playground/quality screens public per `ux-flow.md` §1.1 "Без регистрации"); auth gate moves to deploy step; implement `claim_generation` BFF endpoint to link anonymous gen to user post-signup. Discovered via local testing 2026-04-30 (BFF returns 401 on anonymous landing-page submit) — regression vs original UX intent
 - [ ] **Phase 10: Launch** - Quickstart docs validated externally + Privacy/ToS/Pricing + soft launch W7 → public W9
 
 ## Phase Details
@@ -228,10 +229,17 @@ Plans:
 - [ ] 09-10-PLAN.md — PII leak-audit script with mocked Sentry events adapter (D-13 + Phase 10 carry-forward) [Wave 3]
 - [x] 09-11-PLAN.md — Outbox depth monitor + Inngest live audit + Neon OOM repro + Neon Scale-tier runbook + BetterStack runbook + architecture §6 P99 SLO doc edit (D-15, D-16, D-17, D-20, D-21) [Wave 3] ✓ 2026-04-30 — 3 atomic commits in ~23 min. D-21 outbox monitor: library at `apps/api/src/lib/outbox-depth-monitor.ts` + thin CLI wrapper at `scripts/observability/outbox-depth-monitor.ts` + new `sendOutboxDepthAlert` in resend-client + 5 integration tests (`tests/observability/outbox-depth.test.ts`) gated on DATABASE_URL — covers ≤ threshold + heartbeat / > threshold + Resend / Pitfall #10 5-min filter / empty heartbeat URL / >10 sentinel for grep contract. D-15 Inngest live audit: `scripts/observability/inngest-orphan-audit.ts` (REFERENCE-ONLY) with primary :8288 + fallback :8787 per Pitfall #8. D-16 Neon OOM repro: `apps/api/tests/load/test_neon_oom_replication.test.ts` gated on RUN_LOAD_TESTS=1 + DATABASE_URL — concurrent Promise.all of 3 SQL streams (tsvector / pgvector / TimescaleDB hypertable); separate `vitest.load.config.ts` (testTimeout 600_000) + default vitest.config.ts excludes tests/load/**. D-17 Neon Scale-tier runbook: 6-step click-path with autovacuum_work_mem=256MB + timescaledb.max_background_workers=2 knobs. D-02 BetterStack runbook: 6-step click-path with heartbeat monitor + 6 uptime checks + escalation policy. D-20 architecture §6 SLO: P99 warm < 50ms / amortized < 100ms split per Pitfall #14. Phase 9 fully scoped — every D-01..D-21 mapped to a plan. See `.planning/phases/09-observability-polish/09-11-SUMMARY.md`.
 
+### Phase 9.1: Anonymous Hero Flow + Claim Generation (INSERTED 2026-04-30)
+**Workstream**: `main`
+**Goal**: Restore the original UX intent from `docs/mcpgen-ux-flow.md` §1.1 ("От пасты URL до рабочего MCP-сервера в Claude Desktop — меньше минуты. Без регистрации.") + `07-CONTEXT.md` D-18 ("anonymous users can paste a URL and run free-tier generation; auth gate at deploy step; first authenticated generation is 'claimed' from the anonymous session"). Discovered via local-stack testing 2026-04-30: BFF `/api/v1/generate` returns 401 to anonymous users, breaking the landing-page hero flow. The anonymous path was specced in Phase 7 but never implemented in Phase 8 (the M2M-only auth middleware blocks ALL `/api/v1/*` paths regardless of route type).
+**Depends on**: Phase 9 (must land before Phase 10 launch)
+**Requirements**: GTM-01 partial (60-second hero flow without signup), CTRL-02 amendment (auth boundary repositioned)
+**Plans**: TBD via `/gsd-discuss-phase 9.1` → `/gsd-plan-phase 9.1`
+
 ### Phase 10: Launch
 **Workstream**: `main`
 **Goal**: Soft launch W7 (20 invited beta users, gather feedback, fix P0 issues) → public launch W9 (Show HN, Product Hunt, Reddit r/MachineLearning + r/LocalLLaMA). All launch criteria from `docs/mcpgen-implementation-plan.md` §11.7 met. Kill switches enforced: F3 success rate <70%, F2 average <4.0, P1 security finding, deploy success rate <95%, founder unslept 5+ days each delays launch one week.
-**Depends on**: Phase 9
+**Depends on**: Phase 9, Phase 9.1
 **Requirements**: GTM-01, GTM-02, GTM-03
 **Pitfalls mitigated** (per `.planning/research/PITFALLS.md` §Pitfall-to-Phase Mapping): #17 (MAU monitoring on Logto with weekly graph from Logto Admin API), #22 (resist "just add GraphQL" mid-launch trap — Out-of-Scope is contractual), #23 (Friday demo cadence preserved through W10 — pre-recorded clips throughout the week, Friday is editing only)
 **Success Criteria** (what must be TRUE):
