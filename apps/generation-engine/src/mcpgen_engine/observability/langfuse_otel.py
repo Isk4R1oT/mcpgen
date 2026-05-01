@@ -62,14 +62,51 @@ def configure_langfuse_otel() -> None:
         ),
     )
 
+    # POST-09.1 fix: enable PydanticAI + OpenAI auto-instrumentation so OTel
+    # spans carry OpenInference / GenAI semantic attributes
+    # (`gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`).
+    # Without this every LLM call surfaces in Langfuse as a generic SPAN with
+    # no `model` / token counts → cost rollups stay $0 even with pricing
+    # registered. PydanticAI uses the `openai` SDK under the hood for OpenRouter,
+    # so instrumenting both layers covers every span path.
+    if hasattr(logfire, "instrument_pydantic_ai"):
+        try:
+            logfire.instrument_pydantic_ai()
+        except Exception as exc:
+            logfire.warn("langfuse_otel.instrument_pydantic_ai_failed", error=str(exc))
+    if hasattr(logfire, "instrument_openai"):
+        try:
+            logfire.instrument_openai()
+        except Exception as exc:
+            logfire.warn("langfuse_otel.instrument_openai_failed", error=str(exc))
+    if hasattr(logfire, "instrument_httpx"):
+        try:
+            logfire.instrument_httpx(capture_headers=False)
+        except Exception as exc:
+            logfire.warn("langfuse_otel.instrument_httpx_failed", error=str(exc))
+
     if not (public_key and secret_key):
         # Phase 1 default — no Langfuse credentials → no exporter wired; spans drop locally.
         return
 
     token = base64.b64encode(f"{public_key}:{secret_key}".encode()).decode()
     headers = {"Authorization": f"Basic {token}"}
-    provider = TracerProvider()
-    provider.add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, headers=headers))
-    )
-    trace.set_tracer_provider(provider)
+
+    # POST-09.1 fix: `logfire.configure()` above ALREADY registers a global
+    # TracerProvider. OpenTelemetry SDK forbids replacing the global provider
+    # — the prior `trace.set_tracer_provider(new_provider)` call hit
+    # `Overriding of current TracerProvider is not allowed` and was silently
+    # dropped, so Langfuse never received any spans. Attach our OTLP exporter
+    # to the EXISTING provider instead.
+    existing_provider = trace.get_tracer_provider()
+    if hasattr(existing_provider, "add_span_processor"):
+        existing_provider.add_span_processor(  # type: ignore[attr-defined]
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, headers=headers))
+        )
+    else:
+        # ProxyTracerProvider before SDK init — fall back to creating our own.
+        provider = TracerProvider()
+        provider.add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, headers=headers))
+        )
+        trace.set_tracer_provider(provider)

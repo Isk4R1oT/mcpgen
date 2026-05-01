@@ -76,4 +76,46 @@ async def run_with_tracing(
     with span_ctx as active_span:
         active_span.set_attribute("langfuse.session.id", session_id)
         active_span.set_attribute("langfuse.tags", [stage])
-        return await agent.run(prompt, model_settings=model_settings)
+        result = await agent.run(prompt, model_settings=model_settings)
+
+        # POST-09.1 fix: stamp OpenTelemetry GenAI semantic-convention
+        # attributes so Langfuse promotes this span to a GENERATION
+        # observation and applies the registered qwen3-coder pricing
+        # ($0.12/M input, $0.80/M output). Without these, every LLM call
+        # surfaces as a generic SPAN with $0 cost. The values come straight
+        # from `agent` config + the `AgentRunResult.usage()` method which
+        # PydanticAI populates from the OpenRouter response usage block.
+        try:
+            model_name = getattr(getattr(agent, "model", None), "model_name", None)
+            if model_name is None:
+                model_name = getattr(agent, "model_name", None)
+            if isinstance(model_name, str):
+                active_span.set_attribute("gen_ai.system", "openrouter")
+                active_span.set_attribute("gen_ai.request.model", model_name)
+                active_span.set_attribute("gen_ai.response.model", model_name)
+                # Langfuse-specific shorthand picked up alongside gen_ai.*.
+                active_span.set_attribute("model", model_name)
+
+            usage_fn = getattr(result, "usage", None)
+            usage = usage_fn() if callable(usage_fn) else usage_fn
+            if usage is not None:
+                # PydanticAI Usage exposes .request_tokens / .response_tokens / .total_tokens.
+                input_tokens = getattr(usage, "request_tokens", None) or getattr(
+                    usage, "input_tokens", None
+                )
+                output_tokens = getattr(usage, "response_tokens", None) or getattr(
+                    usage, "output_tokens", None
+                )
+                total_tokens = getattr(usage, "total_tokens", None)
+                if isinstance(input_tokens, int):
+                    active_span.set_attribute("gen_ai.usage.input_tokens", input_tokens)
+                    active_span.set_attribute("gen_ai.usage.prompt_tokens", input_tokens)
+                if isinstance(output_tokens, int):
+                    active_span.set_attribute("gen_ai.usage.output_tokens", output_tokens)
+                    active_span.set_attribute("gen_ai.usage.completion_tokens", output_tokens)
+                if isinstance(total_tokens, int):
+                    active_span.set_attribute("gen_ai.usage.total_tokens", total_tokens)
+        except Exception as exc:
+            logfire.warn("run_tracing.gen_ai_attrs_failed", error=str(exc))
+
+        return result
