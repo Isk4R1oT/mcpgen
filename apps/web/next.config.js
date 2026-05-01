@@ -16,9 +16,27 @@
 
 import { withSentryConfig } from '@sentry/nextjs';
 
+// POST-09.1 patch: dev-mode rewrites proxy /api/v1/* → BFF on :8787.
+// Without this, browser fetch('/api/v1/...') from useGenerationSSE +
+// submitGeneration hits Next.js dev server (3002) which 404s, breaking the
+// live SSE stream. /api/auth/* stays on Next.js (Logto server actions).
+// Production uses Vercel + Cloudflare path routing at the edge, so this
+// rewrite is dev-affinity-only.
+const BFF_PROXY_TARGET = process.env.MCPGEN_BFF_URL || 'http://localhost:8787';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/api/v1/:path*',
+          destination: `${BFF_PROXY_TARGET}/api/v1/:path*`,
+        },
+      ],
+    };
+  },
   // Workspace deps consumed by apps/web at runtime (Pattern 1 + Pattern 5):
   //   @mcpgen/contracts → HTTP contract Zod schemas + idempotency constants
   //   @mcpgen/ir        → FinalTool / QualityReport schemas (Plan 07-04 preview)
