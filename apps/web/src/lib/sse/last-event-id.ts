@@ -8,9 +8,11 @@ import { LAST_EVENT_ID_HEADER } from '@mcpgen/contracts';
 
 export { LAST_EVENT_ID_HEADER };
 
-export const buildSseHeaders = (lastEventId: string | null): Record<string, string> => {
+export const buildSseHeaders = (
+  lastEventId: string | null | undefined,
+): Record<string, string> => {
   const headers: Record<string, string> = { Accept: 'text/event-stream' };
-  if (lastEventId !== null && lastEventId.length > 0) {
+  if (typeof lastEventId === 'string' && lastEventId.length > 0) {
     headers[LAST_EVENT_ID_HEADER] = lastEventId;
   }
   return headers;

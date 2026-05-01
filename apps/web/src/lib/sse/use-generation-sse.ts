@@ -195,7 +195,12 @@ export function useGenerationSSE(jobId: string): {
         setStatus(job.status);
         return;
       }
-      await connect(job.last_known_event_id);
+      // POST-09.1 fix: BFF status stubs return objects without `last_known_event_id`.
+      // The TS type widens to `string | null` but the runtime value is `undefined`,
+      // and `buildSseHeaders(undefined)` throws TypeError on `.length` → caught,
+      // retried 3x, falls into poll() mode → /stream is never opened → user sees
+      // "sse: reconnecting" forever. Coerce to null when missing.
+      await connect(job.last_known_event_id ?? null);
     };
 
     void bootstrap();
