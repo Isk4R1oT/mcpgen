@@ -58,3 +58,20 @@ BFF_ANONYMOUS_GATE=playground
 # pattern (D-11) lives in the `app_secrets` table seeded by migration
 # 20260501010000_phase09_1_anon_flow.sql; the daily 00:00 UTC rotation is
 # wired in plan 09.1-10.
+# ─── Phase 09.1 D-03: anon ephemeral CF Workers for Platforms deploy ──────
+# Used by apps/api/src/lib/cf-platforms-deploy.ts for the anon ephemeral
+# tenant deploy (POST /api/v1/deploy/ephemeral) and the cleanup cron
+# (plan 09.1-10). Token MUST have minimum required scopes:
+#   - Workers Scripts:Edit  (PUT/DELETE on dispatch/namespaces/mcpgen-prod/*)
+# T-9.1-08-05 mitigation: never log; never grant broader scopes.
+CF_API_TOKEN=
+CF_ACCOUNT_ID=
+
+# ─── Phase 09.1 local-compute mode (per project_local_compute.md) ─────────
+# When set to "1", apps/api/src/lib/cf-platforms-deploy.ts short-circuits
+# all three functions (deployScript / deleteScript / retagScript) — deploys
+# return a localhost stub URL and delete/retag are no-ops. This allows
+# Phases 1–9 (including the 09.1 anon flow) to run end-to-end without CF
+# credentials. Phase 10 launch enablement removes the deferral and provisions
+# the real CF resources.
+MCPGEN_LOCAL_COMPUTE=1
