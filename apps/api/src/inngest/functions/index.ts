@@ -5,9 +5,11 @@
 //   Wave 2: stripeMetersEmit
 //   Wave 3: costCapEnforcer, quotaPeriodRollover
 //   Wave 4: driftWatcher, driftWatcherCheck, usageReconciler, logtoMauWatch
+//   Phase 09.1 plan 10: anonTenantCleanup, anonRateLimitCleanup, anonSaltRotate
 //
 // References:
 //   - .planning/phases/08-auth-billing/08-CONTEXT.md D-21, D-27
+//   - .planning/phases/09.1-anonymous-hero-flow/09.1-CONTEXT.md D-06, D-11
 //   - packages/contracts/src/inngest-functions.ts (stable ID register)
 
 import type { Inngest } from 'inngest';
@@ -18,6 +20,9 @@ import { driftWatcher } from './drift-watcher.js';
 import { driftWatcherCheck } from './drift-watcher-check.js';
 import { usageReconciler } from './usage-reconciler.js';
 import { logtoMauWatch } from './logto-mau-watch.js';
+import { anonTenantCleanup } from './anon-tenant-cleanup.js';
+import { anonRateLimitCleanup } from './anon-rate-limit-cleanup.js';
+import { anonSaltRotate } from './anon-salt-rotate.js';
 
 type InngestFunction = ReturnType<Inngest['createFunction']>;
 
@@ -29,4 +34,7 @@ export const functions: ReadonlyArray<InngestFunction> = [
   driftWatcherCheck,
   usageReconciler,
   logtoMauWatch,
+  anonTenantCleanup,
+  anonRateLimitCleanup,
+  anonSaltRotate,
 ];

@@ -87,10 +87,13 @@ describe('anon-tenant-cleanup-v1', () => {
   });
 
   it('honors MCPGEN_LOCAL_COMPUTE=1 short-circuit transparently via cf-platforms-deploy', () => {
-    // The cron does NOT itself check MCPGEN_LOCAL_COMPUTE — that lives in
-    // cf-platforms-deploy.ts (single source of truth). Pin the cron does
-    // not duplicate the gate.
-    expect(FN_SRC).not.toContain('MCPGEN_LOCAL_COMPUTE');
+    // The cron does NOT itself BRANCH on MCPGEN_LOCAL_COMPUTE — that lives
+    // in cf-platforms-deploy.ts (single source of truth). Pass-through to
+    // the wrapper's CfPlatformsEnv interface is fine, but no `if (... ===
+    // '1')` style branching: that would duplicate the gate and risk
+    // drifting from the wrapper's behavior.
+    expect(FN_SRC).not.toMatch(/MCPGEN_LOCAL_COMPUTE\s*===\s*['"]1['"]/);
+    expect(FN_SRC).not.toMatch(/if\s*\([^)]*MCPGEN_LOCAL_COMPUTE/);
   });
 
   it('return shape exposes deleted count for observability', () => {

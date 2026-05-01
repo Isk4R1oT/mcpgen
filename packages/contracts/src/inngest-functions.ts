@@ -20,6 +20,10 @@ export const INNGEST_FUNCTION_IDS = {
   QUOTA_PERIOD_ROLLOVER:   'quota-period-rollover-v1',
   LOGTO_MAU_WATCH:         'logto-mau-watch-v1',
   COST_CAP_ENFORCER:       'cost-cap-enforcer-v1',
+  // ─── Phase 09.1 plan 10 (D-06 retention + D-11 daily salt) ───────────────
+  ANON_TENANT_CLEANUP:     'anon-tenant-cleanup-v1',
+  ANON_RATE_LIMIT_CLEANUP: 'anon-rate-limit-cleanup-v1',
+  ANON_SALT_ROTATE:        'anon-salt-rotate-v1',
 } as const;
 
 export type InngestFunctionId = (typeof INNGEST_FUNCTION_IDS)[keyof typeof INNGEST_FUNCTION_IDS];
