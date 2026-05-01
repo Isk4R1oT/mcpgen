@@ -61,12 +61,12 @@ function envFor(gate: GatePosition | undefined): Record<string, unknown> {
 }
 
 async function fetchAnon(env: Record<string, unknown>, url: string, init?: RequestInit): Promise<Response> {
-  const app = buildApp(env as Parameters<typeof buildApp>[0]);
+  const app = buildApp(env as unknown as Parameters<typeof buildApp>[0]);
   return app.fetch(new Request(url, init), env);
 }
 
 async function fetchWithJwt(env: Record<string, unknown>, url: string, init?: RequestInit): Promise<Response> {
-  const app = buildApp(env as Parameters<typeof buildApp>[0]);
+  const app = buildApp(env as unknown as Parameters<typeof buildApp>[0]);
   const headers = new Headers(init?.headers);
   headers.set('Authorization', 'Bearer fake-jwt');
   return app.fetch(new Request(url, { ...init, headers }), env);

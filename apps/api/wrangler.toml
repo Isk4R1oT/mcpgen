@@ -21,6 +21,9 @@ id = "REPLACE_WITH_HYPERDRIVE_ID"
 
 [vars]
 ENVIRONMENT = "development"
+# Phase 09.1 D-01 — anon gate position (playground|preview|quality|deploy).
+# Default 'playground' = anon flow gates at the playground step.
+BFF_ANONYMOUS_GATE = "playground"
 
 # Source map handling (D-19): wrangler uploads .map files to Sentry via SENTRY_AUTH_TOKEN env at deploy time;
 # NEVER includes .map files in the bundled .js script.
@@ -30,9 +33,11 @@ name = "mcpgen-api-staging"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
+BFF_ANONYMOUS_GATE = "playground"
 
 [env.sandbox]
 name = "mcpgen-api-sandbox"
 
 [env.sandbox.vars]
 ENVIRONMENT = "sandbox"
+BFF_ANONYMOUS_GATE = "playground"

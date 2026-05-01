@@ -1,0 +1,38 @@
+# apps/api/.dev.vars.example
+#
+# Local dev secrets/config for `wrangler dev`. Copy to `.dev.vars` and fill in
+# real values. Do NOT commit `.dev.vars` (gitignored). Production values live
+# in CF Workers secrets via `wrangler secret put`.
+#
+# References:
+#   - .planning/phases/09.1-anonymous-hero-flow/09.1-CONTEXT.md D-01
+
+# ─── Logto auth (Phase 8 D-01/D-02) ───────────────────────────────────────
+LOGTO_ENDPOINT=
+LOGTO_BASE_URL=
+LOGTO_M2M_RESOURCE_INDICATOR=
+LOGTO_M2M_APP_ID=
+LOGTO_M2M_APP_SECRET=
+
+# ─── Stripe billing (Phase 8 D-06..D-08) ──────────────────────────────────
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_PRO=
+
+# ─── Generation engine HTTP endpoint ───────────────────────────────────────
+ENGINE_ENDPOINT=
+
+# ─── Sentry error tracking (Phase 9 CTRL-08) ──────────────────────────────
+SENTRY_DSN=
+
+# ─── Phase 09.1 D-01: anonymous gate position (config switch, not hardcoded)
+# Values: playground (default) | preview | quality | deploy
+#
+# - playground: most restrictive — only /generate, /jobs, /deploy/ephemeral
+#               are anon-allowed; /preview, /quality, /playground all gated.
+# - preview:    additionally opens /preview to anon traffic.
+# - quality:    additionally opens /quality (preview + quality public).
+# - deploy:     most permissive — opens /playground too (preview + quality
+#               + playground all public). Gate sits AFTER playground (only
+#               /download + /deploy/permanent + /dashboard remain protected).
+BFF_ANONYMOUS_GATE=playground
