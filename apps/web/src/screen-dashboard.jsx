@@ -310,4 +310,6 @@ function Dashboard({ onBack, onPlay, sample }) {
   );
 }
 
-window.Dashboard = Dashboard;
+if (typeof window !== 'undefined') {
+  window.Dashboard = Dashboard;
+}

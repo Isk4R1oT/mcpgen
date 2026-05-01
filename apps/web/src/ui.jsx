@@ -133,4 +133,6 @@ function CountUp({ value, duration = 600, decimals = 0, prefix = '', suffix = ''
   return <span>{prefix}{display}{suffix}</span>;
 }
 
-Object.assign(window, { Icon, TopBar, Btn, Badge, Kbd, BlockBar, Card, SectionLabel, CountUp });
+if (typeof window !== 'undefined') {
+  Object.assign(window, { Icon, TopBar, Btn, Badge, Kbd, BlockBar, Card, SectionLabel, CountUp });
+}

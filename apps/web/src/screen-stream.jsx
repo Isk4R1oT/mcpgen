@@ -141,4 +141,6 @@ function StreamLog({ onDone, onCancel, sample }) {
   );
 }
 
-window.StreamLog = StreamLog;
+if (typeof window !== 'undefined') {
+  window.StreamLog = StreamLog;
+}

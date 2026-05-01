@@ -164,5 +164,7 @@ function DeploySuccess({ onDashboard, sample }) {
   );
 }
 
-window.Deploy = Deploy;
-window.DeploySuccess = DeploySuccess;
+if (typeof window !== 'undefined') {
+  window.Deploy = Deploy;
+  window.DeploySuccess = DeploySuccess;
+}

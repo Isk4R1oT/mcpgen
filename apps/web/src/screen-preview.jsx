@@ -286,4 +286,6 @@ function Preview({ sample, onMakeIt, onBack }) {
   );
 }
 
-window.Preview = Preview;
+if (typeof window !== 'undefined') {
+  window.Preview = Preview;
+}

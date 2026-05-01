@@ -226,4 +226,6 @@ function AuthScreen({ sample, onContinue, onBack }) {
   );
 }
 
-window.AuthScreen = AuthScreen;
+if (typeof window !== 'undefined') {
+  window.AuthScreen = AuthScreen;
+}

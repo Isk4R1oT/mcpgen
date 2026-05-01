@@ -226,4 +226,6 @@ function Playground({ onBack, onDeploy, sample }) {
   );
 }
 
-window.Playground = Playground;
+if (typeof window !== 'undefined') {
+  window.Playground = Playground;
+}

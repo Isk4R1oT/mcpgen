@@ -143,5 +143,7 @@ function Arrow() {
   return <span className="mc-mono faint" style={{ fontSize: 22, fontWeight: 300 }}>→</span>;
 }
 
-window.Landing = Landing;
-window.SAMPLE_APIS = SAMPLE_APIS;
+if (typeof window !== 'undefined') {
+  window.Landing = Landing;
+  window.SAMPLE_APIS = SAMPLE_APIS;
+}

@@ -331,4 +331,6 @@ function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
   );
 }
 
-window.Canvas = Canvas;
+if (typeof window !== 'undefined') {
+  window.Canvas = Canvas;
+}

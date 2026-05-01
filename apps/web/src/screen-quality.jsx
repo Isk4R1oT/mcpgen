@@ -199,4 +199,6 @@ function QualityReport({ sample, onContinue, onBack }) {
   );
 }
 
-window.QualityReport = QualityReport;
+if (typeof window !== 'undefined') {
+  window.QualityReport = QualityReport;
+}
