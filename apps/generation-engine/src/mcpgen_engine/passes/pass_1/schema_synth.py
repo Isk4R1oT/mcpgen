@@ -135,6 +135,7 @@ async def synthesize_universal_tools(
     raw_ir: RawIR,
     *,
     uncovered: list[str] | None = None,
+    generation_id: str,
 ) -> list[Tool1]:
     """Synthesize the 6 universal tools (D-29).
 
@@ -149,7 +150,7 @@ async def synthesize_universal_tools(
     [search, fetch, list_collections, list_objects, upsert, delete].
     """
     user_prompt = build_schema_synth_user_prompt_universal(classified, raw_ir, uncovered=uncovered)
-    output = await _run_universal_with_retries(user_prompt)
+    output = await _run_universal_with_retries(user_prompt, generation_id=generation_id)
 
     search = _force_openai_compliance_search(output.search)
     fetch = _force_openai_compliance_fetch(output.fetch)
@@ -166,14 +167,19 @@ async def synthesize_universal_tools(
     return [search, fetch, list_collections, list_objects, upsert, delete]
 
 
-async def synthesize_extra_tool(extra: ExtraTool, raw_ir: RawIR) -> Tool1:
+async def synthesize_extra_tool(
+    extra: ExtraTool,
+    raw_ir: RawIR,
+    *,
+    generation_id: str,
+) -> Tool1:
     """Synthesize one action / workflow / specialized tool.
 
     The caller supplies concurrency control via the orchestrator's shared
     ``Semaphore(10)`` — this function is single-call.
     """
     user_prompt = build_schema_synth_user_prompt_extra(extra, raw_ir)
-    tool = await _run_extra_with_retries(user_prompt, extra=extra)
+    tool = await _run_extra_with_retries(user_prompt, extra=extra, generation_id=generation_id)
     tool = _force_extra_type(tool, expected_type_=extra.type_)
     _log.info(
         "pass_1.schema_synth.extra.complete",
@@ -186,7 +192,11 @@ async def synthesize_extra_tool(extra: ExtraTool, raw_ir: RawIR) -> Tool1:
 # ───────────────────────────── Retry loops ─────────────────────────────────
 
 
-async def _run_universal_with_retries(user_prompt: str) -> _UniversalToolsLlmOutput:
+async def _run_universal_with_retries(
+    user_prompt: str,
+    *,
+    generation_id: str,
+) -> _UniversalToolsLlmOutput:
     """Two-tier retry: transient + validation, mirroring Pass 0 llm.py."""
     last_validation_error: str | None = None
 
@@ -197,7 +207,7 @@ async def _run_universal_with_retries(user_prompt: str) -> _UniversalToolsLlmOut
             else _build_retry_prompt(user_prompt, last_validation_error)
         )
         try:
-            output = await _universal_run_with_transient_retry(prompt)
+            output = await _universal_run_with_transient_retry(prompt, generation_id=generation_id)
         except (ValidationError, UnexpectedModelBehavior) as exc:
             last_validation_error = _format_validation_error(exc)
             _log.warning(
@@ -216,7 +226,12 @@ async def _run_universal_with_retries(user_prompt: str) -> _UniversalToolsLlmOut
     raise Pass1Error(msg)
 
 
-async def _run_extra_with_retries(user_prompt: str, *, extra: ExtraTool) -> Tool1:
+async def _run_extra_with_retries(
+    user_prompt: str,
+    *,
+    extra: ExtraTool,
+    generation_id: str,
+) -> Tool1:
     last_validation_error: str | None = None
 
     for validation_attempt in range(_MAX_VALIDATION_RETRIES):
@@ -226,7 +241,7 @@ async def _run_extra_with_retries(user_prompt: str, *, extra: ExtraTool) -> Tool
             else _build_retry_prompt(user_prompt, last_validation_error)
         )
         try:
-            output = await _extra_run_with_transient_retry(prompt)
+            output = await _extra_run_with_transient_retry(prompt, generation_id=generation_id)
         except (ValidationError, UnexpectedModelBehavior) as exc:
             last_validation_error = _format_validation_error(exc)
             _log.warning(
@@ -248,16 +263,21 @@ async def _run_extra_with_retries(user_prompt: str, *, extra: ExtraTool) -> Tool
     raise Pass1Error(msg)
 
 
-async def _universal_run_with_transient_retry(prompt: str) -> _UniversalToolsLlmOutput:
+async def _universal_run_with_transient_retry(
+    prompt: str,
+    *,
+    generation_id: str,
+) -> _UniversalToolsLlmOutput:
     backoff = _TRANSIENT_BACKOFF_BASE
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            # TODO(09-05): thread generation_id through pass_1.run signature.
+            # Threaded generation_id correlates Langfuse traces per-generation
+            # (Phase 10 plan 10-03 D-06 item 1).
             result = await run_with_tracing(
                 PASS_1_UNIVERSAL_AGENT,
                 prompt,
-                session_id="unknown",
+                session_id=generation_id,
                 stage="pass-1-universal",
                 model_settings=PASS_1_SETTINGS,
             )
@@ -285,16 +305,21 @@ async def _universal_run_with_transient_retry(prompt: str) -> _UniversalToolsLlm
     raise Pass1Error(msg) from last_exc
 
 
-async def _extra_run_with_transient_retry(prompt: str) -> Tool1:
+async def _extra_run_with_transient_retry(
+    prompt: str,
+    *,
+    generation_id: str,
+) -> Tool1:
     backoff = _TRANSIENT_BACKOFF_BASE
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            # TODO(09-05): thread generation_id through pass_1.run signature.
+            # Threaded generation_id correlates Langfuse traces per-generation
+            # (Phase 10 plan 10-03 D-06 item 1).
             result = await run_with_tracing(
                 PASS_1_EXTRA_AGENT,
                 prompt,
-                session_id="unknown",
+                session_id=generation_id,
                 stage="pass-1-extra",
                 model_settings=PASS_1_SETTINGS,
             )

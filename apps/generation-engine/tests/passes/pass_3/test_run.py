@@ -129,6 +129,8 @@ def _patch_enrich_and_gate(
     async def fake_enrich(
         normalized: dict[str, list[ParameterSpec]],
         tool_types_by_name: dict[str, str],  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> dict[str, list[tuple[ParameterSpec, ParameterEnrichment]]]:
         return {
             name: [(p, _make_enrichment(p.name)) for p in params]
@@ -138,6 +140,9 @@ def _patch_enrich_and_gate(
     async def fake_gate(
         input_schemas: dict[str, dict[str, Any]],
         pass_1_output: Pass1Output,  # noqa: ARG001
+        sem: Any = None,  # noqa: ARG001 — matches production semaphore arg
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — matches production default
     ) -> dict[str, bool]:
         if quality_warnings is None:
             return {name: False for name in input_schemas}
@@ -203,6 +208,7 @@ async def test_run_emits_pass_3_output_with_input_schemas_per_tool(
         _make_pass1_output(tools),
         raw_ir,
         spec_title=_SPEC_TITLE,
+        generation_id="test",
     )
     assert isinstance(output, Pass3Output)
     assert set(output.input_schemas.keys()) == {
@@ -241,6 +247,7 @@ async def test_run_every_schema_has_additional_properties_false(
         _make_pass1_output(tools),
         raw_ir,
         spec_title=_SPEC_TITLE,
+        generation_id="test",
     )
     for name, schema in output.input_schemas.items():
         assert (
@@ -265,6 +272,7 @@ async def test_run_search_tool_has_only_query_param(
         _make_pass1_output(tools),
         _make_raw_ir(),
         spec_title=_SPEC_TITLE,
+        generation_id="test",
     )
     search_props = output.input_schemas["search"]["properties"]
     assert list(search_props.keys()) == ["query"]
@@ -288,6 +296,7 @@ async def test_run_fetch_tool_has_only_id_param(
         _make_pass1_output(tools),
         _make_raw_ir(),
         spec_title=_SPEC_TITLE,
+        generation_id="test",
     )
     fetch_props = output.input_schemas["fetch"]["properties"]
     assert list(fetch_props.keys()) == ["id"]
@@ -311,6 +320,7 @@ async def test_run_smart_id_param_has_pattern(
         _make_pass1_output(tools),
         _make_raw_ir(),
         spec_title=_SPEC_TITLE,
+        generation_id="test",
     )
     fetch_id = output.input_schemas["fetch"]["properties"]["id"]
     assert "pattern" in fetch_id
@@ -337,6 +347,7 @@ async def test_run_smart_id_param_has_description(
         _make_pass1_output(tools),
         _make_raw_ir(),
         spec_title=_SPEC_TITLE,
+        generation_id="test",
     )
     fetch_id = output.input_schemas["fetch"]["properties"]["id"]
     desc = fetch_id["description"]
@@ -364,6 +375,7 @@ async def test_run_filter_strategy_logged(
         _make_pass1_output(tools),
         _make_raw_ir(),
         spec_title=_SPEC_TITLE,
+        generation_id="test",
     )
     captured = capsys.readouterr()
     log_text = captured.out + captured.err
@@ -402,6 +414,7 @@ async def test_run_warning_count_aggregated(
         _make_pass1_output(tools),
         _make_raw_ir(),
         spec_title=_SPEC_TITLE,
+        generation_id="test",
     )
     captured = capsys.readouterr()
     log_text = captured.out + captured.err
@@ -418,6 +431,7 @@ async def test_run_empty_tools_returns_empty_schemas(
         _make_pass1_output([]),
         _make_raw_ir(),
         spec_title=_SPEC_TITLE,
+        generation_id="test",
     )
     assert output.input_schemas == {}
 
@@ -439,6 +453,7 @@ async def test_run_uses_default_slug_when_spec_title_missing(
         _make_pass1_output(tools),
         _make_raw_ir(),
         spec_title=None,
+        generation_id="test",
     )
     fetch_id = output.input_schemas["fetch"]["properties"]["id"]
     assert "spec" in fetch_id["pattern"]

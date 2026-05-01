@@ -275,7 +275,12 @@ def _format_judge_prompt(task: dict[str, Any], traj: Any) -> str:
     )
 
 
-async def llm_judge_eval(*, task: dict[str, Any], traj: Any) -> F3JudgeScore:
+async def llm_judge_eval(
+    *,
+    task: dict[str, Any],
+    traj: Any,
+    generation_id: str = "unknown",
+) -> F3JudgeScore:
     """Tier-2 LLM judge call (CONTEXT D-20 + Override doc §0).
 
     Single Qwen3-Coder call per task; structured output via PydanticAI.
@@ -283,13 +288,19 @@ async def llm_judge_eval(*, task: dict[str, Any], traj: Any) -> F3JudgeScore:
     reproducibility. The grep gate in this plan's acceptance criteria
     enforces ``make_agent`` import; this docstring + module-level
     JUDGE_AGENT comment are the runtime defenses against drift.
+
+    ``generation_id`` correlates Langfuse traces per-generation (Phase 10
+    plan 10-03 D-06 item 1). Defaults to ``"unknown"`` for direct test
+    callers; production callers (run_f3 → pipeline.py) thread the real
+    value from the BFF.
     """
     prompt = _format_judge_prompt(task, traj)
-    # TODO(09-05): thread generation_id through run_f3 signature.
+    # Threaded generation_id correlates Langfuse traces per-generation
+    # (Phase 10 plan 10-03 D-06 item 1).
     result = await run_with_tracing(
         JUDGE_AGENT,
         prompt,
-        session_id="unknown",
+        session_id=generation_id,
         stage="stage-f-3-judge",
         model_settings=F3_JUDGE_SETTINGS,
     )
@@ -319,6 +330,7 @@ async def run_f3(
     sandbox_credentials: dict[str, str] | None,
     spawn_server: SpawnServerFactory | None = None,
     run_golden_task: RunGoldenTaskCallable | None = None,
+    generation_id: str = "unknown",
 ) -> F3RunResult:
     """End-to-end F3 (CONTEXT D-19, D-20, D-21).
 
@@ -337,6 +349,10 @@ async def run_f3(
             implementation when None (resolved lazily so this module does
             not hard-import a parallel-wave sibling at import time).
         run_golden_task: same -- injected for test mocking.
+        generation_id: correlates Langfuse traces per-generation (Phase 10
+            plan 10-03 D-06 item 1). Defaults to ``"unknown"`` for direct
+            test callers; production callers (pipeline.py) thread the real
+            value from the BFF.
 
     Returns:
         F3RunResult with per-task results + aggregate pass_rate + mock-
@@ -393,7 +409,7 @@ async def run_f3(
                     sandbox_credentials=sandbox_credentials,
                 )
                 rule = rule_based_eval(task=task, traj=traj, server_tools=final_tools)
-                judge = await llm_judge_eval(task=task, traj=traj)
+                judge = await llm_judge_eval(task=task, traj=traj, generation_id=generation_id)
                 return GoldenTaskResult(
                     task_id=task["task_id"],
                     rule_based=rule,

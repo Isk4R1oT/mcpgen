@@ -82,6 +82,7 @@ async def run_llm_chunked(
     endpoints: list[Endpoint],
     options: UserOptions,
     *,
+    generation_id: str,
     concurrency: int = DEFAULT_CONCURRENCY,
 ) -> Pass0LlmOutput:
     """Execute the 4-phase chunked Pass 0 LLM path (D-20).
@@ -114,14 +115,14 @@ async def run_llm_chunked(
     clusters = _path_cluster(endpoints)
 
     # Phase 2 — cluster decisions (best-effort; failure → empty cross-cluster hints).
-    cross_cluster_hints = await _cluster_decisions(clusters, options)
+    cross_cluster_hints = await _cluster_decisions(clusters, options, generation_id=generation_id)
 
     # Phase 3 — per-cluster detail with bounded parallelism.
     semaphore = asyncio.Semaphore(concurrency)
 
     async def _detail_for_cluster(prefix: str, cluster_endpoints: list[Endpoint]) -> _ClusterResult:
         async with semaphore:
-            output = await run_llm_stage(cluster_endpoints, options)
+            output = await run_llm_stage(cluster_endpoints, options, generation_id=generation_id)
             return _ClusterResult(prefix=prefix, output=output)
 
     cluster_results = await asyncio.gather(
@@ -161,6 +162,8 @@ def _path_cluster(endpoints: list[Endpoint]) -> dict[str, list[Endpoint]]:
 async def _cluster_decisions(
     clusters: dict[str, list[Endpoint]],
     options: UserOptions,
+    *,
+    generation_id: str,
 ) -> list[CompositeCandidate]:
     """Phase 2 — best-effort cross-cluster composite hints.
 
@@ -179,7 +182,9 @@ async def _cluster_decisions(
         return []
 
     try:
-        summary_output = await run_llm_stage(summary_endpoints, options)
+        summary_output = await run_llm_stage(
+            summary_endpoints, options, generation_id=generation_id
+        )
     except Pass0Error as exc:
         _log.warning(
             "pass_0.chunked.cross_cluster_hints_unavailable",

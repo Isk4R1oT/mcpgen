@@ -138,7 +138,7 @@ async def test_judge_one_happy_path(httpx_mock: HTTPXMock) -> None:
             }
         ),
     )
-    triple = await _judge_one("messages_send", None)
+    triple = await _judge_one("messages_send", None, generation_id="test")
     assert triple == {
         "readOnlyHint": False,
         "destructiveHint": False,
@@ -171,7 +171,7 @@ async def test_judge_one_pydantic_validation_error_falls_back_to_conservative(
         json=bad_payload,
         is_reusable=True,
     )
-    triple = await _judge_one("messages_send", None)
+    triple = await _judge_one("messages_send", None, generation_id="test")
     assert triple == _CONSERVATIVE_DEFAULTS
 
 
@@ -193,7 +193,7 @@ async def test_judge_one_transient_http_error_falls_back_after_retries(
         raise httpx.ConnectError("simulated connection refused")
 
     monkeypatch.setattr(llm_judge.PASS_4_JUDGE_AGENT, "run", always_fail)
-    triple = await _judge_one("messages_send", None)
+    triple = await _judge_one("messages_send", None, generation_id="test")
     assert triple == _CONSERVATIVE_DEFAULTS
 
 
@@ -245,7 +245,12 @@ async def test_judge_action_tools_concurrency_capped_at_5(
     max_in_flight = 0
     lock = asyncio.Lock()
 
-    async def fake_judge_one(_name: str, _desc: str | None) -> dict[str, bool]:
+    async def fake_judge_one(
+        _name: str,
+        _desc: str | None,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> dict[str, bool]:
         nonlocal in_flight, max_in_flight
         async with lock:
             in_flight += 1
@@ -273,7 +278,12 @@ async def test_judge_action_tools_returns_all_names(
 ) -> None:
     """Every input name MUST appear in the output dict."""
 
-    async def fake_judge_one(_name: str, _desc: str | None) -> dict[str, bool]:
+    async def fake_judge_one(
+        _name: str,
+        _desc: str | None,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> dict[str, bool]:
         return {
             "readOnlyHint": True,
             "destructiveHint": False,
@@ -304,7 +314,7 @@ async def test_uses_pass_4_settings_provider_routing(httpx_mock: HTTPXMock) -> N
             }
         ),
     )
-    await _judge_one("messages_send", None)
+    await _judge_one("messages_send", None, generation_id="test")
     requests = httpx_mock.get_requests()
     body = json.loads(requests[0].read())
     # PASS_4_SETTINGS embeds _PROVIDER_ROUTING.

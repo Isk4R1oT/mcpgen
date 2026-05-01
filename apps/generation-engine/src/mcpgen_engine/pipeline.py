@@ -444,6 +444,7 @@ async def _run_stage_f(
     f3_enabled: bool,
     sandbox_credentials: dict[str, str] | None,
     user_golden_tasks: list[dict[str, Any]] | None,
+    generation_id: str,
 ) -> AsyncIterator[GenerationSseEvent]:
     """Run F1 → F2 → F3 (conditional) → emit SSE events + persist QR.
 
@@ -525,6 +526,7 @@ async def _run_stage_f(
     f2_result = await run_f2(
         final_tools=final_tools,
         judge_agent=f2_judge,
+        generation_id=generation_id,
     )
     yield _event(
         job_id=job_id,
@@ -560,6 +562,7 @@ async def _run_stage_f(
                     final_tools=final_tools,
                     golden_tasks=golden_tasks_payload,
                     sandbox_credentials=sandbox_credentials,
+                    generation_id=generation_id,
                 )
         except (FileNotFoundError, ValidationError) as exc:
             # Known recoverable F3 input errors: missing fixture / malformed golden task.
@@ -630,7 +633,15 @@ async def run_pipeline(
 
     On L1 hit: every event above with ``cache='l1_hit'`` in partial_result.
     On any exception: ``failed:error`` with stable ``code`` + raw ``message``.
+
+    ``job_id`` is the generation_id (Phase-1 D-11 lock: ``gen_<26-char-ULID>``);
+    it doubles as the Langfuse session_id for trace correlation per Phase 10
+    plan 10-03 D-06 item 1. Threaded into every pass.run() + Stage F call.
     """
+    # Phase 10 plan 10-03 D-06 item 1: job_id IS the generation_id (validated
+    # by GEN_ID_REGEX at /api/v1/generate). Thread it through every LLM-bearing
+    # pass so Langfuse traces correlate per-generation.
+    generation_id = job_id
     spec_title = "MCPGen Generated Server"  # default; overridden after Stage A
 
     try:
@@ -856,6 +867,7 @@ async def run_pipeline(
                 f3_enabled=f3_enabled,
                 sandbox_credentials=sandbox_credentials,
                 user_golden_tasks=user_golden_tasks,
+                generation_id=generation_id,
             ):
                 if (
                     ev.stage == "validation_complete"
@@ -886,7 +898,7 @@ async def run_pipeline(
             partial_result={"phase": "pass_0"},
             error=None,
         )
-        pass_0_output = await pass_0_run(raw_ir, options)
+        pass_0_output = await pass_0_run(raw_ir, options, generation_id=generation_id)
         yield _event(
             job_id=job_id,
             stage="B",
@@ -907,7 +919,9 @@ async def run_pipeline(
             partial_result={"phase": "pass_1"},
             error=None,
         )
-        pass_1_output = await pass_1_run(pass_0_output, raw_ir, spec_title, options)
+        pass_1_output = await pass_1_run(
+            pass_0_output, raw_ir, spec_title, options, generation_id=generation_id
+        )
         # `sub_status="architect_complete"` preserves the Phase-2 substring
         # CLI consumers grep on; the canonical Phase-3+ terminal event below
         # carries ``phase="shape_codegen_complete"``. Both keys present for
@@ -933,7 +947,7 @@ async def run_pipeline(
             partial_result={"phase": "pass_2"},
             error=None,
         )
-        pass_2_output = await pass_2_run(pass_1_output, raw_ir)
+        pass_2_output = await pass_2_run(pass_1_output, raw_ir, generation_id=generation_id)
         yield _event(
             job_id=job_id,
             stage="C",
@@ -953,7 +967,9 @@ async def run_pipeline(
             partial_result={"phase": "pass_3"},
             error=None,
         )
-        pass_3_output = await pass_3_run(pass_2_output, pass_1_output, raw_ir, spec_title)
+        pass_3_output = await pass_3_run(
+            pass_2_output, pass_1_output, raw_ir, spec_title, generation_id=generation_id
+        )
         param_count = sum(
             len(s.get("properties", {}) or {}) for s in pass_3_output.input_schemas.values()
         )
@@ -976,7 +992,9 @@ async def run_pipeline(
             partial_result={"phase": "pass_4"},
             error=None,
         )
-        pass_4_output = await pass_4_run(pass_3_output, pass_2_output, pass_1_output)
+        pass_4_output = await pass_4_run(
+            pass_3_output, pass_2_output, pass_1_output, generation_id=generation_id
+        )
         yield _event(
             job_id=job_id,
             stage="C",
@@ -1001,7 +1019,12 @@ async def run_pipeline(
             error=None,
         )
         pass_5_output = await pass_5_run(
-            pass_4_output, pass_3_output, pass_2_output, pass_1_output, raw_ir
+            pass_4_output,
+            pass_3_output,
+            pass_2_output,
+            pass_1_output,
+            raw_ir,
+            generation_id=generation_id,
         )
         yield _event(
             job_id=job_id,
@@ -1098,6 +1121,7 @@ async def run_pipeline(
             f3_enabled=f3_enabled,
             sandbox_credentials=sandbox_credentials,
             user_golden_tasks=user_golden_tasks,
+            generation_id=generation_id,
         ):
             # Capture the QualityReport from the terminal event so the API
             # handler can persist it to _JOB_TABLE for GET /quality-report.

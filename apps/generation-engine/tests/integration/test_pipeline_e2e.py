@@ -92,7 +92,12 @@ def _stub_passes_from_fixtures(
     # an empty plan list is acceptable.
     from mcpgen_ir.types import Pass0Output, TargetComplexity
 
-    async def _fake_pass_0(_raw_ir: RawIR, _options: UserOptions) -> Pass0Output:
+    async def _fake_pass_0(
+        _raw_ir: RawIR,
+        _options: UserOptions,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> Pass0Output:
         return Pass0Output(
             tool_plans=[],
             dropped_endpoints=[],
@@ -107,12 +112,16 @@ def _stub_passes_from_fixtures(
         _raw_ir: RawIR,
         _spec_title: str,
         _options: UserOptions,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass1Output:
         return p1
 
     async def _fake_pass_2(
         _pass_1_output: Pass1Output,
         _raw_ir: RawIR,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass2Output:
         return p2
 
@@ -121,6 +130,8 @@ def _stub_passes_from_fixtures(
         _pass_1_output: Pass1Output,
         _raw_ir: RawIR,
         _spec_title: str | None = None,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass3Output:
         return p3
 
@@ -128,6 +139,8 @@ def _stub_passes_from_fixtures(
         _pass_3_output: Pass3Output,
         _pass_2_output: Pass2Output,
         _pass_1_output: Pass1Output,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass4Output:
         return p4
 
@@ -166,6 +179,8 @@ def _stub_passes_from_fixtures(
         pass_2_output: Pass2Output,
         pass_1_output: Pass1Output,
         raw_ir: RawIR,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass5Output:
         tools: list[Tool2] = []
         for t in pass_1_output.tools:

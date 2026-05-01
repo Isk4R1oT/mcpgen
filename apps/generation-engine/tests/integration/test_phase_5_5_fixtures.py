@@ -136,7 +136,12 @@ def _stub_passes_and_stage_e(
 
     from mcpgen_engine import pipeline as pipeline_module
 
-    async def _fake_pass_0(_raw_ir: RawIR, _options: Any) -> Pass0Output:
+    async def _fake_pass_0(
+        _raw_ir: RawIR,
+        _options: Any,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> Pass0Output:
         return Pass0Output(
             tool_plans=[],
             dropped_endpoints=[],
@@ -151,6 +156,8 @@ def _stub_passes_and_stage_e(
         raw_ir: RawIR,  # noqa: ARG001
         spec_title: str,  # noqa: ARG001
         options: Any,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass1Output:
         # Minimal Six-Tool universal set for structural validity.
         tool_names = (
@@ -188,6 +195,8 @@ def _stub_passes_and_stage_e(
     async def _fake_pass_2(
         pass_1_output: Pass1Output,
         raw_ir: RawIR,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass2Output:
         descriptions: dict[str, Descriptions] = {}
         for tool in pass_1_output.tools:
@@ -207,6 +216,8 @@ def _stub_passes_and_stage_e(
         pass_1_output: Pass1Output,
         raw_ir: RawIR,  # noqa: ARG001
         spec_title: str | None = None,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass3Output:
         input_schemas: dict[str, dict[str, Any]] = {}
         for tool in pass_1_output.tools:
@@ -228,6 +239,8 @@ def _stub_passes_and_stage_e(
         pass_3_output: Pass3Output,  # noqa: ARG001
         pass_2_output: Pass2Output,  # noqa: ARG001
         pass_1_output: Pass1Output,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass4Output:
         annotations: dict[str, Annotations] = {}
         titles: dict[str, str] = {}
@@ -249,6 +262,8 @@ def _stub_passes_and_stage_e(
         pass_2_output: Pass2Output,
         pass_1_output: Pass1Output,
         raw_ir: RawIR,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass5Output:
         tools: list[Tool2] = []
         for t in pass_1_output.tools:

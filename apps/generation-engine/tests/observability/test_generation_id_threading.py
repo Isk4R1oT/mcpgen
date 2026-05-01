@@ -189,13 +189,19 @@ async def test_pass_1_extra_threads_generation_id(monkeypatch: pytest.MonkeyPatc
 
     # Tool1 requires a small set of fields; we use model_construct to bypass
     # validation since the wrapper assertion ignores the value's content.
+    fake_annotations: Any = Annotations.model_construct(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    )
     fake_output: Any = Tool1.model_construct(
         name="placeholder",
         type=Type.action,
         description=None,
         inputSchema={"type": "object"},
         outputSchema=None,
-        annotations=Annotations(),
+        annotations=fake_annotations,
     )
     mock = _make_run_with_tracing_mock(fake_output)
     monkeypatch.setattr(schema_synth, "run_with_tracing", mock)
@@ -245,15 +251,33 @@ async def test_pass_2_quality_gate_threads_generation_id(
     mock = _make_run_with_tracing_mock(fake_output)
     monkeypatch.setattr(quality_gate, "run_with_tracing", mock)
 
+    fake_annotations: Any = Annotations.model_construct(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    )
     fake_tool: Any = Tool1.model_construct(
         name="x",
         type=Type.universal,
         description=None,
         inputSchema={"type": "object"},
         outputSchema=None,
-        annotations=Annotations(),
+        annotations=fake_annotations,
     )
-    fake_description: Any = Description.model_construct(purpose="x")
+    # render_description_markdown reads `purpose`, `when_to_use`,
+    # `limitations`, `parameter_overview`, plus optional `when_not_to_use`,
+    # `how_to_use`, `examples` — provide the required fields so the inline
+    # judge prompt builder doesn't trip on missing attributes.
+    fake_description: Any = Description.model_construct(
+        purpose="x",
+        when_to_use=["call when needed"],
+        limitations=["no side effects"],
+        parameter_overview="single string parameter",
+        when_not_to_use=None,
+        how_to_use=None,
+        examples=None,
+    )
     await quality_gate._judge_one(
         fake_tool, fake_description, generation_id=_SENTINEL_GENERATION_ID
     )
@@ -377,7 +401,20 @@ async def test_stage_f_f3_judge_threads_generation_id(
     mock = _make_run_with_tracing_mock(fake_output)
     monkeypatch.setattr(f3_agent_eval, "run_with_tracing", mock)
 
-    fake_traj: Any = type("T", (), {"iteration_count": 1, "terminated": True, "steps": []})()
+    # _format_judge_prompt reads .iteration_count, .terminated, .steps, and
+    # .final_text on the trajectory; we hand-roll a plain object carrying all
+    # of those so the test exercises the real code path without spinning up
+    # the full F3 trajectory pipeline.
+    fake_traj: Any = type(
+        "T",
+        (),
+        {
+            "iteration_count": 1,
+            "terminated": True,
+            "steps": [],
+            "final_text": "<test final text>",
+        },
+    )()
     fake_task = {"prompt": "x", "expected_outcome": "y"}
     await f3_agent_eval.llm_judge_eval(
         task=fake_task,

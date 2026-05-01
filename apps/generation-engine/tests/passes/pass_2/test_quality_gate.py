@@ -225,7 +225,7 @@ async def test_judge_one_passes_when_all_scores_at_threshold(
         ),
     )
     tool = _make_tool()
-    passes, scores = await _judge_one(tool, _make_description())
+    passes, scores = await _judge_one(tool, _make_description(), generation_id="test")
     assert passes is True
     assert scores.purpose == 3
 
@@ -247,7 +247,7 @@ async def test_judge_one_fails_when_any_score_below_threshold(
         ),
     )
     tool = _make_tool()
-    passes, scores = await _judge_one(tool, _make_description())
+    passes, scores = await _judge_one(tool, _make_description(), generation_id="test")
     assert passes is False
     assert scores.purpose == 2
 
@@ -269,7 +269,7 @@ async def test_judge_one_fails_when_parameter_overview_below_threshold(
         ),
     )
     tool = _make_tool()
-    passes, _ = await _judge_one(tool, _make_description())
+    passes, _ = await _judge_one(tool, _make_description(), generation_id="test")
     assert passes is False
 
 
@@ -301,7 +301,7 @@ async def test_judge_one_uses_inline_gate_settings(
         ),
     )
     tool = _make_tool()
-    await _judge_one(tool, _make_description())
+    await _judge_one(tool, _make_description(), generation_id="test")
     assert captured["model_settings"] is INLINE_GATE_SETTINGS
 
 
@@ -337,7 +337,7 @@ async def test_quality_gate_all_tools_no_retry_when_pass(
     raw_ir = _make_raw_ir([_make_endpoint(), _make_endpoint("/v1/x")])
 
     final_descriptions, quality_warnings = await quality_gate_all_tools(
-        descriptions, pass_1_output, raw_ir
+        descriptions, pass_1_output, raw_ir, generation_id="test"
     )
 
     assert len(httpx_mock.get_requests()) == 3
@@ -374,6 +374,8 @@ async def test_quality_gate_all_tools_retries_on_fail_then_passes(
     async def fake_judge_one(
         t: Tool1,  # noqa: ARG001 — signature must match real _judge_one
         d: Description,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> tuple[bool, _GateScores]:
         nonlocal judge_call_count
         judge_call_count += 1
@@ -398,6 +400,8 @@ async def test_quality_gate_all_tools_retries_on_fail_then_passes(
         t: Tool1,
         ir: RawIR,  # noqa: ARG001 — signature must match real _author_one
         p: Pass1Output,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> AuthoredToolResult:
         return AuthoredToolResult(
             tool_name=t.name,
@@ -409,7 +413,7 @@ async def test_quality_gate_all_tools_retries_on_fail_then_passes(
     monkeypatch.setattr(quality_gate, "_retry_author_one", fake_retry_author)
 
     final_descriptions, quality_warnings = await quality_gate_all_tools(
-        {tool.name: original_description}, pass_1_output, raw_ir
+        {tool.name: original_description}, pass_1_output, raw_ir, generation_id="test"
     )
     assert quality_warnings == {tool.name: False}
     assert final_descriptions[tool.name] is re_authored_description
@@ -444,6 +448,8 @@ async def test_quality_gate_all_tools_retries_then_fails(
     async def fake_judge_one(
         t: Tool1,  # noqa: ARG001 — signature must match real _judge_one
         d: Description,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> tuple[bool, _GateScores]:
         nonlocal judge_call_count
         judge_call_count += 1
@@ -459,6 +465,8 @@ async def test_quality_gate_all_tools_retries_then_fails(
         t: Tool1,
         ir: RawIR,  # noqa: ARG001 — signature must match real _author_one
         p: Pass1Output,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> AuthoredToolResult:
         return AuthoredToolResult(
             tool_name=t.name,
@@ -470,7 +478,7 @@ async def test_quality_gate_all_tools_retries_then_fails(
     monkeypatch.setattr(quality_gate, "_retry_author_one", fake_retry_author)
 
     final_descriptions, quality_warnings = await quality_gate_all_tools(
-        {tool.name: original_description}, pass_1_output, raw_ir
+        {tool.name: original_description}, pass_1_output, raw_ir, generation_id="test"
     )
     assert quality_warnings == {tool.name: True}
     assert final_descriptions[tool.name] is re_authored_description

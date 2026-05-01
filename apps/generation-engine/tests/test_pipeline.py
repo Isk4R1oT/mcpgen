@@ -88,6 +88,8 @@ def _stub_stage_c_passes(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _fake_pass_2(
         pass_1_output: Pass1Output,
         raw_ir: RawIR,  # noqa: ARG001 — signature parity
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass2Output:
         descriptions: dict[str, Descriptions] = {}
         for tool in pass_1_output.tools:
@@ -102,6 +104,8 @@ def _stub_stage_c_passes(monkeypatch: pytest.MonkeyPatch) -> None:
         pass_1_output: Pass1Output,
         raw_ir: RawIR,  # noqa: ARG001
         spec_title: str | None = None,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass3Output:
         input_schemas: dict[str, dict[str, Any]] = {}
         for tool in pass_1_output.tools:
@@ -128,6 +132,8 @@ def _stub_stage_c_passes(monkeypatch: pytest.MonkeyPatch) -> None:
         pass_3_output: Pass3Output,  # noqa: ARG001
         pass_2_output: Pass2Output,  # noqa: ARG001
         pass_1_output: Pass1Output,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass4Output:
         annotations: dict[str, Annotations] = {}
         titles: dict[str, str] = {}
@@ -180,6 +186,8 @@ def _stub_stage_d_e(monkeypatch: pytest.MonkeyPatch) -> None:
         pass_2_output: Pass2Output,
         pass_1_output: Pass1Output,
         raw_ir: RawIR,  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass5Output:
         tools: list[Tool2] = []
         for t in pass_1_output.tools:

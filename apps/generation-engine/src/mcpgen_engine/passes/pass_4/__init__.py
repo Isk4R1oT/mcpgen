@@ -88,6 +88,8 @@ async def run(
     pass_3_output: Pass3Output,  # noqa: ARG001 — kept for downstream Stage E parity
     pass_2_output: Pass2Output,
     pass_1_output: Pass1Output,
+    *,
+    generation_id: str,
 ) -> Pass4Output:
     """3-phase Pass 4 orchestrator (D-26).
 
@@ -95,6 +97,10 @@ async def run(
     the downstream pipeline (Plan 03-12 chains Pass 2 → Pass 3 → Pass 4
     by signature). Pass 2 descriptions enrich the LLM judge's prompts;
     Pass 1 tools drive the deterministic rule + verb + workflow paths.
+
+    ``generation_id`` correlates Langfuse traces per-generation (Phase 10
+    plan 10-03 D-06 item 1) and is threaded through ``judge_action_tools``
+    to ``run_with_tracing``.
     """
     start = time.monotonic()
     all_tools = pass_1_output.tools
@@ -160,7 +166,9 @@ async def run(
 
     # ─── Phase 2: selective LLM judgment for medium-confidence actions ─────
     if needs_llm_review:
-        llm_results = await judge_action_tools(needs_llm_review, pass_2_output)
+        llm_results = await judge_action_tools(
+            needs_llm_review, pass_2_output, generation_id=generation_id
+        )
         for name, result_triple in llm_results.items():
             triples[name] = result_triple
 

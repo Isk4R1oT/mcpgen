@@ -151,20 +151,28 @@ async def _judge_run_with_retry(
     judge_agent: Agent[None, RubricScore],
     prompt: str,
     temp_setting: Any,
+    *,
+    generation_id: str,
 ) -> RubricScore:
     """Single judge call with bounded exponential backoff on transient errors."""
-    # TODO(09-05): thread generation_id through run_f2 signature.
+    # Threaded generation_id correlates Langfuse traces per-generation
+    # (Phase 10 plan 10-03 D-06 item 1).
     result = await run_with_tracing(
         judge_agent,
         prompt,
-        session_id="unknown",
+        session_id=generation_id,
         stage="stage-f-2-smell",
         model_settings=temp_setting,
     )
     return result.output
 
 
-async def _score_one_tool(tool: dict[str, Any], judge_agent: Agent[None, RubricScore]) -> ToolScore:
+async def _score_one_tool(
+    tool: dict[str, Any],
+    judge_agent: Agent[None, RubricScore],
+    *,
+    generation_id: str,
+) -> ToolScore:
     """Run 5 shuffles x 3 temperatures = 15 calls; return aggregated ToolScore.
 
     Iteration order (D-09 verbatim):
@@ -185,7 +193,9 @@ async def _score_one_tool(tool: dict[str, Any], judge_agent: Agent[None, RubricS
         prompt, injection = build_judge_prompt(tool=tool, shuffle_seed=shuffle_idx)
         injection_total += injection
         for temp_setting in _TEMP_SETTINGS:
-            score = await _judge_run_with_retry(judge_agent, prompt, temp_setting)
+            score = await _judge_run_with_retry(
+                judge_agent, prompt, temp_setting, generation_id=generation_id
+            )
             scores.append(score)
 
     component_avgs: list[ComponentScore] = []
@@ -206,12 +216,18 @@ async def run_f2(
     *,
     final_tools: Sequence[dict[str, Any]],
     judge_agent: Agent[None, RubricScore],
+    generation_id: str = "unknown",
 ) -> F2RunResult:
     """Score every tool concurrently; aggregate per-server.
 
     ``Semaphore(10)`` matches Phase 2/3/4 concurrency patterns. Total wall
     clock for a 10-tool server: ~25-30s mocked (real LLM call latency
     dominates).
+
+    ``generation_id`` correlates Langfuse traces per-generation (Phase 10
+    plan 10-03 D-06 item 1). Defaults to ``"unknown"`` for direct test
+    callers; production callers (pipeline.py) thread the real value from
+    the BFF.
 
     Returns an ``F2RunResult`` carrying per-tool ToolScore + overall score +
     sigma + pass/low-confidence flags + warnings. The retry orchestrator
@@ -225,7 +241,7 @@ async def run_f2(
 
     async def _bounded(tool: dict[str, Any]) -> ToolScore:
         async with sem:
-            return await _score_one_tool(tool, judge_agent)
+            return await _score_one_tool(tool, judge_agent, generation_id=generation_id)
 
     tool_scores = await asyncio.gather(*[_bounded(t) for t in final_tools])
 

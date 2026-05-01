@@ -156,7 +156,10 @@ def _build_judge_prompt_pass_3(tool_name: str, schema: dict[str, Any]) -> str:
 
 
 async def _judge_one_pass_3(
-    tool_name: str, schema: dict[str, Any]
+    tool_name: str,
+    schema: dict[str, Any],
+    *,
+    generation_id: str,
 ) -> tuple[bool, _GateScoresPass3]:
     """Score one input schema via the parameter-specific 5-component rubric.
 
@@ -164,11 +167,12 @@ async def _judge_one_pass_3(
     iff every score is >= ``_RUBRIC_THRESHOLD_PASS_3`` (3).
     """
     prompt = _build_judge_prompt_pass_3(tool_name, schema)
-    # TODO(09-05): thread generation_id through quality_gate_all_tools signature.
+    # Threaded generation_id correlates Langfuse traces per-generation
+    # (Phase 10 plan 10-03 D-06 item 1).
     result = await run_with_tracing(
         _QUALITY_GATE_AGENT_PASS_3,
         prompt,
-        session_id="unknown",
+        session_id=generation_id,
         stage="pass-3-quality-gate",
         model_settings=INLINE_GATE_SETTINGS,
     )
@@ -190,6 +194,8 @@ async def quality_gate_all_tools(
     input_schemas: dict[str, dict[str, Any]],
     pass_1_output: Pass1Output,  # noqa: ARG001 — accepted for symmetry with Pass 2 signature; unused today
     sem: asyncio.Semaphore | None = None,
+    *,
+    generation_id: str = "unknown",
 ) -> dict[str, bool]:
     """Run gate per tool; retry the JUDGE call once on score < 3. Never blocks.
 
@@ -201,6 +207,11 @@ async def quality_gate_all_tools(
     orchestrator's call-site shape mirrors Pass 2; the value is currently
     unused (the inline judge scores schemas in isolation).
 
+    ``generation_id`` correlates Langfuse traces per-generation (Phase 10
+    plan 10-03 D-06 item 1). Defaults to ``"unknown"`` so existing direct
+    test callers continue to work; production callers (Pass 3 orchestrator)
+    thread the real value from the BFF.
+
     Concurrency capped at ``QUALITY_GATE_CONCURRENCY_PASS_3`` (10) — same
     value as Pass 2.
     """
@@ -211,7 +222,7 @@ async def quality_gate_all_tools(
     async def _gate_one(name: str, schema: dict[str, Any]) -> None:
         async with sem:
             for attempt in range(_MAX_GATE_RETRIES_PASS_3 + 1):
-                passes, scores = await _judge_one_pass_3(name, schema)
+                passes, scores = await _judge_one_pass_3(name, schema, generation_id=generation_id)
                 if passes:
                     quality_warnings[name] = False
                     return

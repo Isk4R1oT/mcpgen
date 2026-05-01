@@ -123,7 +123,7 @@ async def test_run_universal_tools_get_correct_annotations(
 
     tools = [Tool1(name="search", type=Type.universal, source_endpoints=["GET /v1/x"])]
     pass_1 = _make_pass_1_output(tools)
-    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1)
+    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1, generation_id="test")
 
     ann = result.annotations["search"]
     assert ann.readOnlyHint is True
@@ -150,7 +150,7 @@ async def test_run_specialized_tool_is_read_only(
         ),
     ]
     pass_1 = _make_pass_1_output(tools)
-    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1)
+    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1, generation_id="test")
     assert result.annotations["balance_summary"].readOnlyHint is True
     assert result.annotations["balance_summary"].openWorldHint is True
 
@@ -170,7 +170,7 @@ async def test_run_high_confidence_action_no_llm_call(
 
     tools = [Tool1(name="charges_refund", type=Type.action, source_endpoints=["POST /v1/refund"])]
     pass_1 = _make_pass_1_output(tools)
-    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1)
+    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1, generation_id="test")
     ann = result.annotations["charges_refund"]
     assert ann.destructiveHint is True
     assert ann.readOnlyHint is False
@@ -184,7 +184,10 @@ async def test_run_medium_confidence_action_invokes_llm(
     captured: dict[str, list[str]] = {}
 
     async def fake_judge(
-        names: list[str], _pass_2: Pass2Output | None
+        names: list[str],
+        _pass_2: Pass2Output | None,
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> dict[str, dict[str, bool]]:
         captured["names"] = list(names)
         return {
@@ -196,7 +199,7 @@ async def test_run_medium_confidence_action_invokes_llm(
 
     tools = [Tool1(name="messages_send", type=Type.action, source_endpoints=["POST /v1/messages"])]
     pass_1 = _make_pass_1_output(tools)
-    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1)
+    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1, generation_id="test")
     assert captured["names"] == ["messages_send"]
     ann = result.annotations["messages_send"]
     assert ann.openWorldHint is True
@@ -218,7 +221,7 @@ async def test_run_action_no_verb_match_uses_conservative_defaults(
 
     tools = [Tool1(name="weird_unmatched", type=Type.action, source_endpoints=["POST /v1/x"])]
     pass_1 = _make_pass_1_output(tools)
-    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1)
+    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1, generation_id="test")
     ann = result.annotations["weird_unmatched"]
     # D-29 conservative defaults: readOnly=False, destructive=True, idempotent=False.
     assert ann.readOnlyHint is False
@@ -251,7 +254,7 @@ async def test_run_workflow_uses_aggregation(
         ),
     ]
     pass_1 = _make_pass_1_output(tools)
-    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1)
+    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1, generation_id="test")
     ann = result.annotations["fetch_and_delete"]
     assert ann.destructiveHint is True  # OR aggregation
     assert ann.openWorldHint is True
@@ -276,7 +279,7 @@ async def test_run_titles_populated_for_all_tools(
         Tool1(name="schedule_event", type=Type.workflow, source_endpoints=["POST /events"]),
     ]
     pass_1 = _make_pass_1_output(tools)
-    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1)
+    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1, generation_id="test")
     assert set(result.titles.keys()) == {t.name for t in tools}
 
 
@@ -301,7 +304,7 @@ async def test_run_pitfall_31_read_tools_have_explicit_read_only_and_open_world(
         Tool1(name="list_objects", type=Type.universal, source_endpoints=["GET /v1/x"]),
     ]
     pass_1 = _make_pass_1_output(tools)
-    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1)
+    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1, generation_id="test")
     for name in ("search", "fetch", "list_collections", "list_objects"):
         ann = result.annotations[name]
         assert ann.readOnlyHint is True, f"{name} missing readOnlyHint=True (Pitfall #31)"
@@ -323,7 +326,7 @@ async def test_run_pass_4_output_pydantic_validates(
 
     tools = [Tool1(name="search", type=Type.universal, source_endpoints=["GET /v1/x"])]
     pass_1 = _make_pass_1_output(tools)
-    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1)
+    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1, generation_id="test")
     assert isinstance(result, Pass4Output)
     dumped = result.model_dump()
     assert "annotations" in dumped
@@ -340,7 +343,10 @@ async def test_run_passes_pass_2_output_to_llm_judge(
     captured: dict[str, object] = {}
 
     async def fake_judge(
-        names: list[str], pass_2: Pass2Output | None
+        names: list[str],
+        pass_2: Pass2Output | None,
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> dict[str, dict[str, bool]]:
         captured["pass_2"] = pass_2
         return {
@@ -353,7 +359,7 @@ async def test_run_passes_pass_2_output_to_llm_judge(
     tools = [Tool1(name="messages_send", type=Type.action, source_endpoints=["POST /v1/x"])]
     pass_1 = _make_pass_1_output(tools)
     pass_2 = _make_pass_2_with("messages_send", "Send a message to the recipient.")
-    await run(_make_pass_3_empty(), pass_2, pass_1)
+    await run(_make_pass_3_empty(), pass_2, pass_1, generation_id="test")
     assert captured["pass_2"] is pass_2
 
 
@@ -371,7 +377,7 @@ async def test_run_empty_tools_returns_empty_pass_4_output(
     monkeypatch.setattr(pass_4, "judge_action_tools", _explode)
 
     pass_1 = _make_pass_1_with_one_rule([])
-    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1)
+    result = await run(_make_pass_3_empty(), _make_pass_2_empty(), pass_1, generation_id="test")
     assert result.annotations == {}
     assert result.titles == {}
 

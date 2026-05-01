@@ -76,6 +76,8 @@ _log = structlog.get_logger(__name__)
 async def run_llm_stage(
     endpoints: list[Endpoint],
     options: UserOptions,
+    *,
+    generation_id: str,
 ) -> Pass0LlmOutput:
     """Execute Pass 0 Stage 0b: Qwen LLM categorization + naming.
 
@@ -108,7 +110,7 @@ async def run_llm_stage(
             else build_retry_user_prompt(endpoints, options, last_validation_error)
         )
         try:
-            output = await _run_with_transient_retry(prompt)
+            output = await _run_with_transient_retry(prompt, generation_id=generation_id)
         except ValidationError as exc:
             last_validation_error = str(exc)
             _log.warning(
@@ -155,7 +157,11 @@ async def run_llm_stage(
 # ─────────────────────────── Transient retry loop ──────────────────────────
 
 
-async def _run_with_transient_retry(user_prompt: str) -> Pass0LlmOutput:
+async def _run_with_transient_retry(
+    user_prompt: str,
+    *,
+    generation_id: str,
+) -> Pass0LlmOutput:
     """Invoke ``PASS_0_AGENT.run`` with exponential backoff on transient errors.
 
     Transient = network / connection-refused / read-timeout / 5xx as raised
@@ -168,15 +174,12 @@ async def _run_with_transient_retry(user_prompt: str) -> Pass0LlmOutput:
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            # TODO(09-05): thread generation_id through pass_0.run signature.
-            # session_id="unknown" is a placeholder; Plan 09-05 acceptance
-            # criterion accepts this for ≥4 of 11 call sites where threading
-            # is invasive. Wrapper still provides Logfire span correlation
-            # by stage tag, just no per-generation grouping.
+            # Threaded generation_id correlates Langfuse traces per-generation
+            # (Phase 10 plan 10-03 D-06 item 1).
             result = await run_with_tracing(
                 PASS_0_AGENT,
                 user_prompt,
-                session_id="unknown",
+                session_id=generation_id,
                 stage="pass-0",
                 model_settings=PASS_0_SETTINGS,
             )

@@ -129,6 +129,8 @@ def _build_judge_prompt(tool_name: str, tool_type: Type, description: Descriptio
 async def _judge_one(
     tool: Tool1,
     description: Description,
+    *,
+    generation_id: str,
 ) -> tuple[bool, _GateScores]:
     """Score one description via the abbreviated 4-component rubric (D-09).
 
@@ -136,11 +138,12 @@ async def _judge_one(
     iff every score is >= ``_RUBRIC_THRESHOLD`` (3).
     """
     prompt = _build_judge_prompt(tool.name, tool.type, description)
-    # TODO(09-05): thread generation_id through quality_gate_all_tools signature.
+    # Threaded generation_id correlates Langfuse traces per-generation
+    # (Phase 10 plan 10-03 D-06 item 1).
     result = await run_with_tracing(
         _QUALITY_GATE_AGENT,
         prompt,
-        session_id="unknown",
+        session_id=generation_id,
         stage="pass-2-quality-gate",
         model_settings=INLINE_GATE_SETTINGS,
     )
@@ -161,6 +164,8 @@ async def quality_gate_all_tools(
     descriptions: dict[str, Description],
     pass_1_output: Pass1Output,
     raw_ir: RawIR,
+    *,
+    generation_id: str,
 ) -> tuple[dict[str, Description], dict[str, bool]]:
     """Run the gate per tool; retry authoring once on score < 3.
 
@@ -180,7 +185,7 @@ async def quality_gate_all_tools(
         tool = tools_by_name[name]
         description = final_descriptions[name]
         async with sem:
-            passes, scores = await _judge_one(tool, description)
+            passes, scores = await _judge_one(tool, description, generation_id=generation_id)
             if passes:
                 quality_warnings[name] = False
                 return
@@ -190,8 +195,12 @@ async def quality_gate_all_tools(
                 scores=scores.model_dump(),
             )
             # D-09: 1 retry — re-author the failing tool, then re-judge once.
-            retry_result = await _retry_author_one(tool, raw_ir, pass_1_output)
-            retry_passes, retry_scores = await _judge_one(tool, retry_result.description)
+            retry_result = await _retry_author_one(
+                tool, raw_ir, pass_1_output, generation_id=generation_id
+            )
+            retry_passes, retry_scores = await _judge_one(
+                tool, retry_result.description, generation_id=generation_id
+            )
             final_descriptions[name] = retry_result.description
             quality_warnings[name] = not retry_passes
             if not retry_passes:

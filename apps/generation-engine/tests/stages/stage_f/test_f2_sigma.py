@@ -48,7 +48,12 @@ async def test_sigma_zero_when_all_tools_identical(
     """All 5 tools score 3.0 -> sigma = 0.0 -> low_confidence_run = True."""
     averages = [3.0, 3.0, 3.0, 3.0, 3.0]
 
-    async def fake_score(tool: dict[str, object], _agent: object) -> ToolScore:
+    async def fake_score(
+        tool: dict[str, object],
+        _agent: object,
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> ToolScore:
         return _tool_score(str(tool["name"]), averages.pop(0))
 
     monkeypatch.setattr(f2_smell, "_score_one_tool", fake_score)
@@ -70,7 +75,12 @@ async def test_sigma_above_threshold_when_tools_diverse(
     -> low_confidence_run = False."""
     averages = [4.5, 3.5, 4.0, 5.0, 3.0]
 
-    async def fake_score(tool: dict[str, object], _agent: object) -> ToolScore:
+    async def fake_score(
+        tool: dict[str, object],
+        _agent: object,
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> ToolScore:
         return _tool_score(str(tool["name"]), averages.pop(0))
 
     monkeypatch.setattr(f2_smell, "_score_one_tool", fake_score)
@@ -100,7 +110,12 @@ async def test_sigma_uses_ddof_zero_not_sample_stdev(
     """
     averages = [4.0, 5.0]
 
-    async def fake_score(tool: dict[str, object], _agent: object) -> ToolScore:
+    async def fake_score(
+        tool: dict[str, object],
+        _agent: object,
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> ToolScore:
         return _tool_score(str(tool["name"]), averages.pop(0))
 
     monkeypatch.setattr(f2_smell, "_score_one_tool", fake_score)
@@ -127,7 +142,12 @@ async def test_low_sigma_below_threshold_surfaces_warning(
     """sigma < 0.4 AND overall < 4.0 -- both flags surface in the result."""
     averages = [3.0, 3.1, 3.0, 3.05, 3.0]  # sigma ~= 0.04 < 0.4 ; mean ~= 3.03 < 4.0
 
-    async def fake_score(tool: dict[str, object], _agent: object) -> ToolScore:
+    async def fake_score(
+        tool: dict[str, object],
+        _agent: object,
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> ToolScore:
         return _tool_score(str(tool["name"]), averages.pop(0))
 
     monkeypatch.setattr(f2_smell, "_score_one_tool", fake_score)

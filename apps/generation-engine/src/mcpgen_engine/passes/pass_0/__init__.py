@@ -94,7 +94,12 @@ _log = structlog.get_logger(__name__)
 # ─────────────────────────────── Public API ────────────────────────────────
 
 
-async def run(raw_ir: RawIR, options: UserOptions) -> Pass0Output:
+async def run(
+    raw_ir: RawIR,
+    options: UserOptions,
+    *,
+    generation_id: str,
+) -> Pass0Output:
     """Orchestrate Pass 0 — Tool Inventory & Naming.
 
     Pipeline:
@@ -150,9 +155,9 @@ async def run(raw_ir: RawIR, options: UserOptions) -> Pass0Output:
     degraded = False
     try:
         if chunked:
-            llm_output = await run_llm_chunked(kept_endpoints, options)
+            llm_output = await run_llm_chunked(kept_endpoints, options, generation_id=generation_id)
         else:
-            llm_output = await run_llm_stage(kept_endpoints, options)
+            llm_output = await run_llm_stage(kept_endpoints, options, generation_id=generation_id)
     except Pass0Error as exc:
         # Only LLM_VALIDATION_FAILED converts to degraded fallback (D-26).
         # SPEC_TOO_LARGE_ENDPOINTS / LLM_TRANSIENT_FAILED propagate.

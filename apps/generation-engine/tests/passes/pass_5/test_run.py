@@ -42,6 +42,8 @@ async def test_run_returns_pass5output(
         output_schemas: dict[str, OutputSchemaSpec],
         _p2: Any,
         _p1: Any,
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> dict[str, FieldRanking]:
         return {name: deterministic_ranking(spec.fields) for name, spec in output_schemas.items()}
 
@@ -53,6 +55,7 @@ async def test_run_returns_pass5output(
         stripe_pass_2_output,
         stripe_pass_1_output,
         stripe_raw_ir,
+        generation_id="test",
     )
     assert isinstance(result, Pass5Output)
 
@@ -76,6 +79,8 @@ async def test_run_tool_count_equals_pass_1_tool_count(
         output_schemas: dict[str, OutputSchemaSpec],
         _p2: Any,
         _p1: Any,
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> dict[str, FieldRanking]:
         return {name: deterministic_ranking(spec.fields) for name, spec in output_schemas.items()}
 
@@ -87,6 +92,7 @@ async def test_run_tool_count_equals_pass_1_tool_count(
         stripe_pass_2_output,
         stripe_pass_1_output,
         stripe_raw_ir,
+        generation_id="test",
     )
     assert len(result.tools) == len(stripe_pass_1_output.tools)
 
@@ -115,6 +121,8 @@ async def test_run_pagination_strategy_uniform_across_list_tools(
         output_schemas: dict[str, OutputSchemaSpec],
         _p2: Any,
         _p1: Any,
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> dict[str, FieldRanking]:
         return {name: deterministic_ranking(spec.fields) for name, spec in output_schemas.items()}
 
@@ -126,6 +134,7 @@ async def test_run_pagination_strategy_uniform_across_list_tools(
         stripe_pass_2_output,
         stripe_pass_1_output,
         stripe_raw_ir,
+        generation_id="test",
     )
     list_tool_names = {"search", "list_objects", "list_collections"}
     pagination_styles: set[str] = set()
@@ -162,6 +171,8 @@ async def test_run_raises_pass5error_on_synthetic_inconsistency(
         output_schemas: dict[str, OutputSchemaSpec],
         _p2: Any,
         _p1: Any,
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> dict[str, FieldRanking]:
         return {name: deterministic_ranking(spec.fields) for name, spec in output_schemas.items()}
 
@@ -221,4 +232,5 @@ async def test_run_raises_pass5error_on_synthetic_inconsistency(
             pass_2,
             synthetic_inconsistent_pagination_pass1,
             stripe_raw_ir,
+            generation_id="test",
         )

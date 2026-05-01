@@ -130,6 +130,8 @@ def _patch_author_quality(
     async def fake_author_all_tools(
         pass_1_output: Pass1Output,  # noqa: ARG001 — signature matches real fn
         raw_ir: RawIR,  # noqa: ARG001
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> dict[str, AuthoredToolResult]:
         return {
             name: AuthoredToolResult(
@@ -144,6 +146,8 @@ def _patch_author_quality(
         descriptions: dict[str, Description],
         pass_1_output: Pass1Output,  # noqa: ARG001
         raw_ir: RawIR,  # noqa: ARG001
+        *,
+        generation_id: str = "unknown",  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> tuple[dict[str, Description], dict[str, bool]]:
         return dict(descriptions), dict(quality_warnings)
 
@@ -180,7 +184,7 @@ async def test_run_emits_pass_2_output_with_description_hash_on_every_tool(
     descriptions = {t.name: _make_description(purpose_suffix=f" #{t.name}") for t in tools}
     _patch_author_quality(monkeypatch, descriptions)
 
-    output = await run(pass_1_output, raw_ir)
+    output = await run(pass_1_output, raw_ir, generation_id="test")
     assert isinstance(output, Pass2Output)
     assert len(output.descriptions) == 3
     for name in ("search", "fetch", "list_objects"):
@@ -199,7 +203,7 @@ async def test_run_description_hash_matches_diff_module(
     description = _make_description()
     _patch_author_quality(monkeypatch, {tools[0].name: description})
 
-    output = await run(pass_1_output, raw_ir)
+    output = await run(pass_1_output, raw_ir, generation_id="test")
     expected_hash = description_hash(description)
     assert output.descriptions[tools[0].name].description_hash == expected_hash
 
@@ -216,7 +220,7 @@ async def test_run_uses_pass_1_output_tools_as_source_of_truth(
     descriptions = {t.name: _make_description() for t in tools}
     _patch_author_quality(monkeypatch, descriptions)
 
-    output = await run(pass_1_output, raw_ir)
+    output = await run(pass_1_output, raw_ir, generation_id="test")
     assert set(output.descriptions.keys()) == {"tool_a", "tool_b"}
 
 
@@ -225,7 +229,7 @@ async def test_run_completes_with_zero_tools(monkeypatch: pytest.MonkeyPatch) ->
     raw_ir = _make_raw_ir()
     _patch_author_quality(monkeypatch, descriptions_per_tool={})
 
-    output = await run(pass_1_output, raw_ir)
+    output = await run(pass_1_output, raw_ir, generation_id="test")
     assert isinstance(output, Pass2Output)
     assert output.descriptions == {}
 
@@ -246,7 +250,7 @@ async def test_run_aggregates_warnings_count_in_log(
     warnings_per_tool = {"dirty": Pass2WarningSet(length_violation="too short, expand it")}
     _patch_author_quality(monkeypatch, descriptions, warnings_per_tool=warnings_per_tool)
 
-    await run(pass_1_output, raw_ir)
+    await run(pass_1_output, raw_ir, generation_id="test")
     captured = capsys.readouterr()
     log_text = captured.out + captured.err
     assert "pass_2.run.complete" in log_text
@@ -268,7 +272,7 @@ async def test_run_quality_warnings_aggregated(
         quality_warnings={"bad": True, "good": False},
     )
 
-    await run(pass_1_output, raw_ir)
+    await run(pass_1_output, raw_ir, generation_id="test")
     captured = capsys.readouterr()
     log_text = captured.out + captured.err
     assert "quality_warning_count=1" in log_text
@@ -290,7 +294,7 @@ async def test_run_converts_description_to_descriptions(
     description = _make_description()
     _patch_author_quality(monkeypatch, {tools[0].name: description})
 
-    output = await run(pass_1_output, raw_ir)
+    output = await run(pass_1_output, raw_ir, generation_id="test")
     value = output.descriptions[tools[0].name]
     assert isinstance(value, Descriptions)
     assert value.description_hash is not None

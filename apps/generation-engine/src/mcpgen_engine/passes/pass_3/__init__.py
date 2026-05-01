@@ -224,6 +224,8 @@ async def run(
     pass_1_output: Pass1Output,
     raw_ir: RawIR,
     spec_title: str | None = None,
+    *,
+    generation_id: str,
 ) -> Pass3Output:
     """Author per-tool input schemas; emit ``Pass3Output``.
 
@@ -257,7 +259,7 @@ async def run(
 
     # Phase 2 (LLM, parallel x20 pipeline-scoped): enrich params via Qwen.
     tool_types_by_name = {t.name: t.type.value for t in pass_1_output.tools}
-    enriched = await enrich_all_params(normalized, tool_types_by_name)
+    enriched = await enrich_all_params(normalized, tool_types_by_name, generation_id=generation_id)
 
     # Detect filter strategy (D-18 — once per server). Run on the
     # NORMALIZED params so `is_filter` flags are evaluated post-naming.
@@ -305,7 +307,9 @@ async def run(
     validate_filter_consistency(input_schemas, filter_strategy)
 
     # Phase 4 (LLM, parallel x10): inline quality gate. Never blocks; surfaces warnings.
-    quality_warnings = await quality_gate_all_tools(input_schemas, pass_1_output)
+    quality_warnings = await quality_gate_all_tools(
+        input_schemas, pass_1_output, sem=None, generation_id=generation_id
+    )
 
     warning_count = sum(1 for v in quality_warnings.values() if v)
     elapsed_ms = int((time.monotonic() - start) * 1000)

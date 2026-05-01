@@ -65,7 +65,12 @@ _log = structlog.get_logger(__name__)
 # ─────────────────────────────── Public API ────────────────────────────────
 
 
-async def run(pass_1_output: Pass1Output, raw_ir: RawIR) -> Pass2Output:
+async def run(
+    pass_1_output: Pass1Output,
+    raw_ir: RawIR,
+    *,
+    generation_id: str,
+) -> Pass2Output:
     """Author per-tool descriptions; emit ``Pass2Output`` with
     ``description_hash`` set on every entry per D-14.
 
@@ -76,12 +81,12 @@ async def run(pass_1_output: Pass1Output, raw_ir: RawIR) -> Pass2Output:
     start = time.monotonic()
 
     # Phase 2: authoring (Phase 1 = template selection happens inside authoring per tool).
-    authored = await author_all_tools(pass_1_output, raw_ir)
+    authored = await author_all_tools(pass_1_output, raw_ir, generation_id=generation_id)
 
     # Phase 3: inline quality gate.
     descriptions_in = {name: result.description for name, result in authored.items()}
     gated_descriptions, quality_warnings = await quality_gate_all_tools(
-        descriptions_in, pass_1_output, raw_ir
+        descriptions_in, pass_1_output, raw_ir, generation_id=generation_id
     )
 
     # Phase 4: assembly with description_hash (D-14).

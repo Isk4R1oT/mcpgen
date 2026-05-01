@@ -253,7 +253,7 @@ async def test_judge_one_passes_when_all_5_scores_at_or_above_3(
             }
         ),
     )
-    passes, scores = await _judge_one_pass_3("search", _make_schema())
+    passes, scores = await _judge_one_pass_3("search", _make_schema(), generation_id="test")
     assert passes is True
     assert scores.naming == 3
     assert scores.enums == 5
@@ -276,7 +276,7 @@ async def test_judge_one_fails_when_any_score_below_3(
             }
         ),
     )
-    passes, scores = await _judge_one_pass_3("search", _make_schema())
+    passes, scores = await _judge_one_pass_3("search", _make_schema(), generation_id="test")
     assert passes is False
     assert scores.naming == 2
 
@@ -298,7 +298,7 @@ async def test_judge_one_fails_when_description_below_3(
             }
         ),
     )
-    passes, _ = await _judge_one_pass_3("search", _make_schema())
+    passes, _ = await _judge_one_pass_3("search", _make_schema(), generation_id="test")
     assert passes is False
 
 
@@ -330,7 +330,7 @@ async def test_judge_one_uses_inline_gate_settings(
             }
         ),
     )
-    await _judge_one_pass_3("search", _make_schema())
+    await _judge_one_pass_3("search", _make_schema(), generation_id="test")
     assert captured["model_settings"] is INLINE_GATE_SETTINGS
 
 
@@ -346,6 +346,8 @@ async def test_quality_gate_all_tools_no_retry_when_all_pass(
     async def fake_judge(
         name: str,  # noqa: ARG001
         schema: dict[str, Any],  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> tuple[bool, _GateScoresPass3]:
         nonlocal call_count
         call_count += 1
@@ -380,6 +382,8 @@ async def test_quality_gate_all_tools_retries_then_passes(
     async def fake_judge(
         name: str,  # noqa: ARG001
         schema: dict[str, Any],  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> tuple[bool, _GateScoresPass3]:
         nonlocal call_count
         call_count += 1
@@ -417,6 +421,8 @@ async def test_quality_gate_all_tools_retries_then_still_fails(
     async def fake_judge(
         name: str,  # noqa: ARG001
         schema: dict[str, Any],  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> tuple[bool, _GateScoresPass3]:
         nonlocal call_count
         call_count += 1
@@ -452,6 +458,8 @@ async def test_quality_gate_all_tools_respects_external_semaphore(
     async def fake_judge(
         name: str,  # noqa: ARG001
         schema: dict[str, Any],  # noqa: ARG001
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> tuple[bool, _GateScoresPass3]:
         nonlocal in_flight, max_in_flight
         in_flight += 1

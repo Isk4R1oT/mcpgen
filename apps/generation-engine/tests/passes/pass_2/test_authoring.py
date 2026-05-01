@@ -305,7 +305,7 @@ async def test_author_one_happy_path(httpx_mock: HTTPXMock) -> None:
     tool = _make_tool()
     pass_1_output = _make_pass1_output([tool])
 
-    result = await _author_one(tool, raw_ir, pass_1_output)
+    result = await _author_one(tool, raw_ir, pass_1_output, generation_id="test")
     assert isinstance(result, AuthoredToolResult)
     assert result.tool_name == "search"
     assert result.warnings.length_violation is None
@@ -331,7 +331,7 @@ async def test_author_one_length_violation_then_recovers(
     tool = _make_tool()
     pass_1_output = _make_pass1_output([tool])
 
-    result = await _author_one(tool, raw_ir, pass_1_output)
+    result = await _author_one(tool, raw_ir, pass_1_output, generation_id="test")
     # Final attempt was clean → warnings empty.
     assert result.warnings.length_violation is None
 
@@ -348,7 +348,7 @@ async def test_author_one_length_violation_after_3_attempts_emits_with_warning(
     tool = _make_tool()
     pass_1_output = _make_pass1_output([tool])
 
-    result = await _author_one(tool, raw_ir, pass_1_output)
+    result = await _author_one(tool, raw_ir, pass_1_output, generation_id="test")
     assert result.warnings.length_violation is not None
     assert "shorter than" in result.warnings.length_violation
 
@@ -368,7 +368,7 @@ async def test_author_one_forbidden_phrase_then_recovers(
     tool = _make_tool()
     pass_1_output = _make_pass1_output([tool])
 
-    result = await _author_one(tool, raw_ir, pass_1_output)
+    result = await _author_one(tool, raw_ir, pass_1_output, generation_id="test")
     assert result.warnings.forbidden_pattern_violation == []
 
 
@@ -384,7 +384,7 @@ async def test_author_one_examples_hallucination_then_recovers(
     tool = _make_tool()
     pass_1_output = _make_pass1_output([tool])
 
-    result = await _author_one(tool, raw_ir, pass_1_output)
+    result = await _author_one(tool, raw_ir, pass_1_output, generation_id="test")
     assert result.warnings.examples_not_in_spec == []
 
 
@@ -406,7 +406,7 @@ async def test_author_one_retry_uses_build_retry_user_prompt(
     tool = _make_tool()
     pass_1_output = _make_pass1_output([tool])
 
-    await _author_one(tool, raw_ir, pass_1_output)
+    await _author_one(tool, raw_ir, pass_1_output, generation_id="test")
 
     requests = httpx_mock.get_requests()
     assert len(requests) == 2
@@ -449,7 +449,7 @@ async def test_author_one_pydantic_validation_error_raises_with_invalid_payload(
     from mcpgen_engine.passes.pass_2.validation import Pass2Error
 
     with pytest.raises(Pass2Error) as exc_info:
-        await _author_one(tool, raw_ir, pass_1_output)
+        await _author_one(tool, raw_ir, pass_1_output, generation_id="test")
     assert "AUTHORING_FAILED" in str(exc_info.value)
 
 
@@ -468,7 +468,7 @@ async def test_author_one_uses_universal_agent_for_universal_tool(
     tool = _make_tool(name="search", type_=Type.universal)
     pass_1_output = _make_pass1_output([tool])
 
-    await _author_one(tool, raw_ir, pass_1_output)
+    await _author_one(tool, raw_ir, pass_1_output, generation_id="test")
     requests = httpx_mock.get_requests()
     assert len(requests) == 1
     body = requests[0].read().decode("utf-8")
@@ -515,7 +515,7 @@ async def test_author_all_tools_respects_concurrency_10(
     ]
     pass_1_output = _make_pass1_output(tools)
 
-    results = await author_all_tools(pass_1_output, raw_ir)
+    results = await author_all_tools(pass_1_output, raw_ir, generation_id="test")
     assert len(results) == 25
     assert max_in_flight <= PASS_2_AUTHORING_CONCURRENCY, (
         f"max_in_flight={max_in_flight} exceeded cap of " f"{PASS_2_AUTHORING_CONCURRENCY}"

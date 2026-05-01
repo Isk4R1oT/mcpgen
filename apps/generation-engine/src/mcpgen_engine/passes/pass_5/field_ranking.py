@@ -185,7 +185,11 @@ def deterministic_ranking(
 # ─────────────────────────── Transient-retry helper ────────────────────────
 
 
-async def _run_with_transient_retry(prompt: str) -> FieldRanking:
+async def _run_with_transient_retry(
+    prompt: str,
+    *,
+    generation_id: str,
+) -> FieldRanking:
     """Inner retry tier: 3 attempts with exponential backoff (1s/2s/4s).
 
     Mirrors ``pass_3/enrich.py::_run_with_transient_retry`` shape.
@@ -197,11 +201,12 @@ async def _run_with_transient_retry(prompt: str) -> FieldRanking:
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            # TODO(09-05): thread generation_id through pass_5.run signature.
+            # Threaded generation_id correlates Langfuse traces per-generation
+            # (Phase 10 plan 10-03 D-06 item 1).
             result = await run_with_tracing(
                 PASS_5_FIELD_RANKING_AGENT,
                 prompt,
-                session_id="unknown",
+                session_id=generation_id,
                 stage="pass-5-field-ranking",
                 model_settings=PASS_5_SETTINGS,
             )
@@ -232,6 +237,8 @@ async def _rank_one(
     fields: dict[str, dict[str, Any]],
     tool: Tool1,
     description: Descriptions | None,
+    *,
+    generation_id: str,
 ) -> FieldRanking:
     """Outer retry tier: 1 validation retry → deterministic fallback (D-11).
 
@@ -242,7 +249,7 @@ async def _rank_one(
     prompt, _injection_warnings = build_field_ranking_user_prompt(tool, fields, description)
     for outer_attempt in range(_MAX_VALIDATION_RETRIES + 1):
         try:
-            return await _run_with_transient_retry(prompt)
+            return await _run_with_transient_retry(prompt, generation_id=generation_id)
         except (ValidationError, UnexpectedModelBehavior) as exc:
             _log.warning(
                 "pass_5.field_ranking.validation_retry",
@@ -276,18 +283,24 @@ async def rank_fields_for_tool(
     output_schema_spec: OutputSchemaSpec,
     description: Descriptions | None,
     sem: asyncio.Semaphore,
+    *,
+    generation_id: str = "unknown",
 ) -> FieldRanking:
     """Per-tool ranking. Below threshold → deterministic only (no LLM).
 
     Above threshold → acquire ``sem``, build prompt, call LLM with the
     2-tier retry policy. Conservative bias on fallback (uncertain → opt_in)
     per Anthropic guidance "better agent asks than burns tokens".
+
+    ``generation_id`` correlates Langfuse traces per-generation (Phase 10
+    plan 10-03 D-06 item 1). Defaults to ``"unknown"`` for direct test
+    callers; production callers (Pass 5 orchestrator) thread the real value.
     """
     fields = output_schema_spec.fields
     if len(fields) <= _FIELD_COUNT_LLM_THRESHOLD:
         return deterministic_ranking(fields)
     async with sem:
-        return await _rank_one(fields, tool, description)
+        return await _rank_one(fields, tool, description, generation_id=generation_id)
 
 
 # ─────────────────────────── Public fan-out ────────────────────────────────
@@ -297,12 +310,18 @@ async def rank_all_fields(
     output_schemas: dict[str, OutputSchemaSpec],
     pass_2_output: Pass2Output,
     pass_1_output: Pass1Output,
+    *,
+    generation_id: str = "unknown",
 ) -> dict[str, FieldRanking]:
     """Orchestrator: per-tool fan-out under a shared Semaphore (D-06).
 
     Returns a dict keyed by tool name. Tools whose ``Pass1Output.tools``
     entry cannot be looked up degrade to a deterministic-only ranking
     rather than raising.
+
+    ``generation_id`` correlates Langfuse traces per-generation (Phase 10
+    plan 10-03 D-06 item 1). Defaults to ``"unknown"`` for direct test
+    callers; production callers (Pass 5 orchestrator) thread the real value.
 
     Logs structural metrics only — never spec content
     (T-04-03-spec-leak mitigation).
@@ -321,7 +340,9 @@ async def rank_all_fields(
         # threshold; the actual LLM call may still fall back deterministically.
         if len(spec.fields) > _FIELD_COUNT_LLM_THRESHOLD:
             llm_call_count += 1
-        ranking = await rank_fields_for_tool(tool, spec, description, sem)
+        ranking = await rank_fields_for_tool(
+            tool, spec, description, sem, generation_id=generation_id
+        )
         return tool_name, ranking
 
     coros = [_bound(name, spec) for name, spec in output_schemas.items()]

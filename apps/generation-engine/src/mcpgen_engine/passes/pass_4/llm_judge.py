@@ -104,7 +104,11 @@ PASS_4_JUDGE_AGENT: Final[Agent[None, _LlmJudgeOutput]] = make_agent(
 # ────────────────────────── Transient-retry helper ─────────────────────────
 
 
-async def _run_with_transient_retry(prompt: str) -> _LlmJudgeOutput:
+async def _run_with_transient_retry(
+    prompt: str,
+    *,
+    generation_id: str,
+) -> _LlmJudgeOutput:
     """Inner retry: exponential backoff on ``httpx.HTTPError`` (1s/2s/4s).
 
     Mirrors ``pass_0/llm.py::_run_with_transient_retry`` shape. Pydantic
@@ -115,11 +119,12 @@ async def _run_with_transient_retry(prompt: str) -> _LlmJudgeOutput:
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            # TODO(09-05): thread generation_id through pass_4.run signature.
+            # Threaded generation_id correlates Langfuse traces per-generation
+            # (Phase 10 plan 10-03 D-06 item 1).
             result = await run_with_tracing(
                 PASS_4_JUDGE_AGENT,
                 prompt,
-                session_id="unknown",
+                session_id=generation_id,
                 stage="pass-4-judge",
                 model_settings=PASS_4_SETTINGS,
             )
@@ -146,7 +151,12 @@ async def _run_with_transient_retry(prompt: str) -> _LlmJudgeOutput:
 # ──────────────────────────── Per-tool judgment ────────────────────────────
 
 
-async def _judge_one(tool_name: str, tool_description: str | None) -> dict[str, bool]:
+async def _judge_one(
+    tool_name: str,
+    tool_description: str | None,
+    *,
+    generation_id: str,
+) -> dict[str, bool]:
     """Judge a single medium-confidence action tool.
 
     Outer loop budget: ``_MAX_VALIDATION_RETRIES + 1`` attempts (= 2). On
@@ -157,7 +167,7 @@ async def _judge_one(tool_name: str, tool_description: str | None) -> dict[str, 
     prompt = build_judge_prompt(tool_name, tool_description)
     for attempt in range(_MAX_VALIDATION_RETRIES + 1):
         try:
-            output = await _run_with_transient_retry(prompt)
+            output = await _run_with_transient_retry(prompt, generation_id=generation_id)
         except (ValidationError, UnexpectedModelBehavior, httpx.HTTPError) as exc:
             _log.warning(
                 "pass_4.judge.validation_or_transient_failed",
@@ -187,10 +197,17 @@ async def _judge_one(tool_name: str, tool_description: str | None) -> dict[str, 
 async def judge_action_tools(
     needs_llm_review: list[str],
     pass_2_output: Pass2Output | None,
+    *,
+    generation_id: str = "unknown",
 ) -> dict[str, dict[str, bool]]:
     """Selective LLM judgment for medium-confidence action tools (D-26 Phase 2).
 
     Concurrency capped at ``PASS_4_JUDGE_CONCURRENCY`` (= 5).
+
+    ``generation_id`` correlates Langfuse traces per-generation (Phase 10
+    plan 10-03 D-06 item 1). Defaults to ``"unknown"`` so existing direct
+    test callers continue to work; production callers (Pass 4 orchestrator)
+    thread the real value from the BFF.
 
     Returns ``{tool_name: {readOnlyHint, destructiveHint, idempotentHint}}``
     — the per-tool triples are either the LLM-emitted booleans OR the
@@ -212,7 +229,7 @@ async def judge_action_tools(
 
     async def _bound(name: str) -> tuple[str, dict[str, bool]]:
         async with sem:
-            triple = await _judge_one(name, descriptions_map.get(name))
+            triple = await _judge_one(name, descriptions_map.get(name), generation_id=generation_id)
             return name, triple
 
     pairs = await asyncio.gather(*(_bound(n) for n in needs_llm_review))

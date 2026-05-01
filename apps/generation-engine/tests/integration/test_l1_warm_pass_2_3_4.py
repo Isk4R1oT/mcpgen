@@ -117,7 +117,12 @@ async def test_warm_run_zero_qwen_calls(monkeypatch: pytest.MonkeyPatch) -> None
     async def _fake_stage_a(*, spec_url: str | None, spec_content: str | None) -> RawIR:  # noqa: ARG001
         return raw_ir_fix
 
-    async def _fake_pass_0(_raw_ir: RawIR, _options: UserOptions) -> Pass0Output:
+    async def _fake_pass_0(
+        _raw_ir: RawIR,
+        _options: UserOptions,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> Pass0Output:
         counters["pass_0"] += 1
         return Pass0Output(
             tool_plans=[],
@@ -133,11 +138,18 @@ async def test_warm_run_zero_qwen_calls(monkeypatch: pytest.MonkeyPatch) -> None
         _raw_ir: RawIR,
         _spec_title: str,
         _options: UserOptions,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass1Output:
         counters["pass_1"] += 1
         return p1
 
-    async def _fake_pass_2(_pass_1: Pass1Output, _raw_ir: RawIR) -> Pass2Output:
+    async def _fake_pass_2(
+        _pass_1: Pass1Output,
+        _raw_ir: RawIR,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> Pass2Output:
         counters["pass_2"] += 1
         return p2
 
@@ -146,11 +158,19 @@ async def test_warm_run_zero_qwen_calls(monkeypatch: pytest.MonkeyPatch) -> None
         _p1: Pass1Output,
         _raw_ir: RawIR,
         _spec_title: str | None = None,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass3Output:
         counters["pass_3"] += 1
         return p3
 
-    async def _fake_pass_4(_p3: Pass3Output, _p2: Pass2Output, _p1: Pass1Output) -> Pass4Output:
+    async def _fake_pass_4(
+        _p3: Pass3Output,
+        _p2: Pass2Output,
+        _p1: Pass1Output,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> Pass4Output:
         counters["pass_4"] += 1
         return p4
 
@@ -236,7 +256,12 @@ async def test_warm_run_outputs_bit_identical(monkeypatch: pytest.MonkeyPatch) -
     async def _fake_stage_a(*, spec_url: str | None, spec_content: str | None) -> RawIR:  # noqa: ARG001
         return raw_ir_fix
 
-    async def _fake_pass_0(_raw_ir: RawIR, _options: UserOptions) -> Pass0Output:
+    async def _fake_pass_0(
+        _raw_ir: RawIR,
+        _options: UserOptions,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> Pass0Output:
         return Pass0Output(
             tool_plans=[],
             dropped_endpoints=[],
@@ -251,10 +276,17 @@ async def test_warm_run_outputs_bit_identical(monkeypatch: pytest.MonkeyPatch) -
         _raw_ir: RawIR,
         _spec_title: str,
         _options: UserOptions,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass1Output:
         return p1
 
-    async def _fake_pass_2(_pass_1: Pass1Output, _raw_ir: RawIR) -> Pass2Output:
+    async def _fake_pass_2(
+        _pass_1: Pass1Output,
+        _raw_ir: RawIR,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> Pass2Output:
         return p2
 
     async def _fake_pass_3(
@@ -262,10 +294,18 @@ async def test_warm_run_outputs_bit_identical(monkeypatch: pytest.MonkeyPatch) -
         _p1: Pass1Output,
         _raw_ir: RawIR,
         _spec_title: str | None = None,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
     ) -> Pass3Output:
         return p3
 
-    async def _fake_pass_4(_p3: Pass3Output, _p2: Pass2Output, _p1: Pass1Output) -> Pass4Output:
+    async def _fake_pass_4(
+        _p3: Pass3Output,
+        _p2: Pass2Output,
+        _p1: Pass1Output,
+        *,
+        generation_id: str,  # noqa: ARG001 — Phase 10 plan 10-03 threading
+    ) -> Pass4Output:
         return p4
 
     monkeypatch.setattr(pipeline_module.stage_a, "run", _fake_stage_a)

@@ -61,10 +61,10 @@ async def run_with_tracing(
         agent: A PydanticAI agent (typically built via
             :func:`mcpgen_engine.llm.agent_factory.make_agent`).
         prompt: The user prompt forwarded verbatim to ``agent.run``.
-        session_id: Generation id (value of ``langfuse.session.id``). Pass
-            ``"unknown"`` only as a placeholder for call sites where the
-            generation_id is not yet threaded — track those with a
-            ``# TODO(09-05)`` comment for follow-up.
+        session_id: Generation id (value of ``langfuse.session.id``).
+            Production callers MUST thread the real ``generation_id`` from
+            the BFF (Phase 10 plan 10-03 closed all 11 placeholder sites).
+            Direct test callers may pass any string sentinel.
         stage: Pass / stage label, e.g. ``"pass-2"``, ``"stage-f-2"``. Becomes
             the sole entry of ``langfuse.tags``.
         model_settings: Forwarded to ``agent.run`` unchanged. Type is the

@@ -113,6 +113,8 @@ async def run(
     raw_ir: RawIR,
     spec_title: str,
     options: UserOptions,
+    *,
+    generation_id: str,
 ) -> Pass1Output:
     """Orchestrate Pass 1 — Six-Tool Pattern Consolidation.
 
@@ -144,7 +146,9 @@ async def run(
 
     # Phase 1.2 — schema synthesis with concurrency limit.
     sem = asyncio.Semaphore(PASS_1_SCHEMA_SYNTH_CONCURRENCY)
-    universal_tools, extras_tools = await _synthesize_all(classified, raw_ir, sem, uncovered=None)
+    universal_tools, extras_tools = await _synthesize_all(
+        classified, raw_ir, sem, uncovered=None, generation_id=generation_id
+    )
 
     # Phase 1.3 — deterministic routing.
     spec_slug = derive_spec_slug(spec_title)
@@ -169,7 +173,10 @@ async def run(
         # one-call-per-tool and either succeed or raise).
         async with sem:
             universal_tools = await synthesize_universal_tools(
-                classified.universal, raw_ir, uncovered=uncovered
+                classified.universal,
+                raw_ir,
+                uncovered=uncovered,
+                generation_id=generation_id,
             )
         routing = build_routing_config(universal_tools, extras_tools, spec_slug, raw_ir)
         proofs, coverage = _build_proofs_and_coverage(pass_0_output, routing, raw_ir)
@@ -222,6 +229,7 @@ async def _synthesize_all(
     sem: asyncio.Semaphore,
     *,
     uncovered: list[str] | None,
+    generation_id: str,
 ) -> tuple[list[Tool1], list[Tool1]]:
     """Run Phase 1.2 schema synthesis: 1 universal call + N extra calls.
 
@@ -233,12 +241,15 @@ async def _synthesize_all(
     async def _synth_universal() -> list[Tool1]:
         async with sem:
             return await synthesize_universal_tools(
-                classified.universal, raw_ir, uncovered=uncovered
+                classified.universal,
+                raw_ir,
+                uncovered=uncovered,
+                generation_id=generation_id,
             )
 
     async def _synth_extra(extra: ExtraTool) -> Tool1:
         async with sem:
-            return await synthesize_extra_tool(extra, raw_ir)
+            return await synthesize_extra_tool(extra, raw_ir, generation_id=generation_id)
 
     universal_task = _synth_universal()
     extra_tasks = [_synth_extra(e) for e in classified.extras]

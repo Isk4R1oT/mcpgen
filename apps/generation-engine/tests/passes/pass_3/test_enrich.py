@@ -215,7 +215,9 @@ async def test_enrich_one_happy_path(httpx_mock: HTTPXMock) -> None:
     )
 
     param = _make_param()
-    result = await _enrich_one(param, tool_name="charges_create", tool_type="action")
+    result = await _enrich_one(
+        param, tool_name="charges_create", tool_type="action", generation_id="test"
+    )
     assert isinstance(result, ParameterEnrichment)
     assert result.example == "1000"
     assert "WHAT:" in result.description
@@ -242,7 +244,9 @@ async def test_enrich_one_pydantic_validation_error_triggers_retry(
     )
 
     param = _make_param()
-    result = await _enrich_one(param, tool_name="charges_create", tool_type="action")
+    result = await _enrich_one(
+        param, tool_name="charges_create", tool_type="action", generation_id="test"
+    )
     # Recovery succeeded.
     assert isinstance(result, ParameterEnrichment)
     assert "WHAT:" in result.description
@@ -290,7 +294,9 @@ async def test_enrich_one_retry_uses_build_param_retry_user_prompt(
     )
 
     param = _make_param()
-    result = await _enrich_one(param, tool_name="charges_create", tool_type="action")
+    result = await _enrich_one(
+        param, tool_name="charges_create", tool_type="action", generation_id="test"
+    )
 
     # Outer retry kicked: 2 calls, first prompt is initial, second is retry.
     assert isinstance(result, ParameterEnrichment)
@@ -318,7 +324,7 @@ async def test_enrich_one_falls_back_to_deterministic_after_exhaustion(
     )
 
     param = _make_param(name="limit", type_="integer", required=False, default=25, description=None)
-    result = await _enrich_one(param, tool_name="t", tool_type="action")
+    result = await _enrich_one(param, tool_name="t", tool_type="action", generation_id="test")
     # Did NOT raise; returned the deterministic fallback.
     assert isinstance(result, ParameterEnrichment)
     assert "WHAT:" in result.description
@@ -353,7 +359,7 @@ async def test_uses_pass_3_settings(monkeypatch: Any) -> None:
     )
 
     param = _make_param()
-    await _enrich_one(param, tool_name="t", tool_type="action")
+    await _enrich_one(param, tool_name="t", tool_type="action", generation_id="test")
 
     assert len(captured_settings) == 1
     # Object identity — must be the exact PASS_3_SETTINGS singleton.

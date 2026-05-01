@@ -154,7 +154,11 @@ def _build_deterministic_fallback(param: ParameterSpec) -> ParameterEnrichment:
 # ────────────────────────── Transient-retry helper ─────────────────────────
 
 
-async def _run_with_transient_retry(prompt: str) -> ParameterEnrichment:
+async def _run_with_transient_retry(
+    prompt: str,
+    *,
+    generation_id: str,
+) -> ParameterEnrichment:
     """Inner retry: exponential backoff on httpx.HTTPError (1s/2s/4s).
 
     Mirrors ``pass_2/authoring.py::_run_with_transient_retry`` shape.
@@ -166,11 +170,12 @@ async def _run_with_transient_retry(prompt: str) -> ParameterEnrichment:
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            # TODO(09-05): thread generation_id through pass_3.run signature.
+            # Threaded generation_id correlates Langfuse traces per-generation
+            # (Phase 10 plan 10-03 D-06 item 1).
             result = await run_with_tracing(
                 PASS_3_ENRICHMENT_AGENT,
                 prompt,
-                session_id="unknown",
+                session_id=generation_id,
                 stage="pass-3-enrich",
                 model_settings=PASS_3_SETTINGS,
             )
@@ -197,7 +202,13 @@ async def _run_with_transient_retry(prompt: str) -> ParameterEnrichment:
 # ────────────────────────── Per-parameter enrichment ───────────────────────
 
 
-async def _enrich_one(param: ParameterSpec, tool_name: str, tool_type: str) -> ParameterEnrichment:
+async def _enrich_one(
+    param: ParameterSpec,
+    tool_name: str,
+    tool_type: str,
+    *,
+    generation_id: str,
+) -> ParameterEnrichment:
     """Enrich a single parameter; emit fallback after retry exhaustion.
 
     Outer loop runs ``_MAX_VALIDATION_RETRIES + 1`` attempts (1 initial + 2
@@ -217,7 +228,7 @@ async def _enrich_one(param: ParameterSpec, tool_name: str, tool_type: str) -> P
             else build_param_retry_user_prompt(param, tool_name, tool_type, last_validation_error)
         )
         try:
-            return await _run_with_transient_retry(prompt)
+            return await _run_with_transient_retry(prompt, generation_id=generation_id)
         except (ValidationError, UnexpectedModelBehavior) as exc:
             last_validation_error = f"{type(exc).__name__}: {exc}"
             cause = exc.__cause__
@@ -248,6 +259,8 @@ async def _enrich_one(param: ParameterSpec, tool_name: str, tool_type: str) -> P
 async def enrich_all_params(
     extracted: dict[str, list[ParameterSpec]],
     tool_types_by_name: dict[str, str],
+    *,
+    generation_id: str = "unknown",
 ) -> dict[str, list[tuple[ParameterSpec, ParameterEnrichment]]]:
     """Per-parameter fan-out across ALL params in ALL tools (D-17 pipeline-scope).
 
@@ -255,6 +268,11 @@ async def enrich_all_params(
     (universal/action/workflow/specialized) — needed because ``ParameterSpec``
     doesn't know its parent tool's type. The orchestrator (Plan 03-09) supplies
     this via ``{t.name: t.type.value for t in pass_1_output.tools}``.
+
+    ``generation_id`` correlates Langfuse traces per-generation (Phase 10
+    plan 10-03 D-06 item 1). Defaults to ``"unknown"`` so existing direct
+    test callers continue to work; production callers thread the real value
+    from the BFF via the Pass 3 orchestrator.
 
     Returns a stable per-tool ordering: ``out[tool_name][i]`` corresponds to
     ``extracted[tool_name][i]`` (the i-th input parameter for that tool).
@@ -269,7 +287,12 @@ async def enrich_all_params(
         tool_name: str, param: ParameterSpec
     ) -> tuple[str, ParameterSpec, ParameterEnrichment]:
         async with sem:
-            enrichment = await _enrich_one(param, tool_name, tool_types_by_name[tool_name])
+            enrichment = await _enrich_one(
+                param,
+                tool_name,
+                tool_types_by_name[tool_name],
+                generation_id=generation_id,
+            )
             return tool_name, param, enrichment
 
     # Flatten ALL params across ALL tools into one gather (D-17 pipeline-scope).

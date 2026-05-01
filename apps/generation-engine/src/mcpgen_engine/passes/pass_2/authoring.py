@@ -136,7 +136,12 @@ class AuthoredToolResult:
 # ────────────────────────── Transient-retry helper ─────────────────────────
 
 
-async def _run_with_transient_retry(agent: Agent[None, Description], prompt: str) -> Description:
+async def _run_with_transient_retry(
+    agent: Agent[None, Description],
+    prompt: str,
+    *,
+    generation_id: str,
+) -> Description:
     """Inner retry: exponential backoff on httpx.HTTPError (1s/2s/4s).
 
     Mirrors ``pass_0/llm.py::_run_with_transient_retry`` shape. Pydantic
@@ -147,11 +152,12 @@ async def _run_with_transient_retry(agent: Agent[None, Description], prompt: str
     last_exc: BaseException | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES):
         try:
-            # TODO(09-05): thread generation_id through pass_2.run signature.
+            # Threaded generation_id correlates Langfuse traces per-generation
+            # (Phase 10 plan 10-03 D-06 item 1).
             result = await run_with_tracing(
                 agent,
                 prompt,
-                session_id="unknown",
+                session_id=generation_id,
                 stage="pass-2-author",
                 model_settings=PASS_2_SETTINGS,
             )
@@ -182,6 +188,8 @@ async def _author_one(
     tool: Tool1,
     raw_ir: RawIR,
     pass_1_output: Pass1Output,
+    *,
+    generation_id: str,
 ) -> AuthoredToolResult:
     """Author one tool's description with the D-12 + D-13 retry loop.
 
@@ -205,7 +213,9 @@ async def _author_one(
             else build_retry_user_prompt(tool, raw_ir, pass_1_output, last_validation_error)
         )
         try:
-            description = await _run_with_transient_retry(agent, prompt)
+            description = await _run_with_transient_retry(
+                agent, prompt, generation_id=generation_id
+            )
         except (ValidationError, UnexpectedModelBehavior) as exc:
             last_validation_error = f"{type(exc).__name__}: {exc}"
             cause = exc.__cause__
@@ -294,6 +304,8 @@ async def _author_one(
 async def author_all_tools(
     pass_1_output: Pass1Output,
     raw_ir: RawIR,
+    *,
+    generation_id: str,
 ) -> dict[str, AuthoredToolResult]:
     """Per-tool fan-out under ``Semaphore(PASS_2_AUTHORING_CONCURRENCY)``.
 
@@ -305,7 +317,7 @@ async def author_all_tools(
 
     async def _bound(tool: Tool1) -> tuple[str, AuthoredToolResult]:
         async with sem:
-            result = await _author_one(tool, raw_ir, pass_1_output)
+            result = await _author_one(tool, raw_ir, pass_1_output, generation_id=generation_id)
             return tool.name, result
 
     pairs = await asyncio.gather(*(_bound(t) for t in pass_1_output.tools))

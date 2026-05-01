@@ -99,12 +99,18 @@ async def run(
     pass_2_output: Pass2Output,
     pass_1_output: Pass1Output,
     raw_ir: RawIR,
+    *,
+    generation_id: str,
 ) -> Pass5Output:
     """5-phase Pass 5 orchestrator (D-05).
 
     Pure orchestrator chaining: pagination → outputSchema → field ranking
     (LLM-bearing) → truncation → response_format gate + cross-tool validation
     + final assembly.
+
+    ``generation_id`` correlates Langfuse traces per-generation (Phase 10
+    plan 10-03 D-06 item 1) and is threaded through ``rank_all_fields`` to
+    ``run_with_tracing``.
 
     Returns ``Pass5Output(tools=[...])``. The IR ``Pass5Output`` shape carries
     only the ``tools`` field today; additive ``flags`` (server pagination
@@ -120,7 +126,9 @@ async def run(
     output_schemas = extract_all_output_schemas(pass_1_output, raw_ir)
 
     # ─── Phase 3: LLM field ranking (concurrency 10, deterministic fallback) ─
-    field_rankings = await rank_all_fields(output_schemas, pass_2_output, pass_1_output)
+    field_rankings = await rank_all_fields(
+        output_schemas, pass_2_output, pass_1_output, generation_id=generation_id
+    )
 
     # ─── Phase 4: truncation guidance templates (deterministic, frozen table) ─
     truncation_configs = build_all_truncation_configs(pass_1_output, server_pagination.style)
