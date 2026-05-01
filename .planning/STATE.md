@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
+milestone: v1.1
 milestone_name: milestone
-status: in_progress
-stopped_at: "Plan 10-03 complete: generation_id threading + matview refresh (CTRL-08 D-06 items 1+2)"
-last_updated: "2026-05-01T12:55:00.000Z"
+status: completed
+stopped_at: "Phase 9.1 CONTEXT: anon-hero-flow + claim_generation + L1 cache reuse for anon (D-05 founder insight); 12 decisions locked, 3 open questions for planner"
+last_updated: "2026-05-01T08:58:36.936Z"
 last_activity: 2026-05-01
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 9
-  total_plans: 111
+  total_plans: 97
   completed_plans: 88
-  percent: 79
+  percent: 91
 ---
 
 # Project State
@@ -237,8 +237,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-01T12:55:00.000Z
-Stopped at: Plan 10-03 complete — generation_id threading + matview refresh (CTRL-08 D-06 items 1+2)
-Resume file: `.planning/phases/10-launch/10-03-SUMMARY.md`
+Last session: --stopped-at
+Stopped at: Phase 9.1 CONTEXT: anon-hero-flow + claim_generation + L1 cache reuse for anon (D-05 founder insight); 12 decisions locked, 3 open questions for planner
+Resume file: None
 
 **Planned Phase:** 10 (Launch) — 14 plans — 2026-04-30T16:14:39Z
