@@ -40,8 +40,11 @@ import { serve } from 'inngest/hono';
 import { LAUNCH_CRITERIA } from '@mcpgen/contracts';
 
 import { authMiddleware, requireM2M, type AuthContext, type AuthEnv } from './middleware/auth.js';
+import { ensureAnonSession, isColdStartLanding } from './lib/anon-session.js';
 import { generateRoute } from './routes/v1/generate.js';
-import { jobsAnonRoute } from './routes/v1/jobs/anon.js';
+// Plan 09.1-03 swaps the plan-02 jobs/anon.ts stub for the real cookie/JWT-
+// scoped jobsRoute that exposes /:id (status) + /:id/stream (SSE replay).
+import { jobsRoute } from './routes/v1/jobs/index.js';
 import { stripeWebhookRoute } from './routes/v1/stripe-webhook.js';
 import { billingRoutes } from './routes/v1/billing/index.js';
 import { sseCallbackRoute } from './routes/internal/v1/sse-callback.js';
@@ -50,7 +53,10 @@ import { spikeSseRoute } from './routes/_spike/sse.js';
 import { driftRoute } from './routes/v1/drift.js';
 import { deploymentsRoute } from './routes/v1/deployments.js';
 import { usageRoute } from './routes/v1/usage.js';
-import { deployRoute } from './routes/v1/deploy.js';
+// Plan 09.1-03 splits deploy.ts: legacy /deploy/:generationId (deployRoute)
+// stays for frontend backward compat; new D-08 path is /deploy/permanent/:id.
+import { deployRoute } from './routes/v1/deploy-legacy.js';
+import { permanentDeployRoute } from './routes/v1/permanent-deploy.js';
 import { previewRoute } from './routes/v1/preview.js';
 import { qualityRoute } from './routes/v1/quality.js';
 import { playgroundRoute } from './routes/v1/playground.js';
@@ -102,6 +108,20 @@ export function buildApp(env: Bindings): Hono<{ Bindings: Bindings; Variables: V
   app.get('/health', (c) => c.json({ status: 'ok' }));
   app.get('/health/launch-criteria', (c) => c.json(LAUNCH_CRITERIA));
 
+  // ─── Layer 1.5: Anon session-fixation defense (T-9.1-claim) ───────────
+  // GET / is a top-level landing. If the caller already carries an anon
+  // cookie AND the request looks like a cold-start landing (no Referer or
+  // off-origin Referer), rotate the cookie defensively before any
+  // anonymous_generations row gets bound to it. Same-origin GET / leaves
+  // the cookie untouched (mid-flow navigation, not a fixation surface).
+  // Pure no-op for callers without a cookie except when the rotation logic
+  // mints a fresh ULID — which is the desired defense-in-depth posture.
+  app.get('/', (c) => {
+    const coldStart = isColdStartLanding(c);
+    ensureAnonSession(c, { forceReissue: coldStart });
+    return c.json({ name: 'mcpgen-api', layer: 'public-landing' });
+  });
+
   // ─── Layer 3: Public spike SSE + Inngest + Stripe webhook ─────────────
   app.route('/_spike/sse', spikeSseRoute);
   app.route('/api/v1/stripe/webhook', stripeWebhookRoute);
@@ -129,7 +149,7 @@ export function buildApp(env: Bindings): Hono<{ Bindings: Bindings; Variables: V
   // ─── Public /api/v1 routes — ALWAYS anonymous-allowed (D-07 + D-08) ───
   // Mount BEFORE the protected catch-all (gotcha #2 — first match wins).
   app.route('/api/v1/generate', generateRoute);
-  app.route('/api/v1/jobs', jobsAnonRoute);
+  app.route('/api/v1/jobs', jobsRoute);
   app.route('/api/v1/deploy/ephemeral', ephemeralDeployRoute);
 
   // ─── Conditional public routes per BFF_ANONYMOUS_GATE (D-01) ──────────
@@ -162,9 +182,14 @@ export function buildApp(env: Bindings): Hono<{ Bindings: Bindings; Variables: V
   protectedApp.route('/billing', billingRoutes);
   protectedApp.route('/download', downloadRoute);
   protectedApp.route('/claim_generation', claimRoute);
+  // D-08 new permanent deploy path (/api/v1/deploy/permanent/:id). Mounted
+  // BEFORE the legacy `/deploy/:generationId` (deployRoute) so the more
+  // specific permanent path wins routing.
+  protectedApp.route('/deploy/permanent', permanentDeployRoute);
   // Existing self-prefixed routes — composed at the protectedApp root so
   // their internal /deployments, /drift-events, /usage/hourly, and
-  // /deploy/:generationId prefixes resolve verbatim.
+  // /deploy/:generationId prefixes resolve verbatim. Frontend backward
+  // compat: dashboard-client.ts still calls /api/v1/deploy/:generationId.
   protectedApp.route('/', driftRoute);
   protectedApp.route('/', deploymentsRoute);
   protectedApp.route('/', usageRoute);

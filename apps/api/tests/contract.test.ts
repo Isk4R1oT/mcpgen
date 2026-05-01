@@ -4,12 +4,16 @@
 // shapes downstream waves depend on:
 //   - GET /health → 200
 //   - GET /health/launch-criteria → matches @mcpgen/contracts LAUNCH_CRITERIA
-//   - POST /api/v1/generate → 501 with Idempotency-Key echo + contract_version
+//   - POST /api/v1/generate → 202 with { job_id, sse_url } per the FROZEN
+//     GenerationApiResponse shape (Phase 09.1 plan 03 turned the route on;
+//     the previous 501 stub-only contract is superseded).
 //   - GET /api/v1/jobs/:id/stream → text/event-stream content-type
 //
 // Phase 8 update: /api/v1/* is now JWT-protected; tests carry a mocked-jose
-// Bearer token + AppEnv bindings so the auth middleware admits the request and
-// the original 501 contract still exercises.
+// Bearer token + AppEnv bindings so the auth middleware admits the request.
+// Phase 09.1-03 update: POST /generate moved to the public app and returns
+// 202 + GenerationApiResponse shape; the test now asserts the live shape
+// instead of the historical 501 stub.
 
 import { describe, it, expect, vi } from 'vitest';
 
@@ -44,7 +48,7 @@ describe('apps/api contract', () => {
     expect(body.F3_AGENT_PASS_RATE_MIN).toBe(LAUNCH_CRITERIA.F3_AGENT_PASS_RATE_MIN);
   });
 
-  it('POST /api/v1/generate returns 501 with frozen contract shape', async () => {
+  it('POST /api/v1/generate returns 202 with FROZEN GenerationApiResponse shape', async () => {
     // Test ULID — predictable repeating pattern, NOT a real generated ID (gitleaks-safe).
     const TEST_ULID = '01HXAAAAAAAAAAAAAAAAAAAAA2';
     const res = await app.fetch(
@@ -59,15 +63,11 @@ describe('apps/api contract', () => {
       }),
       ENV,
     );
-    expect(res.status).toBe(501);
-    const body = (await res.json()) as {
-      error: string;
-      requested_idempotency_key: string;
-      contract_version: string;
-    };
-    expect(body.error).toBe('not_implemented_phase_8');
-    expect(body.requested_idempotency_key).toBe(TEST_ULID);
-    expect(body.contract_version).toBe('1.0.0');
+    // Phase 09.1-03 — route is now live; expect 202 + { job_id, sse_url }.
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { job_id: string; sse_url: string };
+    expect(body.job_id).toMatch(/^gen_[0-9A-HJKMNP-TV-Z]{26}$/);
+    expect(body.sse_url).toMatch(/\/api\/v1\/jobs\/gen_[0-9A-HJKMNP-TV-Z]{26}\/stream$/);
   });
 
   it('GET /api/v1/jobs/:id/stream returns event-stream content-type', async () => {
