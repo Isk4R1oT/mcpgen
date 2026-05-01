@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: completed
-stopped_at: "Phase 9.1 plans complete: 13 plans across 8 waves; checker iter-2 PASS (B1+B2 + W1+W2+W3 closed); ready to execute"
-last_updated: "2026-05-01T09:59:31.486Z"
-last_activity: 2026-05-01
+status: executing
+stopped_at: "Phase 9.1 plan 01 complete (ed4f8dc): SSR window guards + paired ADR + hook upgrade; SSR build passes; ready to start plan 09.1-02 (BFF auth refactor)"
+last_updated: "2026-05-01T10:43:42Z"
+last_activity: 2026-05-01 -- Phase 09.1 plan 01 executed
 progress:
   total_phases: 11
   completed_phases: 9
   total_plans: 110
-  completed_plans: 88
-  percent: 80
+  completed_plans: 89
+  percent: 81
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-26)
 
 **Core value:** Generated MCP servers measurably outperform hand-written ones on agent task success rate — paste an OpenAPI URL → 60 seconds later you have a deployed MCP server that scores ≥4.0 on F2 smell rubric and ≥70% F3 agent task success on golden tasks for that API.
-**Current focus:** Phase 9 — Observability & Polish
+**Current focus:** Phase 09.1 — anonymous-hero-flow
 
 ## Current Position
 
-Phase: 10 (Launch) — EXECUTING
-Plan: 3 of 14 complete (10-03 closes Phase 9 carry-forward `code_followups[0]` + `code_followups[3]`)
-Status: Plan 10-03 complete; 13/14 plans remaining
-Last activity: 2026-05-01
+Phase: 09.1 (anonymous-hero-flow) — EXECUTING
+Plan: 2 of 13 (next)
+Status: Executing Phase 09.1 (1/13 plans complete)
+Last activity: 2026-05-01 -- Phase 09.1 plan 01 executed (ed4f8dc): SSR window guards + paired ADR + hook upgrade
 
-Progress: [████████░░] ~79%
+Progress: [████████░░] ~81%
 
 ## Next
 
@@ -90,6 +90,7 @@ post-launch hotfix migrations (`drizzle-kit push` matview block resolved).
 | Phase 09-observability-polish P08 | 7min | 2 tasks tasks | 2 files (created) files |
 | Phase 09-observability-polish P09 | 25min | 2 tasks tasks | 3 files (2 created + 1 summary) files |
 | Phase 09 P11 | 23min | 3 tasks tasks | 9 created + 3 modified files files |
+| Phase 09.1 P01 | 3min | 4 tasks | 14 files (11 JSX guarded + 1 ADR + 1 hook upgraded + 1 hook unit test) |
 
 ## Accumulated Context
 
@@ -211,6 +212,9 @@ Recent decisions affecting current work:
 - Plan 09-11: tests/load/** opt-in pattern via apps/api/vitest.load.config.ts (testTimeout 600_000) + default vitest.config.ts exclude — RUN_LOAD_TESTS=1 + DATABASE_URL gated; pnpm test stays fast, pnpm test:load runs Neon OOM repro
 - Plan 09-11: outbox depth dedup table deferred — drift_email_log-style PK dedup mentioned in plan would require Drizzle migration (Rule 4 architectural); default sender logs to stderr when RESEND_API_KEY/OPS_EMAIL unset (D-01 invariant); BetterStack runbook step 4 escalation policy 5-min delay handles cadence
 - Plan 09-11: D-20 architecture §6 P99 SLO statement now explicit warm vs amortized split (warm < 50ms / amortized < 100ms with 5-min keep-warm cron) per Pitfall #14
+- Plan 09.1-01: app.jsx not modified (1-of-12 difference from plan frontmatter `files_modified`) — already SSR-safe (no top-level window references); actual scope = 11 JSX files matching plan acceptance regex `^\s*1[01]\s*$`
+- Plan 09.1-01: `.pre-commit-hooks/check-ui-locked.sh` upgrade copies `PAIRED_ADR_PATTERN` regex byte-for-byte from `.github/workflows/scripts/visual-lock-guard.sh:19` instead of inventing new escape-hatch — eliminates local-vs-CI asymmetry (any commit accepted by local hook will also pass CI)
+- Plan 09.1-01: `.pre-commit-hooks/check-ui-locked.test.sh` runs each scenario in isolated `mktemp -d` + `git init` temp repos to keep live `git diff --cached` state untouched; 3 cases (no-locked / locked+ADR / locked-no-ADR) collectively prove (a) no-op for non-locked, (b) ADR escape hatch works, (c) regex not weakened (T-9.1-01-05 mitigation)
 
 ### Pending Todos
 
@@ -237,8 +241,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 9.1 plans complete: 13 plans across 8 waves; checker iter-2 PASS (B1+B2 + W1+W2+W3 closed); ready to execute
+Last session: 2026-05-01T10:43:42Z
+Stopped at: Phase 9.1 plan 01 complete (ed4f8dc): SSR window guards in 11 locked JSX + paired UI-lock-bump ADR + check-ui-locked.sh upgraded with paired-ADR escape hatch + new check-ui-locked.test.sh; pnpm --filter web build exits 0 (10/10 SSR pages); next plan 09.1-02 (BFF auth refactor: per-route policy via Hono sub-app)
 Resume file: None
 
 **Planned Phase:** 10 (Launch) — 14 plans — 2026-04-30T16:14:39Z
