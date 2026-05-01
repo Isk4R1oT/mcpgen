@@ -17,6 +17,7 @@
     "leak-audit": "tsx scripts/observability/leak-audit.ts",
     "outbox:monitor": "tsx scripts/observability/outbox-depth-monitor.ts",
     "inngest:orphan-audit": "tsx scripts/observability/inngest-orphan-audit.ts",
+    "g3:smoke-cf-delete": "tsx apps/api/src/lib/cf-platforms-deploy.smoketest.ts",
     "prepare": "if [ -d .git ] && command -v pre-commit >/dev/null 2>&1; then pre-commit install --hook-type pre-commit --hook-type commit-msg || true; fi"
   },
   "devDependencies": {
