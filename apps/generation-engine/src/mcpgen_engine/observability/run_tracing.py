@@ -76,6 +76,14 @@ async def run_with_tracing(
     with span_ctx as active_span:
         active_span.set_attribute("langfuse.session.id", session_id)
         active_span.set_attribute("langfuse.tags", [stage])
+
+        # POST-09.1 fix: stamp input prompt early so even on agent crash the
+        # Input column in Langfuse shows what we sent. 8K char cap guards
+        # against >10K spec dumps; the scrubbing.py callback redacts secrets.
+        _input_excerpt = prompt[:8000] if isinstance(prompt, str) else str(prompt)[:8000]
+        active_span.set_attribute("input.value", _input_excerpt)
+        active_span.set_attribute("gen_ai.prompt", _input_excerpt)
+
         result = await agent.run(prompt, model_settings=model_settings)
 
         # POST-09.1 fix: stamp OpenTelemetry GenAI semantic-convention
@@ -95,6 +103,20 @@ async def run_with_tracing(
                 active_span.set_attribute("gen_ai.response.model", model_name)
                 # Langfuse-specific shorthand picked up alongside gen_ai.*.
                 active_span.set_attribute("model", model_name)
+
+            # POST-09.1 fix: stamp Output for Langfuse Input/Output columns.
+            # `result.output` is whatever PydanticAI structured-output Pydantic
+            # model the call site asked for; `model_dump_json` if it's a model,
+            # otherwise repr/str. 8K char cap mirrors input limit.
+            output_obj = getattr(result, "output", None)
+            if output_obj is not None:
+                if hasattr(output_obj, "model_dump_json"):
+                    output_str = output_obj.model_dump_json()
+                else:
+                    output_str = str(output_obj)
+                output_excerpt = output_str[:8000]
+                active_span.set_attribute("output.value", output_excerpt)
+                active_span.set_attribute("gen_ai.completion", output_excerpt)
 
             usage_fn = getattr(result, "usage", None)
             usage = usage_fn() if callable(usage_fn) else usage_fn
