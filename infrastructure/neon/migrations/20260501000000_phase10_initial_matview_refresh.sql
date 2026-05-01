@@ -1,0 +1,36 @@
+-- ─── Phase 10 initial REFRESH for usage_hourly matview (CTRL-08 / D-06) ───
+-- Closes Phase 9 carry-forward `code_followups[3]`: the Phase-8
+-- `usage_hourly` matview was created `WITH NO DATA` at
+-- `20260428000002_phase8_billing_drift.sql:135`, which leaves it in an
+-- unpopulated state. `drizzle-kit push` errors against the empty matview
+-- because subsequent CONCURRENTLY refreshes (run by the Inngest cron
+-- `stripeMetersEmit` every 5 minutes — see
+-- `apps/api/src/inngest/functions/stripe-meters-emit.ts`) require at least
+-- one prior non-concurrent populating refresh.
+--
+-- This one-shot REFRESH (NON-CONCURRENT, mandatory for first-time
+-- population) populates the matview from the existing `usage_events`
+-- rows. After this migration applies, the Inngest cron's CONCURRENTLY
+-- refreshes work correctly.
+--
+-- Idempotent: re-running this migration on an already-populated matview
+-- is a cheap no-op REFRESH (Postgres re-evaluates the view query but
+-- only writes diffs to the underlying storage).
+--
+-- Filename `20260501000000_phase10_initial_matview_refresh.sql` is FROZEN
+-- per Phase 10 plan 10-03 (timestamp prefix > 20260430000000 — the
+-- Phase 9 prefix; satisfies docs/decisions/001 native YYYYMMDDHHMMSS).
+--
+-- Schema is unchanged — no snapshot diff. Journal entry added so
+-- `drizzle-kit check` recognises this as a tracked migration.
+--
+-- References:
+--   - .planning/phases/10-launch/10-03-PLAN.md `<tasks>` Task 3
+--   - .planning/phases/10-launch/10-CONTEXT.md D-06 item 2
+--   - infrastructure/neon/migrations/20260428000002_phase8_billing_drift.sql:115-137
+--     (matview created `WITH NO DATA`)
+--   - apps/api/src/inngest/functions/stripe-meters-emit.ts (CONCURRENTLY refresh
+--     every 5 minutes — requires this initial non-concurrent populating refresh)
+
+REFRESH MATERIALIZED VIEW "usage_hourly";
+--> statement-breakpoint

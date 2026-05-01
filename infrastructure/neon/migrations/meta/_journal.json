@@ -36,6 +36,13 @@
       "when": 1777551295910,
       "tag": "20260430000000_phase9_badge_public",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777625600000,
+      "tag": "20260501000000_phase10_initial_matview_refresh",
+      "breakpoints": true
     }
   ]
 }
