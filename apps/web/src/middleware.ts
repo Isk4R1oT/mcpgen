@@ -31,26 +31,11 @@ import { getLogtoContext } from '@logto/next/server-actions';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { logtoConfig } from '@/lib/logto/client';
+import { isProtectedPath, PROTECTED_PATTERNS } from '@/lib/route-gate';
 
-// Patterns that REQUIRE auth. The matcher in `config.matcher` below already
-// narrows the request set to these URLs; this list is the source of truth and
-// is also exported for tests to assert against.
-//
-// IMPORTANT: order matters — `/generate/:jobId/deploy/permanent` must be
-// considered before `/generate/:jobId/deploy` so the `/permanent` suffix
-// match wins. The matcher excludes the public `/deploy` (no trailing /permanent)
-// path entirely — see `isProtectedPath` below.
-export const PROTECTED_PATTERNS: readonly RegExp[] = [
-  /^\/dashboard(\/.*)?$/,
-  /^\/billing(\/.*)?$/,
-  /^\/generate\/[^/]+\/playground(\/.*)?$/,
-  /^\/generate\/[^/]+\/download(\/.*)?$/,
-  /^\/generate\/[^/]+\/deploy\/permanent(\/.*)?$/,
-];
-
-export function isProtectedPath(pathname: string): boolean {
-  return PROTECTED_PATTERNS.some((re) => re.test(pathname));
-}
+// Re-export the predicate + pattern list so any tooling (and the existing
+// callers) can read them from the canonical middleware module.
+export { isProtectedPath, PROTECTED_PATTERNS };
 
 export async function middleware(req: NextRequest): Promise<NextResponse> {
   const pathname = req.nextUrl.pathname;
