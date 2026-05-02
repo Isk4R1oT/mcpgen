@@ -20,8 +20,9 @@ import { applySearchPagination } from "../runtime/pagination.js";
 import { assembleStructuredContent } from "../runtime/response_shaping.js";
 import { applyTruncation } from "../runtime/truncation.js";
 import { handleUpstreamError } from "../runtime/errors.js";
+import { makeSmartId } from "../runtime/smart_id.js";
 import { routing, type RoutingEntry } from "../schemas/routing.js";
-import { UPSTREAM_BASE_URL } from "../config.js";
+import { SERVER_NAME_TEMPLATE, UPSTREAM_BASE_URL } from "../config.js";
 
 const _ROUTING_KEY_PREFIX = "search:";
 
@@ -70,13 +71,22 @@ export function {{ register_function_name }}(server: McpServer): void {
           // explicit `as` assertion: the runtime check above guarantees
           // safety.
           const checkedRoute = route as RoutingEntry;
+          // POST-09.1 fix: read the upstream query param name from
+          // `paramsMapping.query` (parallel to fetch's `paramsMapping.id`
+          // — Pass 1 records how the universal `query` arg translates to
+          // each upstream's parameter name). Hardcoding `?q=` was wrong
+          // for every API that does not accept `q` (Petstore wants
+          // `status`, Stripe wants `query`, Notion wants `query`, etc.).
+          // Falls back to `q` so older routing entries still work.
+          const _upstreamQueryParam = (checkedRoute.paramsMapping?.query ?? "q");
           const upstreamData = await upstreamRequest(
             {
               method: checkedRoute.method,
               path:
                 checkedRoute.path +
                 (checkedRoute.path.includes("?") ? "&" : "?") +
-                "q=" +
+                _upstreamQueryParam +
+                "=" +
                 encodeURIComponent(args.query),
               ctx,
             },
@@ -84,13 +94,57 @@ export function {{ register_function_name }}(server: McpServer): void {
           );
           // Refine the query if more matches exist; usually sufficient.
           const truncated = applyTruncation("search", upstreamData, {});
-          if (truncated.truncated && truncated.guidance) {
-            return assembleStructuredContent(
-              { results: truncated.data, _truncation_guidance: truncated.guidance },
-              ctx.clientVersion,
-            );
-          }
-          return assembleStructuredContent(truncated.data, ctx.clientVersion);
+          // Wrap in the standard envelope so the response matches the
+          // Pass 5-emitted outputSchema ({id, object_type, data:
+          // {results, total_count, next_cursor}, metadata}). Upstream
+          // search APIs typically return a raw array (Petstore
+          // findByStatus, GitHub search/repos `items`), so we normalise:
+          // each item becomes `{id, score, preview}` with a synthetic
+          // smart-id when the item carries a recognisable `id` field.
+          // next_cursor is the empty string when single-shot — Pitfall #5
+          // forbids inviting the agent to paginate further.
+          const _items = Array.isArray(truncated.data) ? truncated.data : [];
+          const _results = _items.map((item, idx) => {
+            const itemId =
+              item !== null && typeof item === "object" && "id" in item
+                ? String((item as { id: unknown }).id)
+                : String(idx);
+            return {
+              id: makeSmartId({
+                server: SERVER_NAME_TEMPLATE,
+                type: "object",
+                collection: "result",
+                identifier: itemId,
+              }),
+              score: 1,
+              preview:
+                item !== null && typeof item === "object" && !Array.isArray(item)
+                  ? (item as Record<string, unknown>)
+                  : { value: item },
+            };
+          });
+          const result = {
+            id: makeSmartId({
+              server: SERVER_NAME_TEMPLATE,
+              type: "search",
+              collection: "_results",
+              identifier: args.query,
+            }),
+            object_type: "search",
+            data: {
+              results: _results,
+              total_count: _items.length,
+              next_cursor: "",
+            },
+            metadata: {
+              fetched_at: new Date().toISOString(),
+              source_endpoint: checkedRoute.path,
+            },
+            ...(truncated.truncated && truncated.guidance
+              ? { _truncation_guidance: truncated.guidance }
+              : {}),
+          };
+          return assembleStructuredContent(result, ctx.clientVersion);
         }
 {% endfor %}
         return {
