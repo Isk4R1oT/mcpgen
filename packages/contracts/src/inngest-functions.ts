@@ -24,6 +24,10 @@ export const INNGEST_FUNCTION_IDS = {
   ANON_TENANT_CLEANUP:     'anon-tenant-cleanup-v1',
   ANON_RATE_LIMIT_CLEANUP: 'anon-rate-limit-cleanup-v1',
   ANON_SALT_ROTATE:        'anon-salt-rotate-v1',
+  // ─── Feature flags (docs/mcpgen-feature-flags-contract.md §5.4) ──────────
+  // Weekly cron: scans _manifest/flags.yaml and opens a GitHub issue for every
+  // _rollout / _exp flag whose expected_removal_at has passed.
+  FLAG_DEBT_AUDIT:         'flag-debt-audit-v1',
 } as const;
 
 export type InngestFunctionId = (typeof INNGEST_FUNCTION_IDS)[keyof typeof INNGEST_FUNCTION_IDS];

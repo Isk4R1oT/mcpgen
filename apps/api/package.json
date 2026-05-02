@@ -15,26 +15,27 @@
     "sourcemaps:upload": "@sentry/cli sourcemaps upload --release ${SENTRY_RELEASE:-$(git rev-parse --short HEAD)} dist/"
   },
   "dependencies": {
-    "hono": "^4.12.15",
     "@hono/zod-validator": "^0.4.0",
-    "zod": "^4.3.6",
     "@mcpgen/contracts": "workspace:*",
+    "@mcpgen/engine-fixtures": "workspace:*",
     "@mcpgen/ir": "workspace:*",
-    "drizzle-orm": "^0.45.2",
     "@neondatabase/serverless": "^1.1.0",
+    "@sentry/cloudflare": "^10.50.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.15",
     "inngest": "^4.2.4",
     "jose": "^6.2.2",
     "resend": "^6.12.2",
     "stripe": "^22.1.0",
-    "@mcpgen/engine-fixtures": "workspace:*",
-    "@sentry/cloudflare": "^10.50.0",
-    "ulid": "^2.4.0"
+    "ulid": "^2.4.0",
+    "yaml": "^2.8.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@mcpgen/shared-config": "workspace:*",
-    "wrangler": "^4.85.0",
     "@cloudflare/workers-types": "^4.20240605.0",
+    "@mcpgen/shared-config": "workspace:*",
     "typescript": "^6.0.3",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "wrangler": "^4.85.0"
   }
 }
