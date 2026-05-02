@@ -471,14 +471,20 @@ async def _run_stage_f(
             if part and not part.startswith("{"):
                 sample_collection = part
                 break
+    # POST-09.1 fix: F1 checks treat their inputs as JSON-shaped dicts and
+    # use `dict.get` walks. Default `model_dump()` keeps Pydantic enums as
+    # Python objects (`<Method.POST: 'POST'>`) which F1's
+    # `routing_completeness` then `str(...)`-coerces to "Method.POST"
+    # instead of "POST", missing every routing target. Force `mode="json"`
+    # so enums serialise to their `.value` strings.
     f1_result = await run_f1(
         generated_dir=generated_dir,
         bundle_size_kb=bundle_size_kb,
         final_tools=final_tools,
         mcp_protocol_version="2025-06-18",
-        pass_1_output=pass_1_output.model_dump(),
-        raw_ir=raw_ir.model_dump(),
-        pass_2_output=pass_2_output.model_dump(),
+        pass_1_output=pass_1_output.model_dump(mode="json"),
+        raw_ir=raw_ir.model_dump(mode="json"),
+        pass_2_output=pass_2_output.model_dump(mode="json"),
         spec_slug=spec_slug,
         sample_collection=sample_collection,
         sample_id=sample_id,
