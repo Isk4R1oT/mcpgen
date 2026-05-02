@@ -150,9 +150,17 @@ def render_scaffold_files(
     # time (CONTEXT D-25 — Pitfall #30 mitigation).
     if dev_local:
         tenant_short_id_placeholder = "local"
+        # Cover both wrangler-dev defaults: 8787 is the historic Plan
+        # 04-14 port and matches `apps/api` BFF; 8788 is what the local
+        # hero-flow operator gates on (`wrangler dev --port 8788` against
+        # a generated tenant Worker, separate from the BFF on :8787).
+        # Without 8788 the SDK transport's allowedHosts check rejects the
+        # browser's Host header on the very first MCP handshake.
         extra_allowed_hosts: list[str] = [
             "localhost:8787",
             "127.0.0.1:8787",
+            "localhost:8788",
+            "127.0.0.1:8788",
             "localhost",
             "127.0.0.1",
         ]
