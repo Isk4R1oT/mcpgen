@@ -37,7 +37,7 @@ from pydantic import BaseModel, ConfigDict
 from mcpgen_engine.stages.stage_e import StageEError
 from mcpgen_engine.stages.stage_e.template_loader import ENVIRONMENT
 
-AuthMode = Literal["passthrough", "stored", "oauth"]
+AuthMode = Literal["passthrough", "stored", "oauth", "none"]
 
 _log = structlog.get_logger(__name__)
 
@@ -130,7 +130,7 @@ def render_scaffold_files(
     ``UndefinedError`` (StrictUndefined) — every render-context variable that
     a template references must be present.
     """
-    if auth_mode not in ("passthrough", "stored", "oauth"):
+    if auth_mode not in ("passthrough", "stored", "oauth", "none"):
         raise StageEError(f"STAGE_E_TEMPLATE_ERROR: invalid auth_mode {auth_mode!r}")
     if tool_count < 0:
         raise StageEError(f"STAGE_E_TEMPLATE_ERROR: tool_count must be >= 0, got {tool_count}")

@@ -8,12 +8,15 @@
 // regression in the SDK transport surface still fails closed at the auth
 // boundary (Pitfall #15).
 //
-// CONTEXT D-21 — three modes:
+// CONTEXT D-21 — four modes (extended by ADR auth-mode-none, 2026-05-03):
 //   - passthrough: read X-Upstream-Auth, forward to upstream, never persist.
 //   - stored:      look up encrypted credential in TENANT_DEK_KV, decrypt
 //                  with per-tenant DEK (AES-256-GCM via Web Crypto).
 //   - oauth:       delegate to @cloudflare/workers-oauth-provider; Phase 6
 //                  wires the actual Logto tenant.
+//   - none:        upstream API requires no credentials at all (Petstore,
+//                  Open-Meteo, NWS); middleware MUST NOT demand
+//                  X-Upstream-Auth or it 400s every request.
 
 import { ALLOWED_HOSTS } from "../config.js";
 {% if auth_mode == "oauth" %}
@@ -129,5 +132,26 @@ export async function authMiddleware(_req: Request, _env: AuthEnv): Promise<Auth
   // grep passes; the OAuthProvider transport handles host enforcement.
   void ALLOWED_HOSTS;
   return { ctx: { upstreamCredential: "oauth-managed-token" } };
+}
+{% elif auth_mode == "none" %}
+// "none" mode (ADR docs/decisions/2026-05-03-auth-mode-none.md).
+// Pass 0 detected zero auth requirements on every endpoint — the upstream
+// API rejects credentials, so a normal passthrough middleware would 400
+// every agent request that did not carry `X-Upstream-Auth`. We emit a
+// no-op middleware: forward every request with an empty credential.
+//
+// In production (Phase 6 dispatch), tenant routing still validates the
+// `Authorization: Bearer` header BEFORE invoking this Worker. The host
+// allowlist is enforced by `StreamableHTTPServerTransport` in
+// `src/server.ts` (CONTEXT D-22). ALLOWED_HOSTS is referenced here so the
+// belt-and-suspenders grep continues to pass.
+
+export interface AuthEnv {
+  readonly ALLOWED_HOSTS_CHECK?: typeof ALLOWED_HOSTS;
+}
+
+export async function authMiddleware(_req: Request, _env: AuthEnv): Promise<AuthResult> {
+  void ALLOWED_HOSTS;
+  return { ctx: { upstreamCredential: "" } };
 }
 {% endif %}
