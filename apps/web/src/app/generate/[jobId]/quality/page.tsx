@@ -19,7 +19,13 @@ interface CacheHitShape {
 
 interface JobStatusShape {
   status: string;
-  partial_result?: { quality_report?: unknown; cache_hit?: CacheHitShape };
+  partial_result?: {
+    quality_report?: unknown;
+    cache_hit?: CacheHitShape;
+    final_tools?: unknown;
+    endpoint_count?: unknown;
+    spec_name?: unknown;
+  };
 }
 
 // Plan 09.1-07 — cache-hit metadata is surfaced via SSE event 0
@@ -57,12 +63,26 @@ export default async function QualityPage({ params }: Params): Promise<ReactElem
   const job = await fetchJobStatusServerSide(jobId, origin);
   const qualityReport = job?.partial_result?.quality_report as QualityReportType | undefined;
   const cacheHit = readCacheHit(job);
+  const finalTools = Array.isArray(job?.partial_result?.final_tools)
+    ? (job!.partial_result!.final_tools as ReadonlyArray<unknown>)
+    : undefined;
+  const endpointCount =
+    typeof job?.partial_result?.endpoint_count === 'number'
+      ? (job.partial_result.endpoint_count as number)
+      : undefined;
+  const specName =
+    typeof job?.partial_result?.spec_name === 'string'
+      ? (job.partial_result.spec_name as string)
+      : undefined;
 
   return (
     <QualityClientShell
       jobId={jobId}
       {...(qualityReport !== undefined ? { qualityReport } : {})}
       {...(cacheHit !== null ? { cacheHit } : {})}
+      {...(endpointCount !== undefined ? { endpointCount } : {})}
+      {...(specName !== undefined ? { specName } : {})}
+      {...(finalTools !== undefined ? { toolCount: finalTools.length } : {})}
     />
   );
 }
