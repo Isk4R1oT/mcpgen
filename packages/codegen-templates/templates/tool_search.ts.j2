@@ -103,8 +103,10 @@ export function {{ register_function_name }}(server: McpServer): void {
           // smart-id when the item carries a recognisable `id` field.
           // next_cursor is the empty string when single-shot — Pitfall #5
           // forbids inviting the agent to paginate further.
-          const _items = Array.isArray(truncated.data) ? truncated.data : [];
-          const _results = _items.map((item, idx) => {
+          const _items: unknown[] = Array.isArray(truncated.data)
+            ? (truncated.data as unknown[])
+            : [];
+          const _results = _items.map((item: unknown, idx: number) => {
             const itemId =
               item !== null && typeof item === "object" && "id" in item
                 ? String((item as { id: unknown }).id)
