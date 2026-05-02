@@ -1,0 +1,82 @@
+namespace: default
+flags:
+  # ─── _ops flags (long-lived, env-specific behavior) ───────────────────────
+  - key: runtime_local_compute_routing_ops
+    name: "Runtime: local-compute routing"
+    description: |
+      Replaces MCPGEN_LOCAL_COMPUTE=1 env var. When enabled, BFF auto-injects
+      options.dev_local=true and cf-platforms-deploy short-circuits to localhost.
+      Phases 1-9 default ON; Phase 10 launch flips to plan-based routing.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: true
+
+  - key: ui_frontend_fixtures_mode_ops
+    name: "UI: frontend fixtures mode"
+    description: |
+      Replaces MCPGEN_FRONTEND_MODE=fixtures env var. When enabled, web app
+      uses fixture-mode SSE replay instead of live BFF proxy. NODE_ENV=production
+      hard-blocks regardless of flag value (T-7-15 cross-tenant invariant).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # ─── _kill flags (default ON, flip to disabled to kill feature) ──────────
+  - key: eval_f3_enabled_kill
+    name: "Eval: F3 agent eval kill switch"
+    description: |
+      Stage F F3 agent eval ($1-3 per generation). Default ON (enabled=true).
+      Flip to enabled=false to kill F3 in incident.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: true
+
+  # ─── _perm flags (long-lived, plan-based via segment rollouts) ───────────
+  - key: pass0_max_tools_override_perm
+    name: "Pass 0: max tools override (Pro)"
+    description: |
+      Pro feature — raises Pass 0 hard cap from 50 to 100 tools.
+      Initially OFF for all; Pro segment override added via Flipt UI or
+      via PATCH to the rule API after bootstrap (see contract §6.4).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: engine_auth_mode_none_allowed_perm
+    name: "Engine: auth_mode=none allowed"
+    description: |
+      Whether unauthenticated upstream specs are accepted by the engine.
+      Default true (Phase 9 anonymous flow). Phase 10 may restrict by plan.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: true
+
+segments:
+  - key: internal_users
+    name: "Internal users"
+    description: "MCPGen team — for self-test before any rollout"
+    match_type: ANY_MATCH_TYPE
+    constraints:
+      - type: STRING_COMPARISON_TYPE
+        property: email_domain
+        operator: eq
+        value: "mcpgen.dev"
+      - type: STRING_COMPARISON_TYPE
+        property: user_id
+        operator: eq
+        value: "igor"
+
+  - key: pro_users
+    name: "Pro plan subscribers"
+    description: "Active Pro Stripe subscriptions"
+    match_type: ALL_MATCH_TYPE
+    constraints:
+      - type: STRING_COMPARISON_TYPE
+        property: plan
+        operator: eq
+        value: "pro"
+
+  - key: beta_testers
+    name: "Beta testers (opt-in)"
+    description: "Users who opted into early-access"
+    match_type: ALL_MATCH_TYPE
+    constraints:
+      - type: STRING_COMPARISON_TYPE
+        property: beta_opt_in
+        operator: eq
+        value: "true"

@@ -1,0 +1,39 @@
+version: "1.4"
+# Shared segment definitions, referenced from features.yaml in any environment.
+# Flipt reads segments per-environment, so this file is conceptual — each
+# env directory needs its own copy. We keep this as the canonical source and
+# bootstrap copies it via the manifest validation script.
+segments:
+  - key: internal_users
+    name: "Internal users"
+    description: "MCPGen team — for self-test before any rollout. Currently: igor."
+    match_type: ANY_MATCH_TYPE
+    constraints:
+      - type: STRING_COMPARISON_TYPE
+        property: email_domain
+        operator: eq
+        value: "mcpgen.dev"
+      - type: STRING_COMPARISON_TYPE
+        property: user_id
+        operator: eq
+        value: "igor" # placeholder until Logto sub-claim wired
+
+  - key: pro_users
+    name: "Pro plan subscribers"
+    description: "Active Pro Stripe subscriptions. Resolved from Logto/Stripe."
+    match_type: ALL_MATCH_TYPE
+    constraints:
+      - type: STRING_COMPARISON_TYPE
+        property: plan
+        operator: eq
+        value: "pro"
+
+  - key: beta_testers
+    name: "Beta testers (opt-in)"
+    description: "Users who opted into early-access program. Resolved from user metadata."
+    match_type: ALL_MATCH_TYPE
+    constraints:
+      - type: STRING_COMPARISON_TYPE
+        property: beta_opt_in
+        operator: eq
+        value: "true"

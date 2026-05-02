@@ -1,0 +1,14 @@
+{
+  "name": "@mcpgen/feature-flags",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Flag definitions consumed by Flipt v2. See docs/mcpgen-feature-flags-contract.md.",
+  "scripts": {
+    "validate": "node scripts/validate-manifest.mjs",
+    "bootstrap": "node scripts/bootstrap.mjs",
+    "test": "echo \"no tests in @mcpgen/feature-flags (covered by validate)\""
+  },
+  "dependencies": {
+    "yaml": "^2.8.3"
+  }
+}

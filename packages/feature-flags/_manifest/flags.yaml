@@ -1,0 +1,61 @@
+# Extended manifest for every flag in default/staging/production features.yaml.
+# Validated by .github/workflows/feature-flags-validate.yml on every PR.
+#
+# REQUIRED FIELDS:
+#   key, category, owner, created_at
+#
+# CONDITIONAL:
+#   expected_removal_at — REQUIRED for category in {rollout, exp}
+#   rollout_target — for rollout, the target % at completion (usually 100)
+#   success_metric — what defines "rolled out successfully" (rollout) or
+#                    "experiment concluded" (exp)
+#   rollback_signal — what would cause us to flip back (Sentry spike, etc.)
+#
+# See docs/mcpgen-feature-flags-contract.md §4.3.
+flags:
+  - key: runtime_local_compute_routing_ops
+    category: ops
+    owner: igor
+    created_at: 2026-05-03
+    related_issues: []
+    notes: |
+      Bootstrap from MCPGEN_LOCAL_COMPUTE env var. Default true matches the
+      Phase 1-9 local-compute architecture. After Phase 10 launch, may flip
+      to plan-based for cloud-routed generations.
+
+  - key: ui_frontend_fixtures_mode_ops
+    category: ops
+    owner: igor
+    created_at: 2026-05-03
+    related_issues: []
+    notes: |
+      Bootstrap from MCPGEN_FRONTEND_MODE env var. NODE_ENV=production
+      hard-blocks this regardless of flag value (T-7-15 cross-tenant
+      isolation invariant — see apps/web/src/lib/fixture-mode/index.ts).
+
+  - key: eval_f3_enabled_kill
+    category: kill
+    owner: igor
+    created_at: 2026-05-03
+    related_issues: []
+    notes: |
+      Kill switch for Stage F F3 agent eval. Currently no F3 caller exists in
+      code (Stage F unimplemented at time of writing); flag pre-positioned
+      so the kill-switch is in place when F3 lands.
+
+  - key: pass0_max_tools_override_perm
+    category: perm
+    owner: igor
+    created_at: 2026-05-03
+    related_issues: []
+    notes: |
+      Pro feature — raises Pass 0 hard cap from 50 to 100. Long-lived;
+      removal would require a pricing-model change (decision-doc gate).
+
+  - key: engine_auth_mode_none_allowed_perm
+    category: perm
+    owner: igor
+    created_at: 2026-05-03
+    related_issues: []
+    notes: |
+      Long-lived. Phase 10 may restrict by plan if abuse becomes an issue.

@@ -1,0 +1,42 @@
+# MCPGen — local services for development.
+#
+# Currently hosts only Flipt (feature-flag server) — Postgres lives on Neon
+# (cloud), CF Workers run via wrangler, generation-engine runs via uv.
+# Everything else here is added on demand.
+#
+# Usage:
+#   docker compose up -d flipt
+#   pnpm flags:bootstrap                  # imports YAML → Flipt API on first start
+#   docker compose logs -f flipt
+#
+# Source of truth for feature management: docs/mcpgen-feature-flags-contract.md
+#
+# NOTE: Flipt v2 stores its runtime state as a managed bare git repo in a
+# Docker named volume (`flipt_data`). Our `packages/feature-flags/*/features.yaml`
+# files are the canonical SOURCE OF TRUTH (versioned in monorepo); the
+# bootstrap script imports them into Flipt on first run. For Phase 10
+# production, switch storage backend to `type: git` with a real remote.
+
+services:
+  flipt:
+    image: docker.flipt.io/flipt/flipt:v2
+    container_name: mcpgen-flipt
+    restart: unless-stopped
+    ports:
+      - "8090:8080" # UI + REST/gRPC API. 8090 to avoid clash with engine 8000 / api 8787 / dispatch 8789.
+      - "9001:9000" # gRPC (Flipt server-side eval). Mostly for OpenFeature SDKs that prefer gRPC.
+    volumes:
+      - flipt_data:/var/lib/flipt
+    environment:
+      FLIPT_LOG_LEVEL: info
+      FLIPT_AUTHENTICATION_REQUIRED: "false" # local dev only — production turns this on
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  flipt_data:
+    name: mcpgen_flipt_data
