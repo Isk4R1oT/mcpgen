@@ -59,10 +59,21 @@ export function {{ register_function_name }}(server: McpServer): void {
           const routeKey = _ROUTING_KEY_PREFIX + {{ source_endpoint | tojson }};
           const route = routing[routeKey];
           if (route !== undefined) {
+            // POST-09.1 fix: route.path uses the OpenAPI placeholder name
+            // (e.g. `{petId}`, `{orderId}`, `{username}`) NOT a canonical
+            // `{id}`. The Pass-1 routing table carries the mapping under
+            // route.paramsMapping.id. Resolve the actual placeholder before
+            // substituting `parts.identifier` from the smart-ID; fall back
+            // to `{id}` so older routing entries still work.
+            const _idPlaceholder = (route.paramsMapping?.id ?? "id");
+            const _resolvedPath = route.path.replace(
+              `{${_idPlaceholder}}`,
+              encodeURIComponent(parts.identifier),
+            );
             const upstreamData = await upstreamRequest(
               {
                 method: route.method,
-                path: route.path.replace("{id}", parts.identifier),
+                path: _resolvedPath,
                 ctx,
               },
               UPSTREAM_BASE_URL,
