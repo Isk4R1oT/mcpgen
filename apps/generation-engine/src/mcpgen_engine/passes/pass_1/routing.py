@@ -307,7 +307,21 @@ def _derive_params_mapping(tool: Tool1, endpoint: Endpoint) -> dict[str, str]:
     if tool.type == Type.universal:
         universal = UniversalTool(tool.name)
         if universal == UniversalTool.search:
-            mapping["query"] = "query"
+            # POST-09.1 fix (Petstore hero flow): the universal `query: string`
+            # arg has to map to whatever the upstream actually accepts —
+            # hardcoding `mapping["query"] = "query"` was wrong for every
+            # API whose search endpoint does not literally name its filter
+            # parameter "query". Petstore `/pet/findByStatus` requires
+            # `status` (enum); GitHub `/search/repositories` uses `q`;
+            # ChatGPT Deep Research's reference search APIs use `query`.
+            # Prefer (in order): a param literally named query/q/search/
+            # term/keyword (free-text hints), else the single required
+            # query param's name (e.g. Petstore `status`), else fall through
+            # so Stage E renders an empty mapping and the runtime issues a
+            # parameter-less upstream call.
+            search_query_name = _pick_search_query_param(endpoint)
+            if search_query_name is not None:
+                mapping["query"] = search_query_name
             return mapping
         if universal == UniversalTool.fetch:
             # The single OpenAPI path parameter is the smart-ID-extracted identifier.
@@ -339,6 +353,52 @@ def _derive_params_mapping(tool: Tool1, endpoint: Endpoint) -> dict[str, str]:
     for param in endpoint.parameters:
         mapping[_param_name(param)] = _wire_key_for_param(param)
     return mapping
+
+
+_SEARCH_QUERY_PARAM_HINTS: Final[tuple[str, ...]] = (
+    "query",
+    "q",
+    "search",
+    "term",
+    "keyword",
+)
+
+
+def _pick_search_query_param(endpoint: Endpoint) -> str | None:
+    """Heuristic upstream-param selector for the universal ``search`` tool.
+
+    Returns the upstream parameter name that ``query: string`` should map to,
+    or ``None`` when the endpoint takes no query parameters at all (search
+    will issue a parameter-less upstream call — fine for endpoints like
+    ``/store/inventory``).
+
+    Decision order:
+
+    1. A query-located parameter literally named ``query`` / ``q`` /
+       ``search`` / ``term`` / ``keyword`` (free-text search hints used by
+       most APIs that *have* a real free-text endpoint).
+    2. The first **required** query parameter (Petstore ``findByStatus``
+       only has ``status`` required; mapping ``query → status`` makes
+       ``search(query="available")`` reach the upstream as ``?status=available``,
+       which the agent can satisfy by passing the enum value as the search
+       query).
+    3. The first query parameter of any kind (last-ditch fallback).
+    4. ``None`` when no query parameters exist (e.g. ``/store/inventory``).
+    """
+    query_params: list[dict[str, Any]] = [p for p in endpoint.parameters if _param_in(p) == "query"]
+    if not query_params:
+        return None
+
+    for hint in _SEARCH_QUERY_PARAM_HINTS:
+        for p in query_params:
+            if _param_name(p).lower() == hint:
+                return _param_name(p)
+
+    for p in query_params:
+        if bool(p.get("required", False)):
+            return _param_name(p)
+
+    return _param_name(query_params[0])
 
 
 def _param_name(param: dict[str, Any]) -> str:
