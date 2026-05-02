@@ -68,6 +68,13 @@ interface GenerateRouteBindings {
   ENVIRONMENT: string;
   ENGINE_ENDPOINT?: string;
   BFF_DISABLE_ANON_CACHE?: string;
+  // When set to '1' the BFF auto-injects `options.dev_local=true` into
+  // every engine kickoff so Stage E renders a tenant Worker that
+  // `wrangler dev` can serve from localhost (placeholder substitution +
+  // ALLOWED_HOSTS extension). Mirrors the existing local-compute env
+  // var consumed by `cf-platforms-deploy.ts` and the anon-tenant-cleanup
+  // Inngest function — keeps the local-compute switch a single concept.
+  MCPGEN_LOCAL_COMPUTE?: string;
 }
 
 interface GenerateRouteVariables {
@@ -250,6 +257,18 @@ generateRoute.post('/', anonRateLimit, async (c) => {
   // stream handler will surface the error to the client.
   if (!cacheHit) {
     const engineEndpoint = c.env.ENGINE_ENDPOINT ?? 'http://localhost:8000';
+    // Local-compute mode: every generation gets dev_local=true so the
+    // generated tenant Worker can run under standalone `wrangler dev`
+    // (Plan 04-14 D-3). Production / cloud mode (MCPGEN_LOCAL_COMPUTE
+    // unset) leaves dev_local alone — Phase 6 dispatch substitutes
+    // {tenant_short_id} at deploy time per CONTEXT D-25 / Pitfall #30.
+    // Caller-supplied options.dev_local wins if explicitly set.
+    const callerOptions = parsed.data.options ?? {};
+    const devLocalAuto = c.env.MCPGEN_LOCAL_COMPUTE === '1';
+    const engineOptions =
+      devLocalAuto && (callerOptions as { dev_local?: unknown }).dev_local === undefined
+        ? { ...callerOptions, dev_local: true }
+        : callerOptions;
     try {
       const engineResp = await fetch(`${engineEndpoint}/api/v1/generate`, {
         method: 'POST',
@@ -260,7 +279,7 @@ generateRoute.post('/', anonRateLimit, async (c) => {
         body: JSON.stringify({
           spec_url: parsed.data.spec_url,
           spec_content: parsed.data.spec_content,
-          options: parsed.data.options ?? {},
+          options: engineOptions,
         }),
       });
       if (!engineResp.ok) {
