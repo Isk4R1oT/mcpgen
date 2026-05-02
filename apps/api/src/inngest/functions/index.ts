@@ -23,6 +23,7 @@ import { logtoMauWatch } from './logto-mau-watch.js';
 import { anonTenantCleanup } from './anon-tenant-cleanup.js';
 import { anonRateLimitCleanup } from './anon-rate-limit-cleanup.js';
 import { anonSaltRotate } from './anon-salt-rotate.js';
+import { flagDebtAudit } from './flag-debt-audit.js';
 
 type InngestFunction = ReturnType<Inngest['createFunction']>;
 
@@ -37,4 +38,5 @@ export const functions: ReadonlyArray<InngestFunction> = [
   anonTenantCleanup,
   anonRateLimitCleanup,
   anonSaltRotate,
+  flagDebtAudit,
 ];

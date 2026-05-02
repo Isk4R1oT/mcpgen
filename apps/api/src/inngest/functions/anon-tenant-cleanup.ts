@@ -43,7 +43,12 @@ interface CleanupEnv {
   CF_API_TOKEN: string;
   CF_ACCOUNT_ID: string;
   ENVIRONMENT?: string;
-  MCPGEN_LOCAL_COMPUTE?: string;
+  // Flipt env vars — local-compute mode is now driven by the
+  // `runtime_local_compute_routing_ops` flag inside cf-platforms-deploy.
+  // We just plumb the env through; the eval happens in deleteScript().
+  FLIPT_URL?: string;
+  FLIPT_ENVIRONMENT?: string;
+  FLIPT_CLIENT_TOKEN?: string;
   BETTERSTACK_ANON_CLEANUP_HEARTBEAT_URL?: string;
 }
 
@@ -82,8 +87,12 @@ export const anonTenantCleanup = inngest.createFunction(
       CF_API_TOKEN: e.CF_API_TOKEN,
       CF_ACCOUNT_ID: e.CF_ACCOUNT_ID,
       ...(e.ENVIRONMENT !== undefined ? { ENVIRONMENT: e.ENVIRONMENT } : {}),
-      ...(e.MCPGEN_LOCAL_COMPUTE !== undefined
-        ? { MCPGEN_LOCAL_COMPUTE: e.MCPGEN_LOCAL_COMPUTE }
+      ...(e.FLIPT_URL !== undefined ? { FLIPT_URL: e.FLIPT_URL } : {}),
+      ...(e.FLIPT_ENVIRONMENT !== undefined
+        ? { FLIPT_ENVIRONMENT: e.FLIPT_ENVIRONMENT }
+        : {}),
+      ...(e.FLIPT_CLIENT_TOKEN !== undefined
+        ? { FLIPT_CLIENT_TOKEN: e.FLIPT_CLIENT_TOKEN }
         : {}),
     };
     const heartbeatUrl = e.BETTERSTACK_ANON_CLEANUP_HEARTBEAT_URL;

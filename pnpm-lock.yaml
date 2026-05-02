@@ -35,6 +35,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@flipt-io/flipt-client-js':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@hono/zod-validator':
         specifier: ^0.4.0
         version: 0.4.3(hono@4.12.15)(zod@4.3.6)
@@ -47,6 +50,9 @@ importers:
       '@mcpgen/ir':
         specifier: workspace:*
         version: link:../../packages/ir
+      '@mcpgen/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime-sdk
       '@neondatabase/serverless':
         specifier: ^1.1.0
         version: 1.1.0

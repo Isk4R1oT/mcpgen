@@ -38,7 +38,12 @@ export interface CfPlatformsEnv {
   CF_API_TOKEN: string;
   CF_ACCOUNT_ID: string;
   ENVIRONMENT?: string;
-  MCPGEN_LOCAL_COMPUTE?: string;
+  // Flipt env vars — local-compute mode is now driven by the
+  // `runtime_local_compute_routing_ops` flag (per docs/mcpgen-feature-flags-contract.md
+  // §4.4). Phases 1-9 default the flag to true; Phase 10 flips per-tenant.
+  FLIPT_URL?: string;
+  FLIPT_ENVIRONMENT?: string;
+  FLIPT_CLIENT_TOKEN?: string;
 }
 
 export interface DeployScriptParams {
@@ -76,8 +81,28 @@ const LOCAL_COMPUTE_PORT = 9000;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function isLocalCompute(env: CfPlatformsEnv): boolean {
-  return env.MCPGEN_LOCAL_COMPUTE === '1';
+import { evaluateBoolean, serviceEntityId } from './flags.js';
+
+const LOCAL_COMPUTE_FLAG = 'runtime_local_compute_routing_ops';
+
+/**
+ * Reads `runtime_local_compute_routing_ops` from Flipt. Default value is
+ * `true` because Phases 1-9 always run in local-compute mode (per
+ * project_local_compute.md memory). When Flipt is unreachable or the flag
+ * is missing, we fall back to true — keeping local dev usable without
+ * a running Flipt server.
+ *
+ * Phase 10 will flip the flag's defaultValue to false in the production
+ * environment so cloud-routed generations hit the real CF dispatch API.
+ */
+async function isLocalCompute(env: CfPlatformsEnv): Promise<boolean> {
+  return evaluateBoolean(
+    env,
+    LOCAL_COMPUTE_FLAG,
+    serviceEntityId('cf-platforms-deploy'),
+    {},
+    true,
+  );
 }
 
 function buildScriptUrl(env: CfPlatformsEnv, scriptName: string): string {
@@ -104,7 +129,7 @@ export async function deployScript(
   env: CfPlatformsEnv,
   params: DeployScriptParams,
 ): Promise<DeployScriptResult> {
-  if (isLocalCompute(env)) {
+  if (await isLocalCompute(env)) {
     // Local-compute: no CF call, return a localhost stub URL.
     return { url: `http://localhost:${LOCAL_COMPUTE_PORT}/${params.scriptName}/mcp` };
   }
@@ -156,7 +181,7 @@ export async function deleteScript(
   env: CfPlatformsEnv,
   scriptName: string,
 ): Promise<void> {
-  if (isLocalCompute(env)) return;
+  if (await isLocalCompute(env)) return;
 
   const url = buildScriptUrl(env, scriptName);
   const res = await fetch(url, {
@@ -183,7 +208,7 @@ export async function retagScript(
   scriptName: string,
   newTags: string[],
 ): Promise<void> {
-  if (isLocalCompute(env)) return;
+  if (await isLocalCompute(env)) return;
 
   const url = buildScriptTagsUrl(env, scriptName);
   const res = await fetch(url, {

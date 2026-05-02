@@ -15,10 +15,12 @@
     "sourcemaps:upload": "@sentry/cli sourcemaps upload --release ${SENTRY_RELEASE:-$(git rev-parse --short HEAD)} dist/"
   },
   "dependencies": {
+    "@flipt-io/flipt-client-js": "^0.4.2",
     "@hono/zod-validator": "^0.4.0",
     "@mcpgen/contracts": "workspace:*",
     "@mcpgen/engine-fixtures": "workspace:*",
     "@mcpgen/ir": "workspace:*",
+    "@mcpgen/runtime": "workspace:*",
     "@neondatabase/serverless": "^1.1.0",
     "@sentry/cloudflare": "^10.50.0",
     "drizzle-orm": "^0.45.2",
