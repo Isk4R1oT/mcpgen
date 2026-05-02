@@ -1,0 +1,26 @@
+name: feature-flags / validate
+
+on:
+  pull_request:
+    paths:
+      - 'packages/feature-flags/**'
+      - '.github/workflows/feature-flags-validate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/feature-flags/**'
+
+# Per docs/mcpgen-feature-flags-contract.md §4.3 + §11.4 — every flag in any
+# features.yaml MUST have a corresponding entry in _manifest/flags.yaml with
+# required metadata; _rollout/_exp flags MUST have expected_removal_at in the
+# future; suffix MUST match category.
+jobs:
+  validate-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate flag manifest
+        run: node packages/feature-flags/scripts/validate-manifest.mjs
