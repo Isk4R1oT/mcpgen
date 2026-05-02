@@ -175,6 +175,7 @@ async def test_stage_e_run_orchestrator_invokes_phase_6_validate(
         engine_version="0.1.0",
         spec_url="https://example.test/spec.json",
         spec_slug="stripe",
+        spec_servers=[],
     )
     # Files were written (Phases 1-5 ran before Phase 6 validated).
     assert (output_dir / "src" / "tools" / "search.ts").exists()
@@ -213,6 +214,7 @@ async def test_stage_e_run_signature_accepts_optional_pass_2_3_4(
         engine_version="0.1.0",
         spec_url="https://example.test/spec.json",
         spec_slug="stripe",
+        spec_servers=[],
     )
     # Phases 1-5 wrote files; Phase 6 validated; manifest is populated.
     assert (output_dir / "src" / "tools" / "search.ts").exists()
@@ -243,6 +245,7 @@ async def test_stage_e_run_uses_passthrough_auth_mode_default(
         engine_version="0.1.0",
         spec_url="https://api.stripe.com/openapi/spec3.json",
         spec_slug="stripe",
+        spec_servers=[],
     )
     middleware = (output_dir / "src" / "auth" / "middleware.ts").read_text("utf-8")
     # passthrough mode uses X-Upstream-Auth header convention
@@ -285,6 +288,7 @@ async def test_stage_e_rendered_server_ts_calls_register_all_tools(
         engine_version="0.1.0",
         spec_url="https://api.stripe.com/openapi/spec3.json",
         spec_slug="stripe",
+        spec_servers=[],
     )
     server_ts = (output_dir / "src" / "server.ts").read_text("utf-8")
     assert "registerAllTools(server)" in server_ts, (
@@ -323,6 +327,7 @@ async def test_stage_e_rendered_server_ts_uses_stateless_transport(
         engine_version="0.1.0",
         spec_url="https://api.stripe.com/openapi/spec3.json",
         spec_slug="stripe",
+        spec_servers=[],
     )
     server_ts = (output_dir / "src" / "server.ts").read_text("utf-8")
     assert "sessionIdGenerator: undefined" in server_ts, (

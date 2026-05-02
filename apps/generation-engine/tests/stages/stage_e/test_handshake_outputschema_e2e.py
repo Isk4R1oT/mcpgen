@@ -151,6 +151,7 @@ async def test_outputSchema_present_in_tools_list_for_stripe_fixture(
         engine_version="0.1.0",
         spec_url="https://api.stripe.com/openapi/spec3.json",
         spec_slug="stripe",
+        spec_servers=[],
         dev_local=True,
     )
 

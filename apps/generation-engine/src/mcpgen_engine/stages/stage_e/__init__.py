@@ -38,7 +38,7 @@ from __future__ import annotations
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 import structlog
 from mcpgen_ir.types import (
@@ -128,26 +128,59 @@ def _default_pipeline_versions() -> dict[str, str]:
     }
 
 
-def _derive_upstream_base_url(spec_url: str) -> str:
+def _derive_upstream_base_url(spec_url: str, spec_servers: list[dict[str, Any]]) -> str:
     """Best-effort upstream base URL for the generated Worker.
 
-    The full Pass 0 / spec extraction lives upstream; for Stage E v1 we
-    derive it from the spec_url scheme + host (e.g.
-    ``https://api.stripe.com/openapi/spec3.json`` →
-    ``https://api.stripe.com``). Phase 7+ may surface this from
-    ``RawIR.servers`` instead. Safe fallback: empty string (the generated
-    Worker will fail at runtime with a clear error).
+    Prefers ``spec_servers[0].url`` (the OpenAPI ``servers[]`` field
+    extracted by Stage A). Three cases:
+
+    1. ``servers[0].url`` is fully-qualified (``https://api.stripe.com/v1``)
+       → returned as-is (trailing slash trimmed).
+    2. ``servers[0].url`` is a relative path (``/api/v3``) → prepended
+       with the ``spec_url`` scheme + host. This is the Petstore/Swagger
+       UI default and was the cause of the broken Petstore tool calls
+       prior to this fix.
+    3. ``spec_servers`` is empty (older spec, ``swagger`` field absent
+       servers) → fall back to ``spec_url`` scheme + host alone.
+
+    Safe fallback: empty string (the generated Worker fails at runtime
+    with a clear error rather than silently calling the wrong host).
     """
     from urllib.parse import urlparse
 
     try:
-        parsed = urlparse(spec_url)
+        parsed_spec = urlparse(spec_url) if spec_url else None
     except ValueError as exc:
         _log.warning("stage_e.upstream_base_url.parse_failed", error=str(exc))
-        return ""
-    if parsed.scheme and parsed.netloc:
-        return f"{parsed.scheme}://{parsed.netloc}"
-    return ""
+        parsed_spec = None
+
+    spec_origin = (
+        f"{parsed_spec.scheme}://{parsed_spec.netloc}"
+        if parsed_spec and parsed_spec.scheme and parsed_spec.netloc
+        else ""
+    )
+
+    if spec_servers:
+        first_url = spec_servers[0].get("url", "")
+        if isinstance(first_url, str) and first_url:
+            try:
+                parsed_server = urlparse(first_url)
+            except ValueError as exc:
+                _log.warning("stage_e.upstream_base_url.server_parse_failed", error=str(exc))
+            else:
+                if parsed_server.scheme and parsed_server.netloc:
+                    # Fully-qualified — trust the spec's own server.
+                    return first_url.rstrip("/")
+                # Relative path (e.g. "/api/v3") → prepend spec host.
+                if spec_origin:
+                    return f"{spec_origin}{first_url}".rstrip("/")
+                # Origin missing AND server is relative → cannot resolve.
+                _log.warning(
+                    "stage_e.upstream_base_url.relative_server_no_origin",
+                    server_url=first_url,
+                )
+
+    return spec_origin
 
 
 async def run(
@@ -164,6 +197,7 @@ async def run(
     engine_version: str,
     spec_url: str,
     spec_slug: str,
+    spec_servers: list[dict[str, Any]],
     auth_mode_override: AuthMode | None = None,
     dev_local: bool = False,
 ) -> StageEManifest:
@@ -206,7 +240,7 @@ async def run(
     auth_mode = auth_mode_override or select_auth_mode(pass_0_output)
 
     pipeline_versions = _default_pipeline_versions()
-    upstream_base_url = _derive_upstream_base_url(spec_url)
+    upstream_base_url = _derive_upstream_base_url(spec_url, spec_servers)
     generated_at = datetime.now(tz=UTC).isoformat()
 
     # ── Phase 1 — Scaffold (9 project-level files) ──────────────────────

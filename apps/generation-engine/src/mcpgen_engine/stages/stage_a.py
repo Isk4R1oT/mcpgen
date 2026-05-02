@@ -69,14 +69,23 @@ class StageAError(ValueError):
 # ───────────────────────────── Public API ──────────────────────────────────
 
 
-async def run(spec_url: str | None, spec_content: str | None) -> RawIR:
-    """Parse an OpenAPI 3.x spec into the canonical ``RawIR``.
+async def run(spec_url: str | None, spec_content: str | None) -> tuple[RawIR, list[dict[str, Any]]]:
+    """Parse an OpenAPI 3.x spec into the canonical ``RawIR`` + spec servers.
 
     Exactly one of ``spec_url`` or ``spec_content`` must be set. Both-set or
     both-None raises ``StageAError("INVALID_INPUT: ...")``.
 
     The function is deterministic: identical input always produces a
     byte-identical ``RawIR.spec_hash``.
+
+    Returns a ``(raw_ir, servers)`` tuple. ``servers`` is the OpenAPI
+    ``servers[]`` array (each entry ``{"url": str, "description"?: str,
+    "variables"?: dict}``); empty list when the spec omits the field.
+    Carried alongside ``RawIR`` (rather than embedded in it — frozen IR
+    has no ``servers`` field) so Stage E can build a complete upstream
+    base URL: ``servers[0].url`` is often a relative path (e.g.
+    ``/api/v3`` for Petstore, ``/v1`` for Stripe) which must be appended
+    to the spec URL host.
     """
 
     if (spec_url is None) == (spec_content is None):
@@ -101,6 +110,7 @@ async def run(spec_url: str | None, spec_content: str | None) -> RawIR:
     security_schemes_raw = _safe_dict(resolved.get("components", {}).get("securitySchemes"))
     security_schemes = _normalize_security_schemes(security_schemes_raw)
     dependency_graph = _build_dependency_graph(endpoints, schemas)
+    servers = _extract_servers(resolved)
 
     spec_hash = hashlib.sha256(_canonicalize(resolved).encode("utf-8")).hexdigest()
 
@@ -119,12 +129,36 @@ async def run(spec_url: str | None, spec_content: str | None) -> RawIR:
         "stage_a.complete",
         spec_format=spec_format,
         endpoint_count=len(endpoints),
+        server_count=len(servers),
         spec_hash_prefix=spec_hash[:16],
         dependency_edge_count=sum(len(v) for v in dependency_graph.values()),
         parse_duration_ms=(time.perf_counter_ns() - started_ns) // 1_000_000,
     )
 
-    return raw_ir
+    return raw_ir, servers
+
+
+def _extract_servers(resolved: dict[str, Any]) -> list[dict[str, Any]]:
+    """Pull the OpenAPI ``servers[]`` array; empty list when absent.
+
+    OpenAPI 3.x permits ``servers[].url`` to be either fully-qualified
+    (``https://api.stripe.com/v1``) or a relative path
+    (``/api/v3`` — common for Petstore/Swagger UI generators). We
+    surface the raw entries; Stage E ``_derive_upstream_base_url``
+    combines them with the original ``spec_url`` host when needed.
+    """
+    servers_raw = resolved.get("servers")
+    if not isinstance(servers_raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for entry in servers_raw:
+        if not isinstance(entry, dict):
+            continue
+        url = entry.get("url")
+        if not isinstance(url, str) or not url:
+            continue
+        out.append({k: v for k, v in entry.items() if isinstance(k, str)})
+    return out
 
 
 def _recursion_handler(limit: int, refstring: str, recursions: list[str]) -> dict[str, str]:

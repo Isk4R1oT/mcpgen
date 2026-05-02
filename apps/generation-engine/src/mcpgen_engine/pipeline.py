@@ -647,7 +647,7 @@ async def run_pipeline(
     try:
         # Stage A — deterministic OpenAPI parse.
         yield _event(job_id=job_id, stage="A", status="started", partial_result=None, error=None)
-        raw_ir = await stage_a.run(spec_url=spec_url, spec_content=spec_content)
+        raw_ir, spec_servers = await stage_a.run(spec_url=spec_url, spec_content=spec_content)
 
         # Resolve a friendlier spec_title for Pass 3 smart-id slugification.
         info = getattr(raw_ir, "info", None)
@@ -1060,6 +1060,7 @@ async def run_pipeline(
             engine_version=_engine_version_str(),
             spec_url=spec_url or "",
             spec_slug=spec_slug,
+            spec_servers=spec_servers,
             dev_local=options.dev_local,
         )
         yield _event(

@@ -147,8 +147,12 @@ def _stub_passes_from_fixtures(
     # Stage A is pure-deterministic; we override `stage_a.run` to return the
     # fixture RawIR so the pipeline can construct an L1 cache key from a
     # known spec_hash.
-    async def _fake_stage_a(*, spec_url: str | None, spec_content: str | None) -> RawIR:  # noqa: ARG001
-        return raw_ir_fix
+    async def _fake_stage_a(
+        *,
+        spec_url: str | None,  # noqa: ARG001 — kwarg parity with real stage_a.run
+        spec_content: str | None,  # noqa: ARG001 — kwarg parity with real stage_a.run
+    ) -> tuple[RawIR, list[dict[str, object]]]:
+        return raw_ir_fix, []
 
     # Phase 4 D-33 — Pass 5 + Stage E run after Pass 4 in the canonical
     # pipeline. We stub them with deterministic shapes so the test stays
