@@ -136,6 +136,13 @@ async function resolveAuthSignals(c: import('hono').Context): Promise<{
 }
 
 // ─── GET /:id  — JSON status read ──────────────────────────────────────────
+//
+// POST-09.1: enriched payload for the web preview page. Once the engine
+// reaches `validation_complete`, we forward the real `final_tools`,
+// `quality_report`, endpoint count and spec name from the engine's
+// `/api/v1/generate/{job_id}/artifacts` + `/quality-report` endpoints so
+// the locked Preview screen can render actual generated counts instead of
+// the lumen fallback fixture.
 jobsAnonStreamRoute.get('/:id', async (c) => {
   const { decision, jobId, anonSessionId } = await resolveAuthSignals(c);
 
@@ -145,22 +152,71 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
   if (decision === 'forbidden') {
     return c.json({ error: 'forbidden', job_id: jobId }, 403);
   }
-  if (decision === 'db_unavailable') {
-    // Test-env stub. Real prod always reaches authorized / forbidden / not_found.
+
+  // Both `db_unavailable` (local-dev stub path) and `authorized` proceed
+  // through the engine artefact proxy below. The auth gate above already
+  // handled the 403 + 404 cases; from here on the caller owns this job.
+
+  const engineEndpoint =
+    (c.env as { ENGINE_ENDPOINT?: string } | undefined)?.ENGINE_ENDPOINT ??
+    'http://localhost:8000';
+
+  const [artifactsRes, qrRes] = await Promise.allSettled([
+    fetch(`${engineEndpoint}/api/v1/generate/${encodeURIComponent(jobId)}/artifacts`),
+    fetch(`${engineEndpoint}/api/v1/generate/${encodeURIComponent(jobId)}/quality-report`),
+  ]);
+
+  // Artifacts not yet populated → job is still streaming or evicted.
+  if (artifactsRes.status !== 'fulfilled' || !artifactsRes.value.ok) {
     return c.json(
       {
-        stub: true,
+        status: 'streaming',
         job_id: jobId,
         owned_via_cookie: Boolean(anonSessionId),
-        pending_plan: '09.1-06',
+        partial_result: null,
       },
       200,
     );
   }
 
-  // Authorized. Real status payload is filled by plan 09.1-06 (cache-hit
-  // metadata) — for now just acknowledge.
-  return c.json({ job_id: jobId, status: 'queued', pending_plan: '09.1-06' }, 200);
+  const artifacts = (await artifactsRes.value.json()) as {
+    raw_ir?: { endpoints?: unknown[] };
+    pass_1_output?: { spec_slug?: string; routing?: { smart_id?: { format?: string } } };
+    pass_5_output?: { tools?: unknown[] };
+  };
+  const qualityReport =
+    qrRes.status === 'fulfilled' && qrRes.value.ok ? await qrRes.value.json() : null;
+
+  const finalTools = Array.isArray(artifacts.pass_5_output?.tools)
+    ? artifacts.pass_5_output!.tools
+    : [];
+  const endpointCount = Array.isArray(artifacts.raw_ir?.endpoints)
+    ? artifacts.raw_ir!.endpoints!.length
+    : 0;
+
+  // Pass 1 records spec_slug as the smart-id prefix
+  // (`<spec_slug>:{type}:{collection}:{identifier}` per Pass 1 D-32) — that
+  // doubles as the human-readable brand label in the locked Preview header.
+  const smartIdFormat = artifacts.pass_1_output?.routing?.smart_id?.format;
+  const specName =
+    typeof smartIdFormat === 'string' && smartIdFormat.length > 0
+      ? smartIdFormat.split(':')[0] ?? null
+      : (artifacts.pass_1_output?.spec_slug ?? null);
+
+  return c.json(
+    {
+      status: qualityReport !== null ? 'completed' : 'streaming',
+      job_id: jobId,
+      owned_via_cookie: Boolean(anonSessionId),
+      partial_result: {
+        final_tools: finalTools,
+        quality_report: qualityReport,
+        endpoint_count: endpointCount,
+        spec_name: specName,
+      },
+    },
+    200,
+  );
 });
 
 // Plan 09.1-06: load the cache-hit source payload for a job that has its

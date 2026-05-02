@@ -37,19 +37,59 @@ const FALLBACK_SAMPLE: LocalLockedSample = {
 
 interface Props {
   jobId: string;
+  endpointCount?: number;
+  specName?: string;
   finalTools?: ReadonlyArray<FinalTool>;
   qualityReport?: QualityReportType;
 }
 
+/**
+ * Build the locked-screen `sample` from real engine artefacts.
+ *
+ * The locked Preview screen reads `{id, name, endpoints, tools, save}` for
+ * its bento (header label + endpoint/tool count + token-savings %).
+ * POST-09.1 wire-up: when the BFF returns the live job artefacts we derive
+ * each field from real data; the FALLBACK_SAMPLE is only used when the
+ * page renders BEFORE the engine writes artefacts to L1 (rare race).
+ *
+ * Token-savings derivation: 1:1 baseline ≈ endpoints (one tool per
+ * endpoint), final tool count comes from Pass 5. The fraction
+ * `(endpoints - tools) / endpoints` matches the locked screen's "↓ X%
+ * fewer tokens" badge — it is the structural compression ratio that
+ * Six-Tool Pattern delivers (~70% on typical APIs per RULES §2.7).
+ */
+const deriveSample = (
+  endpointCount: number | undefined,
+  specName: string | undefined,
+  finalTools: ReadonlyArray<FinalTool> | undefined,
+): LocalLockedSample => {
+  if (
+    finalTools === undefined ||
+    finalTools.length === 0 ||
+    endpointCount === undefined ||
+    endpointCount <= 0
+  ) {
+    return FALLBACK_SAMPLE;
+  }
+  const tools = finalTools.length;
+  const endpoints = endpointCount;
+  const save = endpoints > tools ? Math.round(((endpoints - tools) / endpoints) * 100) : 0;
+  const name = specName !== undefined && specName.length > 0 ? specName : 'generated MCP';
+  return { id: 'live', name, endpoints, tools, save };
+};
+
 export default function PreviewClientShell({
   jobId,
+  endpointCount,
+  specName,
   finalTools,
   qualityReport,
 }: Props): ReactElement {
+  const sample = deriveSample(endpointCount, specName, finalTools);
   return (
     <PreviewClient
       jobId={jobId}
-      sample={FALLBACK_SAMPLE}
+      sample={sample}
       {...(finalTools !== undefined ? { finalTools } : {})}
       {...(qualityReport !== undefined ? { qualityReport } : {})}
     />

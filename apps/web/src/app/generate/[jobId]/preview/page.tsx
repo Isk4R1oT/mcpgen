@@ -32,6 +32,12 @@ interface JobStatusShape {
   partial_result?: {
     final_tools?: unknown;
     quality_report?: unknown;
+    // POST-09.1: BFF derives endpoint_count from raw_ir.endpoints.length and
+    // spec_name from Pass 1's smart-id format prefix. Both feed
+    // `_preview-client.tsx::deriveSample` so the locked Preview screen shows
+    // real counts instead of the lumen FALLBACK fixture.
+    endpoint_count?: unknown;
+    spec_name?: unknown;
     // Phase 5 + Stage E ship the generated TS bundle as a string. Field name
     // verified against `apps/api/src/routes/v1/jobs/<id>` GET response (when
     // Phase 8 + a follow-up plan close the BFF gap; current Phase-1 stub does
@@ -67,6 +73,14 @@ export default async function PreviewPage({ params }: Params): Promise<ReactElem
   const job = await fetchJobStatusServerSide(jobId, origin);
   const finalTools = job?.partial_result?.final_tools as ReadonlyArray<FinalTool> | undefined;
   const qualityReport = job?.partial_result?.quality_report as QualityReportType | undefined;
+  const endpointCount =
+    typeof job?.partial_result?.endpoint_count === 'number'
+      ? (job.partial_result.endpoint_count as number)
+      : undefined;
+  const specName =
+    typeof job?.partial_result?.spec_name === 'string'
+      ? (job.partial_result.spec_name as string)
+      : undefined;
   const tenantWorkerSource =
     typeof job?.partial_result?.tenant_worker_source === 'string'
       ? (job.partial_result.tenant_worker_source as string)
@@ -76,6 +90,8 @@ export default async function PreviewPage({ params }: Params): Promise<ReactElem
     <>
       <PreviewClientShell
         jobId={jobId}
+        {...(endpointCount !== undefined ? { endpointCount } : {})}
+        {...(specName !== undefined ? { specName } : {})}
         {...(finalTools !== undefined ? { finalTools } : {})}
         {...(qualityReport !== undefined ? { qualityReport } : {})}
       />
