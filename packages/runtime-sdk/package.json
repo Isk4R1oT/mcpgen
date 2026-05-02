@@ -14,7 +14,9 @@
     "./auth/oauth-stub": "./src/auth/oauth-stub.ts",
     "./usage": "./src/runtime/usage/index.ts",
     "./observability": "./src/runtime/sentry-redaction.ts",
-    "./smart-id": "./src/runtime/smart_id.ts"
+    "./smart-id": "./src/runtime/smart_id.ts",
+    "./flags": "./src/flags/index.ts",
+    "./flags/edge": "./src/flags/edge.ts"
   },
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json",
@@ -23,6 +25,7 @@
     "lint": "echo \"no lint step in @mcpgen/runtime (covered by workspace eslint via pnpm -r lint)\""
   },
   "dependencies": {
+    "@flipt-io/flipt-client-js": "^0.4.2",
     "@mcpgen/contracts": "workspace:*",
     "@mcpgen/ir": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",

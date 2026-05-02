@@ -36,6 +36,9 @@ dependencies = [
   "anthropic>=0.96.0,<1.0",
   # Phase 5 — F2 σ discrimination metric (np.std with ddof=0 per RESEARCH §6.5).
   "numpy>=2.0,<3.0",
+  # Feature flags via Flipt v2. Per docs/mcpgen-feature-flags-contract.md.
+  # Local dev points at docker-compose Flipt; production at Phase 10.
+  "flipt-client>=0.10.0,<1.0",
 ]
 
 [dependency-groups]

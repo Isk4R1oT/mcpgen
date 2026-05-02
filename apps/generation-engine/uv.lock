@@ -711,6 +711,18 @@ wheels = [
 ]
 
 [[package]]
+name = "flipt-client"
+version = "0.19.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/48/ba/993f0508ac96140b8ac98978afb0b12849ede6d22b7bf93d90f1aaae4bfa/flipt_client-0.19.0.tar.gz", hash = "sha256:7f2634b4fc6494bbc7474af02dd709eb2a5a385e4e2d1d9a22351ac27343e100", size = 20530177, upload-time = "2025-04-25T01:48:41.067Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/45/81/c2e9776f3210856f14f8be6cc9d9ed9cf0b90d805c9a554e8b36df6921f6/flipt_client-0.19.0-py3-none-any.whl", hash = "sha256:f5ce62ac0dec83c65b228f58cd8570fa44bc3df604b2971a3e0d882817b15360", size = 20671036, upload-time = "2025-04-25T01:48:37.868Z" },
+]
+
+[[package]]
 name = "frozenlist"
 version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1528,6 +1540,7 @@ dependencies = [
     { name = "aioboto3" },
     { name = "anthropic" },
     { name = "fastapi" },
+    { name = "flipt-client" },
     { name = "httpx" },
     { name = "jinja2" },
     { name = "jsonschema" },
@@ -1566,6 +1579,7 @@ requires-dist = [
     { name = "aioboto3", specifier = ">=13.2,<14.0" },
     { name = "anthropic", specifier = ">=0.96.0,<1.0" },
     { name = "fastapi", specifier = ">=0.128,<1.0" },
+    { name = "flipt-client", specifier = ">=0.10.0,<1.0" },
     { name = "httpx", specifier = ">=0.27,<1.0" },
     { name = "jinja2", specifier = ">=3.1,<4.0" },
     { name = "jsonschema", specifier = ">=4.26,<5" },
