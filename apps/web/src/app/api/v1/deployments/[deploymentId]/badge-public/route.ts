@@ -27,7 +27,7 @@ export async function PATCH(
   ctx: { params: Promise<{ deploymentId: string }> },
 ): Promise<Response> {
   const { deploymentId } = await ctx.params;
-  const mode = getFrontendMode(req);
+  const mode = await getFrontendMode(req);
 
   let bodyText = '';
   try {

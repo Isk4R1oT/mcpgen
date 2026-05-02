@@ -51,7 +51,7 @@ const FIXTURE_DEPLOYMENTS = [
 ];
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const mode = getFrontendMode(req);
+  const mode = await getFrontendMode(req);
 
   if (mode === 'fixtures') {
     return NextResponse.json({ deployments: FIXTURE_DEPLOYMENTS });

@@ -57,7 +57,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  const mode = getFrontendMode(req);
+  const mode = await getFrontendMode(req);
 
   if (mode === 'fixtures') {
     // GenerationApiResponse Zod schema requires sse_url to be an absolute URL

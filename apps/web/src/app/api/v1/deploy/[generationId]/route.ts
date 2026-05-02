@@ -59,7 +59,7 @@ export async function POST(
   ctx: { params: Promise<{ generationId: string }> },
 ): Promise<Response> {
   const { generationId } = await ctx.params;
-  const mode = getFrontendMode(req);
+  const mode = await getFrontendMode(req);
 
   if (mode === 'fixtures') {
     const url = new URL(req.url);

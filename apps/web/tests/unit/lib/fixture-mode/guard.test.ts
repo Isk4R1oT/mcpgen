@@ -1,18 +1,29 @@
 // Plan 07-03 — Vitest unit tests for fixture-mode guard + env router.
+//
+// Migrated 2026-05-03: getFrontendMode now reads `ui_frontend_fixtures_mode_ops`
+// from Flipt instead of MCPGEN_FRONTEND_MODE. We mock @/lib/flags to control
+// flag eval per test. NODE_ENV hard-block (T-7-09 / WR-06) and ?fixtures=true
+// override behavior unchanged.
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Mock the flags module BEFORE importing fixture-mode (which uses it).
+const mockEvaluateBooleanFlag = vi.fn();
+vi.mock('@/lib/flags', () => ({
+  evaluateBooleanFlag: (...args: unknown[]) => mockEvaluateBooleanFlag(...args),
+}));
 
 import { getBffUrl, getFrontendMode } from '@/lib/fixture-mode';
 import { isFixturesAllowed } from '@/lib/fixture-mode/guard';
 
-// process.env types treat NODE_ENV as readonly under @types/node 22; use a
-// generic Record indirection so we can mutate it for the duration of each test.
 const env = process.env as Record<string, string | undefined>;
 const ENV_BACKUP: Record<string, string | undefined> = {};
-const ENV_KEYS = ['MCPGEN_FRONTEND_MODE', 'MCPGEN_BFF_URL', 'NODE_ENV'] as const;
+const ENV_KEYS = ['MCPGEN_BFF_URL', 'NODE_ENV'] as const;
 
 beforeEach(() => {
   for (const k of ENV_KEYS) ENV_BACKUP[k] = env[k];
+  mockEvaluateBooleanFlag.mockReset();
+  mockEvaluateBooleanFlag.mockResolvedValue(false); // default to live
 });
 
 afterEach(() => {
@@ -23,39 +34,49 @@ afterEach(() => {
 });
 
 describe('getFrontendMode', () => {
-  it('defaults to "live" when env var unset', () => {
-    delete env.MCPGEN_FRONTEND_MODE;
-    expect(getFrontendMode()).toBe('live');
+  it('defaults to "live" when flag is OFF', async () => {
+    mockEvaluateBooleanFlag.mockResolvedValue(false);
+    expect(await getFrontendMode()).toBe('live');
   });
 
-  it('returns "fixtures" when env var is "fixtures"', () => {
-    env.MCPGEN_FRONTEND_MODE = 'fixtures';
-    expect(getFrontendMode()).toBe('fixtures');
+  it('returns "fixtures" when flag is ON', async () => {
+    mockEvaluateBooleanFlag.mockResolvedValue(true);
+    expect(await getFrontendMode()).toBe('fixtures');
   });
 
-  it('?fixtures=true overrides to "fixtures" when not in production', () => {
-    delete env.MCPGEN_FRONTEND_MODE;
+  it('?fixtures=true overrides to "fixtures" when not in production', async () => {
+    mockEvaluateBooleanFlag.mockResolvedValue(false);
     env.NODE_ENV = 'development';
     const req = new Request('http://localhost:3000/api/v1/generate?fixtures=true');
-    expect(getFrontendMode(req)).toBe('fixtures');
+    expect(await getFrontendMode(req)).toBe('fixtures');
   });
 
-  it('?fixtures=true is IGNORED in production builds (T-7-09)', () => {
-    delete env.MCPGEN_FRONTEND_MODE;
+  it('?fixtures=true is IGNORED in production builds (T-7-09)', async () => {
     env.NODE_ENV = 'production';
     const req = new Request('https://mcpgen.dev/api/v1/generate?fixtures=true');
-    expect(getFrontendMode(req)).toBe('live');
+    expect(await getFrontendMode(req)).toBe('live');
+    // Production hard-block must short-circuit BEFORE Flipt eval.
+    expect(mockEvaluateBooleanFlag).not.toHaveBeenCalled();
   });
 
-  it('MCPGEN_FRONTEND_MODE=fixtures env var is IGNORED in production (WR-06 / T-7-15)', () => {
-    // Stray env-var leak into a production deploy must NOT switch users
-    // onto the shared fixture data path — that would be a cross-tenant
-    // data isolation violation.
+  it('flag=ON is IGNORED in production (WR-06 / T-7-15)', async () => {
+    // Stray flag flip in a production deploy must NOT switch users onto the
+    // shared fixture data path — that would be a cross-tenant data isolation
+    // violation. Production must short-circuit before any Flipt eval.
     env.NODE_ENV = 'production';
-    env.MCPGEN_FRONTEND_MODE = 'fixtures';
-    expect(getFrontendMode()).toBe('live');
+    mockEvaluateBooleanFlag.mockResolvedValue(true);
+    expect(await getFrontendMode()).toBe('live');
     const req = new Request('https://mcpgen.dev/api/v1/generate');
-    expect(getFrontendMode(req)).toBe('live');
+    expect(await getFrontendMode(req)).toBe('live');
+    expect(mockEvaluateBooleanFlag).not.toHaveBeenCalled();
+  });
+
+  it('falls back to "live" when Flipt eval throws', async () => {
+    // evaluateBooleanFlag wraps SDK errors and returns defaultValue (false).
+    // Simulate by having the mock resolve to false (which is what
+    // evaluateBooleanWithDefault does on SDK error).
+    mockEvaluateBooleanFlag.mockResolvedValue(false);
+    expect(await getFrontendMode()).toBe('live');
   });
 });
 

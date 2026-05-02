@@ -24,7 +24,7 @@ export async function GET(
   ctx: { params: Promise<{ jobId: string }> },
 ): Promise<Response> {
   const { jobId } = await ctx.params;
-  const mode = getFrontendMode(req);
+  const mode = await getFrontendMode(req);
 
   if (mode === 'fixtures') {
     return NextResponse.json({

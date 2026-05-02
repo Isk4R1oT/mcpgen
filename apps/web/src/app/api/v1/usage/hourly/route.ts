@@ -73,7 +73,7 @@ const FIXTURE_DEPLOYMENT_IDS = [
 ];
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const mode = getFrontendMode(req);
+  const mode = await getFrontendMode(req);
   const url = new URL(req.url);
   const from = url.searchParams.get('from');
   const to = url.searchParams.get('to');

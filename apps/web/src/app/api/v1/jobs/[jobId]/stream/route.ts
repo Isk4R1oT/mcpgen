@@ -34,7 +34,7 @@ export async function GET(
 ): Promise<Response> {
   const { jobId } = await ctx.params;
   const lastEventId = req.headers.get(LAST_EVENT_ID_HEADER);
-  const mode = getFrontendMode(req);
+  const mode = await getFrontendMode(req);
 
   if (mode === 'fixtures') {
     const fixture = findFixture(jobId);
