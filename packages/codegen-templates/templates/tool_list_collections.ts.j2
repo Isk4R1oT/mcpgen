@@ -14,8 +14,9 @@ import { upstreamRequest } from "../runtime/upstream.js";
 import { assembleStructuredContent } from "../runtime/response_shaping.js";
 import { applyTruncation } from "../runtime/truncation.js";
 import { handleUpstreamError } from "../runtime/errors.js";
+import { makeSmartId } from "../runtime/smart_id.js";
 import { smartIdSchema, routing } from "../schemas/routing.js";
-import { UPSTREAM_BASE_URL } from "../config.js";
+import { SERVER_NAME_TEMPLATE, UPSTREAM_BASE_URL } from "../config.js";
 
 const _ROUTING_KEY_PREFIX = "list_collections:";
 
@@ -80,13 +81,33 @@ export function {{ register_function_name }}(server: McpServer): void {
           N: enriched.length,
           Total: smartIdSchema.collections.length,
         });
-        const payload = truncated.truncated && truncated.guidance
-          ? {
-              collections: truncated.data,
-              _truncation_guidance: truncated.guidance,
-            }
-          : { collections: truncated.data };
-        return assembleStructuredContent(payload, ctx.clientVersion);
+        // Wrap the collections list in the standard envelope so the
+        // response matches the Pass 5-emitted `outputSchema`
+        // ({ id, object_type, data, metadata }). MCP SDK validates
+        // structuredContent against outputSchema; without the wrapper
+        // every list_collections call returns "Invalid structured
+        // content for tool list_collections" — surfaced by the
+        // Inspector CLI smoke test against the regenerated Petstore
+        // bundle (POST-09.1 fix). The synthetic smart-id keeps the
+        // shape consistent with fetch / list_objects discovery flows.
+        const result = {
+          id: makeSmartId({
+            server: SERVER_NAME_TEMPLATE,
+            type: "schema",
+            collection: "_collections",
+            identifier: "all",
+          }),
+          object_type: "list_collections",
+          data: { collections: truncated.data },
+          metadata: {
+            fetched_at: new Date().toISOString(),
+            source_endpoint: "smart_id_schema",
+          },
+          ...(truncated.truncated && truncated.guidance
+            ? { _truncation_guidance: truncated.guidance }
+            : {}),
+        };
+        return assembleStructuredContent(result, ctx.clientVersion);
       } catch (err) {
         return handleUpstreamError(err, {{ tool.name | tojson }});
       }
