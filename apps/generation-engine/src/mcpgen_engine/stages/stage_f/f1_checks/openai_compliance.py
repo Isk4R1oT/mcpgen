@@ -77,18 +77,43 @@ def _load_canonical(name: str) -> dict[str, Any]:
 
 
 def _strip_property_descriptions(schema: dict[str, Any]) -> dict[str, Any]:
-    """Return a deep copy of ``schema`` with per-property ``description`` removed.
+    """Return a deep copy of ``schema`` with per-property metadata removed.
 
-    Per Plan 05-02 SOURCE.md diff semantics: spec-derived descriptions on properties
-    are allowed (they help agents); structural drift is forbidden. Stripping
-    descriptions before deep-equal preserves that asymmetry.
+    Per Plan 05-02 SOURCE.md diff semantics: structural drift (extra params,
+    type changes, removal of ``additionalProperties: false``) is forbidden,
+    but per-property *metadata* — descriptions, examples, format hints,
+    string-length bounds, default values — is allowed because Pass 3
+    enriches every parameter with this content from the spec. Strip the
+    metadata fields before deep-equal so the comparison only sees the
+    structural shape (type / required / additionalProperties / property
+    name set).
+
+    POST-09.1 fix: ``examples`` was missing from the strip list, causing
+    Pass 3-enriched ``search.query`` (which carries an `examples: [...]`
+    array) to drift against the bare ``{"type": "string"}`` canonical
+    fixture and trigger ``OPENAI_COMPLIANCE_DRIFT_SEARCH`` on every clean
+    generation.
     """
     cleaned = copy.deepcopy(schema)
     properties = cleaned.get("properties")
     if isinstance(properties, dict):
         for prop in properties.values():
-            if isinstance(prop, dict) and "description" in prop:
-                prop.pop("description", None)
+            if not isinstance(prop, dict):
+                continue
+            for meta_key in (
+                "description",
+                "examples",
+                "example",
+                "default",
+                "format",
+                "pattern",
+                "minLength",
+                "maxLength",
+                "minimum",
+                "maximum",
+                "title",
+            ):
+                prop.pop(meta_key, None)
     # Tool-level description is irrelevant to OpenAI compliance — strip it too if
     # ever present at the inputSchema root (the canonical fixture has none).
     cleaned.pop("description", None)
