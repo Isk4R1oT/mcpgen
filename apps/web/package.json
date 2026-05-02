@@ -19,10 +19,13 @@
     "sourcemaps:upload": "echo 'apps/web uses @sentry/nextjs withSentryConfig — auto-upload during build'"
   },
   "dependencies": {
+    "@flipt-io/flipt-client-js": "^0.4.2",
     "@logto/next": "^4.2.10",
     "@mcpgen/contracts": "workspace:*",
     "@mcpgen/engine-fixtures": "workspace:*",
     "@mcpgen/ir": "workspace:*",
+    "@mcpgen/runtime": "workspace:*",
+    "@sentry/core": "^10.50.0",
     "@sentry/nextjs": "^10.50.0",
     "@tanstack/react-query": "^5.0.0",
     "eventsource-parser": "^3.0.8",
