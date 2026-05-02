@@ -10,11 +10,21 @@
 // Empty alwaysInclude AND optInRequested → pass-through (older clients +
 // fetch with `properties=['*']`).
 //
-// `assembleStructuredContent` gates `structuredContent` on the client
-// `protocolVersion` per Pitfall #4 (CONTEXT D-24). Older clients receive
-// `content`-only; newer clients receive both `content` and `structuredContent`.
-
-import { gateOutputSchema } from "./capability.js";
+// `assembleStructuredContent` always emits both `content` and
+// `structuredContent` for tools with an `outputSchema` registered.
+//
+// Why no `protocolVersion` gate (POST-09.1): the previous gate on
+// `ctx.clientVersion` always evaluated false because the SDK does not
+// expose the negotiated client version to per-tool handlers in stateless
+// mode (`extra._ctx` is never populated by
+// `WebStandardStreamableHTTPServerTransport`). The MCP SDK 1.29 already
+// validates `structuredContent` is present whenever a tool was registered
+// with `outputSchema` — so a missing `structuredContent` produces
+// "Output validation error" on every tool call. Always emitting it is
+// safe: clients that completed `initialize` against this server already
+// negotiated the advertised `2025-06-18` protocol version (which makes
+// `structuredContent` first-class). Pre-2025-06-18 clients fail at
+// `initialize` and never reach tool handlers.
 
 /**
  * Filter top-level fields of a response object per the Pass 5 split.
@@ -64,28 +74,33 @@ export interface McpDualResult {
 /**
  * Assemble the dual `content` + `structuredContent` MCP response.
  *
- * Capability-gated per Pitfall #4: clients with `protocolVersion <
- * 2025-06-18` receive `content`-only — older clients reject unknown
- * `structuredContent` field and silently fail to load tools.
+ * Always emits both fields. The MCP SDK validates `structuredContent`
+ * presence whenever the tool was registered with `outputSchema` — and
+ * Stage E always registers tools with `outputSchema` (Pass 5 emits one
+ * for every tool). Clients that completed `initialize` against this
+ * server already negotiated the advertised `2025-06-18` protocol
+ * version, which makes `structuredContent` first-class.
+ *
+ * The `clientVersion` parameter is preserved in the signature for
+ * binary compatibility with prior generated code; it is no longer
+ * consulted.
  */
 export function assembleStructuredContent(
   data: unknown,
   clientVersion: string | undefined,
 ): McpDualResult {
+  void clientVersion;
   const text = JSON.stringify(data);
-  if (gateOutputSchema(clientVersion)) {
-    // Cast: callers pass arbitrary upstream payloads here; we re-type as
-    // a record so the result matches the SDK's
-    // `structuredContent?: { [x: string]: unknown }` shape. Non-object
-    // upstream payloads are wrapped in `{ value }` to keep the contract.
-    const structured: { [k: string]: unknown } =
-      data !== null && typeof data === "object" && !Array.isArray(data)
-        ? (data as { [k: string]: unknown })
-        : { value: data };
-    return {
-      content: [{ type: "text", text }],
-      structuredContent: structured,
-    };
-  }
-  return { content: [{ type: "text", text }] };
+  // Cast: callers pass arbitrary upstream payloads here; we re-type as
+  // a record so the result matches the SDK's
+  // `structuredContent?: { [x: string]: unknown }` shape. Non-object
+  // upstream payloads are wrapped in `{ value }` to keep the contract.
+  const structured: { [k: string]: unknown } =
+    data !== null && typeof data === "object" && !Array.isArray(data)
+      ? (data as { [k: string]: unknown })
+      : { value: data };
+  return {
+    content: [{ type: "text", text }],
+    structuredContent: structured,
+  };
 }
