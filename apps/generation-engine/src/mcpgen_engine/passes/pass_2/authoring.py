@@ -47,7 +47,6 @@ from mcpgen_engine.passes.pass_2.prompts import (
     build_user_prompt,
 )
 from mcpgen_engine.passes.pass_2.validation import (
-    Pass2Error,
     validate_description_length,
     validate_examples_from_spec,
     validate_no_forbidden_phrases,
@@ -181,6 +180,94 @@ async def _run_with_transient_retry(
     raise last_exc
 
 
+# ─────────────────── Deterministic Description fallback ───────────────────
+
+
+# Minimal hand-written purpose lines per universal tool (D-21 spirit).
+# All ≥ 20 chars to satisfy `Description.purpose.min_length`.
+_UNIVERSAL_PURPOSE: Final[dict[str, str]] = {
+    "search": (
+        "Search across all collections by free-text query "
+        "and return matching objects with smart-IDs."
+    ),
+    "fetch": (
+        "Fetch a single object by its smart-ID after locating " "it via search or list_objects."
+    ),
+    "list_collections": (
+        "List the available collections (resource types) " "exposed by this MCP server."
+    ),
+    "list_objects": (
+        "List objects within a single collection with optional " "filter, sort, and pagination."
+    ),
+    "upsert": (
+        "Create new objects or update existing ones by smart-ID " "across any supported collection."
+    ),
+    "delete": (
+        "Delete an object, a list of objects, or an entire " "collection by smart-ID. Destructive."
+    ),
+}
+
+
+def _build_deterministic_description(tool: Tool1) -> Description:
+    """Synthesize a structurally valid ``Description`` from spec metadata.
+
+    Used when the LLM exhausts validation retries (most often Qwen3-Coder
+    returning malformed structured output for `fetch` / universal tools).
+    Result is intentionally generic but ALWAYS satisfies the Pydantic
+    constraints (purpose >= 20 chars; when_to_use >= 1 string;
+    parameter_overview 50-400 chars). Stage F2 smell scan downstream
+    flags low-quality tools so the operator can re-run with a better
+    model or prompt without crashing the whole pipeline.
+
+    Pure: no I/O, no LLM. Mirrors ``pass_3.enrich._build_deterministic_fallback``
+    pattern.
+    """
+    purpose = _UNIVERSAL_PURPOSE.get(
+        tool.name,
+        f"Tool '{tool.name}' wraps {len(tool.source_endpoints)} upstream "
+        f"endpoint(s) ({tool.type.value}).",
+    )
+    if len(purpose) < 20:
+        purpose = f"{purpose} (auto-generated fallback)"
+
+    if tool.name in _UNIVERSAL_PURPOSE:
+        when_to_use = [
+            f"When the agent needs to invoke the canonical `{tool.name}` "
+            f"operation against this MCP server."
+        ]
+    else:
+        when_to_use = [
+            f"When the underlying operation '{tool.name}' is required by the " f"agent task plan."
+        ]
+
+    parameter_overview = (
+        f"Parameters are derived from {len(tool.source_endpoints)} source "
+        f"endpoint(s) of the original API spec; refer to the per-parameter "
+        f"`description` fields in this tool's input schema for the precise "
+        f"meaning, format, and example values. Auto-generated fallback "
+        f"description; LLM authoring failed retries — operator should "
+        f"re-run with a richer model or prompt."
+    )
+    if len(parameter_overview) < 50:
+        parameter_overview = parameter_overview + " " * (50 - len(parameter_overview))
+    parameter_overview = parameter_overview[:400]
+
+    limitations: list[str] = [
+        "LLM authoring of this description exhausted retries; semantics may be "
+        "less polished than for sibling tools.",
+    ]
+
+    return Description(
+        purpose=purpose,
+        when_to_use=when_to_use,
+        when_not_to_use=None,
+        how_to_use=None,
+        limitations=limitations,
+        parameter_overview=parameter_overview,
+        description_hash=None,
+    )
+
+
 # ────────────────────────── Per-tool authoring loop ────────────────────────
 
 
@@ -271,14 +358,26 @@ async def _author_one(
         )
 
     # Retry budget exhausted → emit-and-continue per D-13.
+    # POST-09.1 fix: when LLM keeps returning malformed structured output
+    # (most often `fetch` / universal tools where Qwen3-Coder collapses the
+    # mandatory `parameter_overview` to <50 chars or skips `when_to_use`),
+    # we previously raised Pass2Error and crashed the whole pipeline at
+    # Stage C. Mirror Pass 3's deterministic_fallback pattern instead:
+    # synthesize a structurally valid Description from spec metadata so
+    # the pipeline keeps moving. Stage F2 smell scan still flags the tool
+    # as low-quality so the operator knows to retry with a richer prompt.
     if last_description is None:
-        # Pure transient/validation crashes — surface so orchestrator can
-        # decide whether to fail the whole pass or skip the tool.
-        msg = (
-            f"AUTHORING_FAILED: tool '{tool.name}' exhausted retries without "
-            f"a successful LLM call (last error: {last_validation_error})"
+        last_description = _build_deterministic_description(tool)
+        warnings = Pass2WarningSet(
+            length_violation=None,
+            forbidden_pattern_violation=[],
+            examples_not_in_spec=[],
         )
-        raise Pass2Error(msg, violations=[last_validation_error or "unknown"])
+        _log.warning(
+            "pass_2.author.fallback_to_deterministic",
+            tool_name=tool.name,
+            last_error=last_validation_error or "unknown",
+        )
 
     _log.warning(
         "pass_2.author.emit_with_warnings",

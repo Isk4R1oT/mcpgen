@@ -21,6 +21,13 @@ from typing import Final
 
 from mcpgen_engine.passes.pass_3.extract import ParameterSpec
 
+# POST-09.1 fix — same regex as extract._SMART_ID_NAME_REGEX +
+# validation._SMART_ID_NAME_REGEX so the post-normalization `is_smart_id`
+# recompute below stays in lock-step with the validator's later check.
+_SMART_ID_NAME_REGEX: Final[re.Pattern[str]] = re.compile(
+    r"^(id|[a-z][a-z0-9_]*_id)$", re.IGNORECASE
+)
+
 # Insert ``_`` between ``[a-z0-9]`` followed by ``[A-Z]`` so ``userId`` becomes
 # ``user_Id`` before the ``.lower()`` step yields ``user_id``.
 _CAMEL_CASE_REGEX: Final[re.Pattern[str]] = re.compile(r"([a-z0-9])([A-Z])")
@@ -108,7 +115,17 @@ def normalize_all_param_names(
                     idx += 1
                 candidate = f"{candidate}_{idx}"
         seen.add(candidate)
-        out.append(param.model_copy(update={"name": candidate}))
+        # POST-09.1 fix: recompute `is_smart_id` against the NORMALIZED name.
+        # extract.py sets `is_smart_id=_is_smart_id_name(raw_name)` BEFORE
+        # camelCase→snake_case normalization, so an OpenAPI param like
+        # `petId` (raw) gets `is_smart_id=False` (regex needs `_id` suffix),
+        # but after normalization to `pet_id` the validator's identical
+        # regex DOES match — and demands the smart-ID pattern be injected.
+        # Without this re-check, assembly's `if param.is_smart_id` branch is
+        # skipped → `pattern` stays None → `validate_smart_id_pattern` raises
+        # `SMART_ID_DRIFT` and the whole pipeline fails on Stage C.
+        is_smart_id_post = bool(_SMART_ID_NAME_REGEX.match(candidate))
+        out.append(param.model_copy(update={"name": candidate, "is_smart_id": is_smart_id_post}))
     return out
 
 
