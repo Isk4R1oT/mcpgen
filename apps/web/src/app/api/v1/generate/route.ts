@@ -87,6 +87,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   const cookieHeader = req.headers.get('cookie');
   if (cookieHeader !== null) upstreamHeaders.Cookie = cookieHeader;
 
+  // [alpha-diag] temporary diagnostic — log the upstream URL + key parts
+  // so we can see whether Next.js is forwarding to the right BFF.
+  console.log('[alpha-diag] upstream POST', {
+    upstreamUrl,
+    headers: upstreamHeaders,
+    bodyLen: JSON.stringify(parsed.data).length,
+    bodySample: JSON.stringify(parsed.data).slice(0, 200),
+  });
+
   let upstreamRes: Response;
   try {
     upstreamRes = await fetch(upstreamUrl, {
@@ -110,6 +119,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const text = await upstreamRes.text();
+  console.log('[alpha-diag] upstream response', {
+    status: upstreamRes.status,
+    bodyHead: text.slice(0, 200),
+  });
   return new Response(text, {
     status: upstreamRes.status,
     headers: {

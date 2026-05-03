@@ -99,13 +99,12 @@ export function StreamLogWrapper(props: StreamLogWrapperProps): ReactElement {
 
 export interface PreviewWrapperProps extends PreviewProps {
   jobId?: string;
-  /** Real-data slot — Wave-2 wires from BFF. Pass-through here. */
-  finalTools?: ReadonlyArray<unknown>;
+  /** Route-level metadata; canon Preview ignores. Stripped before forward. */
   qualityReport?: unknown;
 }
 
 export function PreviewWrapper(props: PreviewWrapperProps): ReactElement {
-  const { jobId: _jobId, finalTools: _finalTools, qualityReport: _qr, ...rest } = props;
+  const { jobId: _jobId, qualityReport: _qr, ...rest } = props;
   return <Preview {...rest} />;
 }
 

@@ -108,8 +108,13 @@ export default function DashboardClientShell({ userClaims }: Props): ReactElemen
     router.push('/pricing');
   }, [router]);
 
+  // The new canon DashboardList signature dropped the `servers` real-data
+  // slot (canon now uses internal hardcoded sample data). We keep the
+  // derivation above for future reuse when a wired DashboardList variant
+  // is reintroduced.
+  void servers;
+
   const props: DashboardListWrapperProps = {
-    servers,
     onOpen: handleOpen,
     onLanding: handleLanding,
     onMarketplace: handleMarketplace,

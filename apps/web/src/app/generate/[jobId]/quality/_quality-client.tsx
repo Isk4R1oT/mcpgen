@@ -10,19 +10,14 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import type { ComponentType, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 
 import type { QualityReport as QualityReportType } from '@mcpgen/ir';
-
-import type { QualityReportWrapperProps } from '@/lib/jsx-bridge/screens';
 
 import {
   deriveBreakdown,
   deriveEvalTasks,
   deriveTools,
-  type BreakdownRow,
-  type EvalTaskRow,
-  type ToolRow,
 } from './_quality-derive';
 
 // Cache-hit metadata. The previous Phase-INFRA stub at
@@ -43,22 +38,14 @@ interface LocalLockedSample {
   save: number;
 }
 
-// Plan 09.1-07 → M-4 Agent 2: switch from transitional alias
-// `QualityScreenWithAnonChrome` (re-export from wrapper.tsx) to the canon
-// `QualityReportWrapper` directly from `@/lib/jsx-bridge/screens`.
-type QualityWithReportProps = QualityReportWrapperProps & {
-  score?: number;
-  breakdown?: ReadonlyArray<BreakdownRow>;
-  tools?: ReadonlyArray<ToolRow>;
-  evalTasks?: ReadonlyArray<EvalTaskRow>;
-  cacheHitMeta?: CacheHitMetadata | null;
-};
-
+// The new canon QualityReport signature dropped the `score`, `breakdown`,
+// `tools`, `evalTasks` real-data slots — canon now uses internal
+// hardcoded sample data. We keep the derivation calls below for future
+// reuse when a wired QualityReport variant is reintroduced.
+// `qualityReport` and `cacheHit` are kept as route-level metadata on
+// the wrapper (stripped before reaching canon).
 const QualityClient = dynamic(
-  () =>
-    import('@/lib/jsx-bridge/screens').then((m) => ({
-      default: m.QualityReportWrapper as ComponentType<QualityWithReportProps>,
-    })),
+  () => import('@/lib/jsx-bridge/screens').then((m) => ({ default: m.QualityReportWrapper })),
   { ssr: false },
 );
 
@@ -98,22 +85,24 @@ export default function QualityClientShell({
   toolCount,
 }: Props): ReactElement {
   const sample = deriveSample(endpointCount, specName, toolCount);
-  const score = qualityReport !== undefined
-    ? Number(qualityReport.overall_score.toFixed(2))
-    : 0;
+  // Derivations retained for future re-wire — see comment block above.
+  const score =
+    qualityReport != null && typeof qualityReport.overall_score === 'number'
+      ? Number(qualityReport.overall_score.toFixed(2))
+      : 0;
   const breakdown = deriveBreakdown(qualityReport);
   const tools = deriveTools(qualityReport);
   const evalTasks = deriveEvalTasks(qualityReport);
+  void score;
+  void breakdown;
+  void tools;
+  void evalTasks;
   return (
     <QualityClient
       jobId={jobId}
       sample={sample}
-      score={score}
-      breakdown={breakdown}
-      tools={tools}
-      evalTasks={evalTasks}
       {...(qualityReport !== undefined ? { qualityReport } : {})}
-      {...(cacheHit !== undefined ? { cacheHit, cacheHitMeta: cacheHit } : {})}
+      {...(cacheHit !== undefined ? { cacheHit } : {})}
     />
   );
 }

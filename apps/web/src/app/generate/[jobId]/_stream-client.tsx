@@ -11,27 +11,17 @@
 
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { useCallback, useMemo, type ComponentType, type ReactElement } from 'react';
+import { useCallback, useMemo, type ReactElement } from 'react';
 
-import type { GenerationSseEvent } from '@mcpgen/contracts';
-
-import type { StreamLogWrapperProps } from '@/lib/jsx-bridge/screens';
 import { useGenerationSSE } from '@/lib/sse/use-generation-sse';
 
-// The locked StreamLog screen-stream.jsx accepts `events`, `cacheHit`,
-// `currentStage` as additional runtime props (M-4 point edit). They flow
-// through StreamLogWrapper's `...rest` spread; we type them locally so this
-// callsite stays strict-typed without touching the jsx-bridge wrapper.
-interface StreamWiringProps extends StreamLogWrapperProps {
-  events: GenerationSseEvent[];
-  cacheHit: boolean;
-  currentStage: string | undefined;
-}
-
-const StreamClient = dynamic<StreamWiringProps>(
-  () => import('@/lib/jsx-bridge/screens').then((m) => ({
-    default: m.StreamLogWrapper as unknown as ComponentType<StreamWiringProps>,
-  })),
+// The new canon StreamLog signature dropped the `events`, `cacheHit`,
+// `currentStage` real-data slots — canon now uses internal hardcoded
+// timeline animation. We keep the SSE consumption logic below so the
+// terminal `onDone` / `onCancel` transitions still react to live engine
+// status; future wiring will reintroduce a wired StreamLog variant.
+const StreamClient = dynamic(
+  () => import('@/lib/jsx-bridge/screens').then((m) => ({ default: m.StreamLogWrapper })),
   { ssr: false },
 );
 
@@ -43,20 +33,18 @@ export default function StreamClientShell({ jobId }: Props): ReactElement {
   const router = useRouter();
   const { events, status } = useGenerationSSE(jobId);
 
-  // The latest event's stage is the canonical "current stage" for the UI.
-  // Empty array → no events yet → undefined → screen renders step 0.
+  // Derivations retained for future re-wire — see comment block above.
   const currentStage = useMemo<string | undefined>(() => {
     if (status === 'completed') return 'completed';
     if (status === 'failed') return 'failed';
     const last = events[events.length - 1];
     return last?.stage;
   }, [events, status]);
-
-  // cache_hit is surfaced on event 0 of the cache-replay timeline (engine
-  // tags the first event's partial_result with `cache_hit: true`).
   const cacheHit = useMemo<boolean>(() => {
     return events.some((e) => e?.partial_result?.cache_hit === true);
   }, [events]);
+  void currentStage;
+  void cacheHit;
 
   const onDone = useCallback((): void => {
     router.push(`/generate/${encodeURIComponent(jobId)}/preview`);
@@ -66,14 +54,5 @@ export default function StreamClientShell({ jobId }: Props): ReactElement {
     router.push('/generate');
   }, [router]);
 
-  return (
-    <StreamClient
-      jobId={jobId}
-      events={events}
-      cacheHit={cacheHit}
-      currentStage={currentStage}
-      onDone={onDone}
-      onCancel={onCancel}
-    />
-  );
+  return <StreamClient jobId={jobId} onDone={onDone} onCancel={onCancel} />;
 }

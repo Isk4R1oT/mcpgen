@@ -45,13 +45,17 @@ export interface MarketplaceServer {
 }
 
 // --- Per-screen prop shapes ---------------------------------------------
-// Derived from screen-*.jsx function signatures. Wave-2 owners refine
-// these per-screen as they extract FALLBACK_* literals to props.
-//
-// All props are intentionally optional where the locked screen falls
-// back to a hardcoded default (e.g. sample defaults to 'lumen'). This
-// matches what the canon does when called without props.
+// All canon function signatures are extracted verbatim from
+// apps/web/src/screen-*.jsx — see each interface header for the exact
+// destructured argument list. Canon never uses defaults, so every prop
+// is optional here. Real-data slots (`samples`, `servers`, `tools`,
+// `history`, `plans`, `invoices`, `usage`, `specDiff`, `mcpUrl`,
+// `claudeDesktopConfig`, `serverName`, `onCopy`, `onDownload`,
+// `onSubmit`, `onRunTool`, `finalTools`) were dropped when canon was
+// re-imported — canon now uses internal hardcoded sample data.
 
+// canon: Landing({ onMakeIt, onSelectSample, sample, urlText, setUrlText,
+//                   onPricing, onMarketplace, onSignIn })
 export interface LandingProps {
   sample?: LockedSample;
   urlText?: string;
@@ -61,16 +65,16 @@ export interface LandingProps {
   onPricing?: () => void;
   onMarketplace?: () => void;
   onSignIn?: () => void;
-  // M-4-ENTRY: real-data slot. Empty / omitted hides the sample chip row.
-  samples?: ReadonlyArray<LockedSample>;
 }
 
+// canon: AuthScreen({ sample, onContinue, onBack })
 export interface AuthScreenProps {
   sample?: LockedSample;
   onContinue?: () => void;
   onBack?: () => void;
 }
 
+// canon: Canvas({ sample, onPlay, onDeploy, onCmdK, onBack })
 export interface CanvasProps {
   sample?: LockedSample;
   onPlay?: () => void;
@@ -79,15 +83,18 @@ export interface CanvasProps {
   onBack?: () => void;
 }
 
+// canon: StreamLog({ onDone, onCancel, sample })
 export interface StreamLogProps {
   sample?: LockedSample;
   onDone?: () => void;
   onCancel?: () => void;
 }
 
+// Legacy Playground helper types — retained as exported helpers for any
+// future wiring even though canon Playground no longer accepts the
+// matching props. Kept to avoid breaking imports in non-canon files.
 export interface PlaygroundToolHint {
-  /** Tool name (e.g. `charges_create`) — surfaced in the agent dropdown
-   *  and the trace panel. Mirrors `FinalTool.name` from @mcpgen/ir. */
+  /** Tool name (e.g. `charges_create`). Mirrors `FinalTool.name`. */
   readonly name: string;
 }
 
@@ -103,14 +110,9 @@ export interface PlaygroundHistoryRow {
 }
 
 export interface PlaygroundRunResult {
-  /** Free-text result rendered in the agent message body. */
   readonly text?: string;
-  /** Full structured result (JSON-stringified into the message body when
-   *  `text` is absent). */
   readonly result?: unknown;
-  /** Token count for the trace panel. */
   readonly tokens?: number;
-  /** Wall-clock duration of the upstream call in ms. */
   readonly latency_ms?: number;
 }
 
@@ -120,63 +122,44 @@ export interface PlaygroundRunArgs {
   readonly prompt: string;
 }
 
+// canon: Playground({ onBack, onDeploy, sample })
 export interface PlaygroundProps {
   sample?: LockedSample;
   onBack?: () => void;
   onDeploy?: () => void;
-  /** Tool catalog from the live job artifacts (Pass 5 final tools). */
-  tools?: ReadonlyArray<PlaygroundToolHint>;
-  /** Prior runs from the BFF history endpoint (currently empty until the
-   *  endpoint exists — see SHARED-FILE-REQUESTS.md). */
-  history?: ReadonlyArray<PlaygroundHistoryRow>;
-  /** Wired tool-execution callback. When undefined the locked screen
-   *  renders its visual-only fake-trace path. */
-  onRunTool?: (args: PlaygroundRunArgs) => Promise<PlaygroundRunResult>;
 }
 
+// canon: Preview({ sample, onMakeIt, onBack })
 export interface PreviewProps {
   sample?: LockedSample;
   onMakeIt?: () => void;
   onBack?: () => void;
 }
 
+// canon: QualityReport({ sample, onContinue, onBack })
 export interface QualityReportProps {
   sample?: LockedSample;
   onContinue?: () => void;
   onBack?: () => void;
 }
 
+// Legacy helper type — kept for any future wired-deploy work.
 export interface DeploySubmitArgs {
-  /** Deploy target id from DEPLOY_OPTIONS (cloud / cf / docker / src). */
   readonly target: string;
-  /** Auth forwarding mode (passthrough / static). */
   readonly auth: string;
 }
 
+// canon: Deploy({ onDeployed, onBack, sample })
 export interface DeployProps {
   sample?: LockedSample;
   onDeployed?: () => void;
   onBack?: () => void;
-  /** Wired deploy callback. Resolves on success → wrapper navigates to
-   *  DeploySuccess; rejects on failure → locked recoverable failed state. */
-  onSubmit?: (args: DeploySubmitArgs) => Promise<void>;
 }
 
+// canon: DeploySuccess({ onDashboard, sample })
 export interface DeploySuccessProps {
   sample?: LockedSample;
   onDashboard?: () => void;
-  /** Full https endpoint of the deployed MCP server (replaces locked
-   *  `${id}-mcp-abc123.mcpgen.app/mcp` placeholder). */
-  mcpUrl?: string;
-  /** Pre-formatted JSON string from
-   *  `formatConfigJson(buildConfig({serverName, serverUrl}))`. */
-  claudeDesktopConfig?: string;
-  /** Snake-case server name used in install command + share slug. */
-  serverName?: string;
-  /** Override the clipboard write (defaults to navigator.clipboard.writeText). */
-  onCopy?: (text: string, key: string) => void;
-  /** Trigger a config-file download (wrapper supplies an HTMLAnchor blob link). */
-  onDownload?: () => void;
 }
 
 // Drift entry shape consumed by screen-dashboard.jsx drift state machine.
@@ -193,12 +176,11 @@ export interface SpecDiff {
   modified: ReadonlyArray<SpecDiffEntry>;
 }
 
+// canon: Dashboard({ onBack, onPlay, sample })
 export interface DashboardProps {
   sample?: LockedSample;
   onBack?: () => void;
   onPlay?: () => void;
-  // M-4-ENTRY: real-data slot. Null / omitted hides the drift banner.
-  specDiff?: SpecDiff | null;
 }
 
 // Server summary as rendered in the dashboard-list grid + table view. The
@@ -224,15 +206,13 @@ export interface DashboardServerSummary {
   owner?: string;
 }
 
+// canon: DashboardList({ onBack, onOpen, onMarketplace, onBilling, onLanding })
 export interface DashboardListProps {
   onBack?: () => void;
   onOpen?: (server: DashboardServerSummary) => void;
   onMarketplace?: () => void;
   onBilling?: () => void;
   onLanding?: () => void;
-  // M-4-ENTRY: real-data slot. Empty / omitted renders the EmptyDashboard
-  // onboarding branch — same UX as the locked canon's "first-run" state.
-  servers?: ReadonlyArray<DashboardServerSummary>;
 }
 
 export interface BillingPlanFeature {
@@ -266,20 +246,15 @@ export interface BillingUsage {
   quota: number;
 }
 
+// canon: Billing({ onBack, onLanding, onDashboard, onMarketplace })
 export interface BillingProps {
   onBack?: () => void;
   onLanding?: () => void;
   onDashboard?: () => void;
   onMarketplace?: () => void;
-  /** Phase M-4 §6.2 — optional prop slots for Stripe-backed data. When
-   *  omitted, the screen renders with canon design literals (loading
-   *  state). Production paths gate the entire /billing route behind
-   *  ui_billing_active_perm so the literals never leak to end users. */
-  plans?: ReadonlyArray<BillingPlan>;
-  invoices?: ReadonlyArray<BillingInvoice>;
-  usage?: BillingUsage;
 }
 
+// canon: Marketplace({ onBack, onDashboard, onOpen, onLanding })
 export interface MarketplaceProps {
   onBack?: () => void;
   onDashboard?: () => void;
@@ -287,6 +262,7 @@ export interface MarketplaceProps {
   onLanding?: () => void;
 }
 
+// canon: ServerDetail({ server, onBack, onInstall, onDashboard, onMarketplace })
 export interface ServerDetailProps {
   server?: MarketplaceServer;
   onBack?: () => void;

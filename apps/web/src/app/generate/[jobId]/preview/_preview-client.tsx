@@ -8,42 +8,29 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import type { ComponentType, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 
 import type { FinalTool, QualityReport as QualityReportType } from '@mcpgen/ir';
-
-import type { PreviewWrapperProps } from '@/lib/jsx-bridge/screens';
 
 import {
   deriveCategories,
   deriveSample,
   deriveTokenBudgets,
   type ExcludedEndpoint,
-  type PreviewCategory,
 } from './_preview-derive';
 
 // Plan 09.1-07 → M-4 Agent 2: switch from transitional alias
 // `PreviewScreenWithAnonChrome` (re-export from wrapper.tsx) to the
 // canon `PreviewWrapper` directly from `@/lib/jsx-bridge/screens`.
 //
-// The wrapper internally `<Preview {...rest} />`s, so any extra props
-// not declared in `PreviewWrapperProps` flow through to the locked JSX
-// component. We extend the type locally with the new prop slots
-// `categories` / `excludedEndpoints` / `naiveTokenBudget` /
-// `baseOptTokenBudget` (which screen-preview.jsx now reads — see
-// PROP-CONTRACTS.md §screen-preview), without modifying the bridge.
-type PreviewWithBudgetProps = PreviewWrapperProps & {
-  categories?: ReadonlyArray<PreviewCategory>;
-  excludedEndpoints?: ReadonlyArray<ExcludedEndpoint>;
-  naiveTokenBudget?: number;
-  baseOptTokenBudget?: number;
-};
-
+// The new canon Preview signature dropped the `categories`,
+// `excludedEndpoints`, `naiveTokenBudget`, `baseOptTokenBudget`,
+// and `finalTools` real-data slots — canon now uses internal hardcoded
+// sample data. We keep the derivation logic above for future reuse when
+// a wired Preview variant is reintroduced. `qualityReport` is kept as
+// route-level metadata on the wrapper (stripped before reaching canon).
 const PreviewClient = dynamic(
-  () =>
-    import('@/lib/jsx-bridge/screens').then((m) => ({
-      default: m.PreviewWrapper as ComponentType<PreviewWithBudgetProps>,
-    })),
+  () => import('@/lib/jsx-bridge/screens').then((m) => ({ default: m.PreviewWrapper })),
   { ssr: false },
 );
 
@@ -63,21 +50,18 @@ export default function PreviewClientShell({
   qualityReport,
 }: Props): ReactElement {
   const sample = deriveSample(endpointCount, specName, finalTools);
+  // Derivations retained for future re-wire — see comment block above.
   const categories = deriveCategories(finalTools);
   const { naive, opt } = deriveTokenBudgets(endpointCount, finalTools);
-  // Excluded endpoints: empty until the BFF surfaces drop reasons (Pass
-  // 0 emits this; not yet propagated through partial_result — Phase 5+
-  // work).
   const excludedEndpoints: ReadonlyArray<ExcludedEndpoint> = [];
+  void categories;
+  void excludedEndpoints;
+  void naive;
+  void opt;
   return (
     <PreviewClient
       jobId={jobId}
       sample={sample}
-      categories={categories}
-      excludedEndpoints={excludedEndpoints}
-      naiveTokenBudget={naive}
-      baseOptTokenBudget={opt}
-      {...(finalTools !== undefined ? { finalTools } : {})}
       {...(qualityReport !== undefined ? { qualityReport } : {})}
     />
   );

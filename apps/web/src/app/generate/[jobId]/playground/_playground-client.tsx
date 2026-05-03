@@ -1,26 +1,12 @@
 // apps/web/src/app/generate/[jobId]/playground/_playground-client.tsx
 //
-// M-4 Agent 3 (Playground) — wires the locked Playground screen to the
-// real BFF run-tool endpoint and live tool catalog.
+// M-4 Agent 3 (Playground) — wires the locked Playground screen.
 //
-// Tool catalog source:
-//   - Server-side prefetch (`page.tsx`) reads `partial_result.final_tools`
-//     from `/api/v1/jobs/:jobId` and forwards `toolCount` already; this
-//     client also fetches the full final_tools array on mount so the agent
-//     dropdown + first-tool fallback have real names (not the canon
-//     `list_charges` placeholder).
-//
-// Tool execution:
-//   - Wrapper passes `onRunTool({tool_name, args, prompt})` →
-//     POST /api/v1/jobs/:id/run-tool body `{tool_name, args}`. The
-//     endpoint does NOT yet exist in apps/api (see SHARED-FILE-REQUESTS.md).
-//     Until then we surface a friendly "endpoint pending" rejection so
-//     the locked screen renders the failed-trace branch deterministically
-//     instead of crashing.
-//
-// History:
-//   - History endpoint not yet defined. We pass `history={[]}` so the
-//     history rail starts in its empty state per the locked design.
+// The new canon Playground signature ({ onBack, onDeploy, sample })
+// dropped the `tools`, `history`, and `onRunTool` real-data slots
+// (canon now uses internal hardcoded sample data). We keep the local
+// derivation logic below — tool catalog fetch + run-tool BFF call —
+// for future reuse when a wired Playground variant is reintroduced.
 
 'use client';
 
@@ -164,13 +150,11 @@ export default function PlaygroundClientShell({
     [jobId],
   );
 
-  return (
-    <PlaygroundClient
-      jobId={jobId}
-      sample={sample}
-      tools={tools}
-      history={[]}
-      onRunTool={onRunTool}
-    />
-  );
+  // The new canon Playground signature dropped `tools`, `history`, and
+  // `onRunTool`. Canon now uses internal hardcoded sample data. We keep
+  // the local derivations (`tools`, `onRunTool`) above for future reuse
+  // when the BFF endpoint lands and a wired Playground variant is added.
+  void tools;
+  void onRunTool;
+  return <PlaygroundClient jobId={jobId} sample={sample} />;
 }

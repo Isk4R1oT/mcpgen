@@ -44,8 +44,8 @@ export default async function MarketplacePage(): Promise<ReactElement> {
     notFound();
   }
 
-  // Backend not ready: forward an empty `servers` array so the screen
-  // renders the canon shell without leaking the design-time sample roster.
-  // M-5+ swaps in a real fetch (e.g. GET /api/v1/marketplace/servers).
-  return <MarketplaceClientShell servers={[]} />;
+  // Canon Marketplace uses internal hardcoded sample data; the previous
+  // `servers` real-data slot was dropped on canon re-import. Future
+  // wiring will reintroduce a wired Marketplace variant.
+  return <MarketplaceClientShell />;
 }

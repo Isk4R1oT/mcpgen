@@ -198,25 +198,18 @@ export default function DeployClientShell({
     }
   }, []);
 
+  // The new canon Deploy / DeploySuccess signatures dropped `onSubmit`
+  // (Deploy) and `mcpUrl` / `claudeDesktopConfig` / `serverName` /
+  // `onCopy` / `onDownload` (DeploySuccess). Canon now uses internal
+  // hardcoded sample data. We keep the local derivations above for future
+  // reuse when a wired Deploy variant is reintroduced.
+  void handleSubmit;
+  void handleCopy;
+  void handleDownload;
+
   if (deployed !== null) {
-    return (
-      <DeploySuccessWrapper
-        sample={sample}
-        mcpUrl={deployed.mcpUrl}
-        claudeDesktopConfig={deployed.claudeDesktopConfig}
-        serverName={deployed.serverName}
-        onCopy={handleCopy}
-        onDownload={handleDownload}
-        onDashboard={handleDashboard}
-      />
-    );
+    return <DeploySuccessWrapper sample={sample} onDashboard={handleDashboard} />;
   }
 
-  return (
-    <DeployWrapper
-      jobId={jobId}
-      sample={sample}
-      onSubmit={handleSubmit}
-    />
-  );
+  return <DeployWrapper jobId={jobId} sample={sample} />;
 }

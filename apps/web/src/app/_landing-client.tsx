@@ -61,9 +61,6 @@ export default function LandingClientShell(): ReactElement {
       onSignIn={(): void => {
         window.location.assign('/api/auth/logto/sign-in');
       }}
-      // Wave-2 swaps to a real list from the BFF. Empty array hides the
-      // sample chip row gracefully (canon falls back when `samples` is empty).
-      samples={[]}
     />
   );
 }
