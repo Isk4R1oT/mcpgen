@@ -1,0 +1,166 @@
+# Visual Lock CI Gate (Phase 5 Agent E1)
+#
+# Per-screen Playwright snapshot diff at four canon viewports
+# (375 / 768 / 1280 / 1920). Pixel diff > 0.5% blocks merge.
+#
+# This workflow is INDEPENDENT of the broader `frontend` job in main-ci.yml:
+# main-ci.yml runs the Phase 7 visual-lock spec (`tests/visual-lock/`)
+# which is the original 9-screens contract. THIS workflow runs the per-screen
+# specs introduced by the Phase 1+2+3 rebuild that live next to each
+# component at `src/components/screens/<screen>/<screen>.snapshot.spec.ts`.
+#
+# Stack boot model:
+#   - Flipt v2 — runs as a service container (canonical YAML imported on boot
+#     via `pnpm flags:bootstrap`).
+#   - Web (apps/web) — boots in `MCPGEN_FRONTEND_MODE=fixtures` so SSE / BFF
+#     responses are deterministic and no real LLM call fires (see
+#     packages/engine-fixtures + apps/web/src/lib/api/* fixture client).
+#   - BFF / engine — NOT booted. Fixtures mode short-circuits all calls so
+#     the snapshot suite is hermetic and runs on `ubuntu-24.04` without
+#     wrangler/uv.
+#
+# Flag handling:
+#   - `_perm` flags (`ui_admin_panel_perm`, `ui_marketplace_perm`,
+#     `ui_billing_active_perm`) default OFF in the canonical
+#     `packages/feature-flags/default/features.yaml`. The visual-lock run
+#     needs them ON so the gated routes render their canon screens instead
+#     of 404. We use the env-driven override `MCPGEN_FLAG_OVERRIDES_ON`
+#     (consumed by `apps/web/src/lib/flags/index.ts` and
+#     `apps/web/src/middleware.ts`) — a comma-separated allow-list that
+#     short-circuits the flag eval to `true`.
+#
+# Artifacts:
+#   - On failure, Playwright diff PNGs are uploaded to the
+#     `visual-lock-diffs` artifact for review.
+#
+# Determinism guards:
+#   - Browsers pinned via lockfile (Playwright reads version from
+#     `apps/web/package.json` → installs the matching browser binary).
+#   - `MCPGEN_FRONTEND_MODE=fixtures` forces deterministic data.
+#   - Single worker, no retries on first attempt — keeps diff math stable.
+
+name: Visual Lock
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - 'claude-design-reference/visual-baseline/**'
+      - 'packages/feature-flags/default/features.yaml'
+      - '.github/workflows/visual-lock.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'claude-design-reference/visual-baseline/**'
+
+concurrency:
+  group: visual-lock-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  snapshot-diff:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    services:
+      flipt:
+        image: docker.flipt.io/flipt/flipt:v2
+        ports:
+          - 8090:8080
+        env:
+          FLIPT_LOG_LEVEL: warn
+          FLIPT_AUTHENTICATION_REQUIRED: 'false'
+        # GitHub Actions service containers don't accept the full healthcheck
+        # syntax — the Flipt readiness check is handled in the wait step below.
+
+    env:
+      # Pin Flipt URL for both the bootstrap script and the web server.
+      FLIPT_URL: http://localhost:8090
+      FLIPT_ENVIRONMENT: default
+      # Fixtures mode → deterministic SSE / BFF responses.
+      MCPGEN_FRONTEND_MODE: fixtures
+      # Force gated _perm flags ON so /admin, /marketplace, /billing render.
+      # Read by apps/web/src/lib/flags/index.ts + apps/web/src/middleware.ts.
+      MCPGEN_FLAG_OVERRIDES_ON: ui_admin_panel_perm,ui_marketplace_perm,ui_billing_active_perm
+      # Disable Sentry uploads in CI snapshot runs.
+      SENTRY_DSN: ''
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Wait for Flipt
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8090/health > /dev/null 2>&1; then
+              echo "Flipt ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Flipt never became ready"
+          exit 1
+
+      - name: Bootstrap feature flags into Flipt
+        # Imports packages/feature-flags/default/features.yaml into the running
+        # Flipt instance. With FLIPT_AUTHENTICATION_REQUIRED=false (CI-only),
+        # no token is needed.
+        run: pnpm --filter @mcpgen/feature-flags run bootstrap || echo "Flag bootstrap failed — continuing with overrides only"
+        continue-on-error: true
+
+      - name: Web typecheck
+        run: pnpm --filter @mcpgen/web run typecheck
+
+      - name: Web build
+        run: pnpm --filter @mcpgen/web run build
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium (deterministic version pinned via lockfile)
+        run: pnpm --filter @mcpgen/web exec playwright install --with-deps chromium
+
+      - name: Run visual snapshot suite
+        # The webServer block in playwright.snapshot.config.ts boots
+        # `MCPGEN_FRONTEND_MODE=fixtures pnpm --filter=@mcpgen/web start`,
+        # which Playwright manages and tears down. The env block above is
+        # inherited by the spawned process.
+        run: pnpm --filter @mcpgen/web run test:snapshots
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 14
+
+      - name: Upload diff screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-lock-diffs
+          path: |
+            apps/web/test-results/**/*-diff.png
+            apps/web/test-results/**/*-actual.png
+            apps/web/test-results/**/*-expected.png
+          retention-days: 14
+          if-no-files-found: ignore
