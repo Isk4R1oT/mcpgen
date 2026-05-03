@@ -101,15 +101,37 @@ export interface QualityReportProps {
   onBack?: () => void;
 }
 
+export interface DeploySubmitArgs {
+  /** Deploy target id from DEPLOY_OPTIONS (cloud / cf / docker / src). */
+  readonly target: string;
+  /** Auth forwarding mode (passthrough / static). */
+  readonly auth: string;
+}
+
 export interface DeployProps {
   sample?: LockedSample;
   onDeployed?: () => void;
   onBack?: () => void;
+  /** Wired deploy callback. Resolves on success → wrapper navigates to
+   *  DeploySuccess; rejects on failure → locked recoverable failed state. */
+  onSubmit?: (args: DeploySubmitArgs) => Promise<void>;
 }
 
 export interface DeploySuccessProps {
   sample?: LockedSample;
   onDashboard?: () => void;
+  /** Full https endpoint of the deployed MCP server (replaces locked
+   *  `${id}-mcp-abc123.mcpgen.app/mcp` placeholder). */
+  mcpUrl?: string;
+  /** Pre-formatted JSON string from
+   *  `formatConfigJson(buildConfig({serverName, serverUrl}))`. */
+  claudeDesktopConfig?: string;
+  /** Snake-case server name used in install command + share slug. */
+  serverName?: string;
+  /** Override the clipboard write (defaults to navigator.clipboard.writeText). */
+  onCopy?: (text: string, key: string) => void;
+  /** Trigger a config-file download (wrapper supplies an HTMLAnchor blob link). */
+  onDownload?: () => void;
 }
 
 export interface DashboardProps {
