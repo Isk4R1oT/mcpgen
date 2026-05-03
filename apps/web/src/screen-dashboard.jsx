@@ -1,25 +1,26 @@
 // screen-dashboard.jsx — Screen 7: Dashboard
+// M-4-ENTRY: SPEC_DIFF literal removed per contract §6.2 (point-edit:
+// FALLBACK_*/SPEC_DIFF_* → prop). The drift state machine (list / walk /
+// pinned, accept/skip per-item, accept-all / skip-all) is preserved
+// verbatim — only the data source changed. specDiff comes in via the
+// Server Component (placeholder shape until Phase 9 wires GET /api/v1/
+// servers/:id/drift). When `specDiff` is null/undefined, the drift banner
+// + modal are hidden (driftDismissed bootstraps to true) — same UX as the
+// "no drift detected" branch in the canon.
 
-const SPEC_DIFF = {
-  new: [
-    { method: 'POST',   path: '/v1/payment_intents/incremental_auth', desc: 'increases auth amount on an existing payment intent' },
-    { method: 'GET',    path: '/v1/disputes/evidence_summary',        desc: 'aggregated dispute evidence (replaces 3 separate calls)' },
-    { method: 'POST',   path: '/v1/customers/:id/tax_ids',            desc: 'attach tax id metadata to a customer' },
-  ],
-  removed: [
-    { method: 'POST', path: '/v1/legacy_charges/migrate', desc: 'sunset · was deprecated 2024' },
-  ],
-  modified: [
-    { path: '/v1/charges',           change: 'new optional param: capture_method' },
-    { path: '/v1/customers/:id',     change: 'response now includes tax_exempt' },
-    { path: '/v1/refunds',           change: 'reason enum gained "fraud_chargeback"' },
-    { path: '/v1/subscriptions/:id', change: 'pause_collection now nullable' },
-  ],
-};
+const EMPTY_SPEC_DIFF = { new: [], removed: [], modified: [] };
 
-function Dashboard({ onBack, onPlay, sample }) {
+function Dashboard({ onBack, onPlay, sample, specDiff }) {
+  const diff = specDiff && typeof specDiff === 'object' ? {
+    new: Array.isArray(specDiff.new) ? specDiff.new : [],
+    removed: Array.isArray(specDiff.removed) ? specDiff.removed : [],
+    modified: Array.isArray(specDiff.modified) ? specDiff.modified : [],
+  } : EMPTY_SPEC_DIFF;
+  const hasDrift = diff.new.length + diff.removed.length + diff.modified.length > 0;
   const [driftOpen, setDriftOpen] = React.useState(false);
-  const [driftDismissed, setDriftDismissed] = React.useState(false);
+  // When no drift data is supplied, the alert + modal are auto-dismissed so
+  // the user never sees "spec changed" without a real diff backing it.
+  const [driftDismissed, setDriftDismissed] = React.useState(!hasDrift);
   const [diffTab, setDiffTab] = React.useState('new');
   const [autoRegen, setAutoRegen] = React.useState(false);
   // drift review state
@@ -30,9 +31,9 @@ function Dashboard({ onBack, onPlay, sample }) {
   const decKey = (section, path) => `${section}:${path}`;
   const setDecision = (section, path, value) => setDecisions(d => ({ ...d, [decKey(section, path)]: value }));
   const allDriftItems = [
-    ...SPEC_DIFF.new.map(e => ({ ...e, section: 'new' })),
-    ...SPEC_DIFF.removed.map(e => ({ ...e, section: 'removed' })),
-    ...SPEC_DIFF.modified.map(e => ({ ...e, section: 'modified', method: 'PATCH', desc: e.change })),
+    ...diff.new.map(e => ({ ...e, section: 'new' })),
+    ...diff.removed.map(e => ({ ...e, section: 'removed' })),
+    ...diff.modified.map(e => ({ ...e, section: 'modified', method: 'PATCH', desc: e.change })),
   ];
   const decidedCount = Object.values(decisions).filter(v => v === 'accept' || v === 'skip').length;
   const acceptedCount = Object.values(decisions).filter(v => v === 'accept').length;
@@ -294,15 +295,15 @@ function Dashboard({ onBack, onPlay, sample }) {
                 <>
                   <div className="mc-tabs">
                     {[
-                      { id: 'new',      label: `new · ${SPEC_DIFF.new.length}` },
-                      { id: 'removed',  label: `removed · ${SPEC_DIFF.removed.length}` },
-                      { id: 'modified', label: `modified · ${SPEC_DIFF.modified.length}` },
+                      { id: 'new',      label: `new · ${diff.new.length}` },
+                      { id: 'removed',  label: `removed · ${diff.removed.length}` },
+                      { id: 'modified', label: `modified · ${diff.modified.length}` },
                     ].map(t => (
                       <button key={t.id} onClick={() => setDiffTab(t.id)} className={`mc-tab ${diffTab === t.id ? 'sel' : ''}`}>{t.label}</button>
                     ))}
                   </div>
 
-                  {SPEC_DIFF[diffTab].map(e => {
+                  {diff[diffTab].map(e => {
                     const dec = decisions[decKey(diffTab, e.path)];
                     const isModified = diffTab === 'modified';
                     return (
