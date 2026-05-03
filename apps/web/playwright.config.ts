@@ -22,7 +22,15 @@ import { defineConfig, devices } from '@playwright/test';
 const isCI = process.env['CI'] !== undefined;
 
 export default defineConfig({
-  testDir: 'tests/e2e',
+  // Phase-1 rebuild: per-screen specs live next to their components at
+  // `src/components/screens/<screen>/<screen>.{snapshot,flow}.spec.ts` per
+  // SHARED-BRIEF.md. The legacy e2e suites in `tests/e2e/` continue to run
+  // from the broadened root + testMatch filter below.
+  testDir: '.',
+  testMatch: [
+    'tests/e2e/**/*.spec.ts',
+    'src/components/screens/**/*.spec.ts',
+  ],
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,

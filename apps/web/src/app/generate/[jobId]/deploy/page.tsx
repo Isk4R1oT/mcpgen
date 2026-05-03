@@ -1,24 +1,40 @@
 // apps/web/src/app/generate/[jobId]/deploy/page.tsx
 //
-// POST-09.1: server-side prefetch of the live job's artefact summary so the
-// locked Deploy screen renders the spec's real name + endpoint / tool counts
-// instead of the lumen FALLBACK fixture. Mirrors preview/page.tsx.
+// Phase 1 / Agent A5 — deploy route. Server Component shell that renders
+// either Deploy or DeploySuccess based on URL state.
+//
+// Render branches:
+//   ?deployed=1&url=<encoded>  → DeploySuccess
+//   (no query)                 → Deploy form
+//
+// On successful deploy in `<Deploy>`, the parent client wrapper updates the
+// URL via `router.push(...?deployed=1&url=...)` and the page re-renders the
+// success view. This avoids stale React state across hard reloads.
+//
+// Auth: `/deploy` is anonymous (ephemeral deploy). `/deploy/permanent` is
+// auth-protected by the route-gate (see lib/route-gate.ts).
+//
+// The previous `_deploy-client.tsx` shim is intentionally left — Phase 4
+// sweeps it.
 
 import type { ReactElement } from 'react';
 
-import DeployClientShell from './_deploy-client';
+import DeployRouteShell from './_deploy-route-shell';
 
 export const dynamic = 'force-dynamic';
 
 interface Params {
   params: Promise<{ jobId: string }>;
+  searchParams: Promise<{
+    deployed?: string;
+    url?: string;
+    config?: string;
+  }>;
 }
 
 interface JobStatusShape {
-  status: string;
+  status?: string;
   partial_result?: {
-    final_tools?: unknown;
-    endpoint_count?: unknown;
     spec_name?: unknown;
   };
 }
@@ -28,9 +44,10 @@ const fetchJobStatus = async (
   origin: string,
 ): Promise<JobStatusShape | null> => {
   try {
-    const res = await fetch(`${origin}/api/v1/jobs/${encodeURIComponent(jobId)}`, {
-      cache: 'no-store',
-    });
+    const res = await fetch(
+      `${origin}/api/v1/jobs/${encodeURIComponent(jobId)}`,
+      { cache: 'no-store' },
+    );
     if (!res.ok) return null;
     return (await res.json()) as JobStatusShape;
   } catch {
@@ -38,29 +55,29 @@ const fetchJobStatus = async (
   }
 };
 
-export default async function DeployPage({ params }: Params): Promise<ReactElement> {
+export default async function DeployPage({
+  params,
+  searchParams,
+}: Params): Promise<ReactElement> {
   const { jobId } = await params;
+  const sp = await searchParams;
   const origin =
     process.env.MCPGEN_PUBLIC_URL ?? `http://localhost:${process.env.PORT ?? '3000'}`;
   const job = await fetchJobStatus(jobId, origin);
-  const finalTools = Array.isArray(job?.partial_result?.final_tools)
-    ? (job!.partial_result!.final_tools as ReadonlyArray<unknown>)
-    : undefined;
-  const endpointCount =
-    typeof job?.partial_result?.endpoint_count === 'number'
-      ? (job.partial_result.endpoint_count as number)
-      : undefined;
   const specName =
     typeof job?.partial_result?.spec_name === 'string'
       ? (job.partial_result.spec_name as string)
       : undefined;
 
+  const deployedFlag = sp.deployed === '1';
+  const mcpUrl = sp.url !== undefined ? decodeURIComponent(sp.url) : '';
+
   return (
-    <DeployClientShell
+    <DeployRouteShell
       jobId={jobId}
-      {...(endpointCount !== undefined ? { endpointCount } : {})}
       {...(specName !== undefined ? { specName } : {})}
-      {...(finalTools !== undefined ? { toolCount: finalTools.length } : {})}
+      deployedFromQuery={deployedFlag}
+      mcpUrlFromQuery={mcpUrl}
     />
   );
 }

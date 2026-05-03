@@ -8,13 +8,20 @@
 // Phase 9 fills these env vars per environment.
 //
 // Phase 7 Pitfall 6 — DO NOT register the Tailwind 4 PostCSS plugin here. The
-// locked apps/web/src/global.css ships with zero `@tailwind` directives — it is
-// hand-written CSS-vars populated by `window.MCPTokens.makeCssVars(TWEAK_DEFAULTS)`.
-// Activating Tailwind would inject preflight reset CSS that drifts the visual lock
-// (FE-05). The `tailwindcss` package is kept as a transitive dep solely to avoid
-// pruning resolution churn; it is never instantiated.
+// production globals.css ships with zero `@tailwind` directives — it is
+// hand-written CSS-vars under `:root`. Activating Tailwind would inject
+// preflight reset CSS that drifts the visual lock (FE-05). The `tailwindcss`
+// package is kept as a transitive dep solely to avoid pruning resolution
+// churn; it is never instantiated.
 
 import { withSentryConfig } from '@sentry/nextjs';
+import createNextIntlPlugin from 'next-intl/plugin';
+
+// Phase F-i18n — next-intl plugin wraps the Next config so the framework
+// auto-loads ./src/i18n/request.ts on every request, providing the
+// resolved locale + messages to NextIntlClientProvider in app/layout.tsx
+// and to useTranslations() in client components.
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 // POST-09.1 patch: dev-mode rewrites proxy /api/v1/* → BFF on :8787.
 // Without this, browser fetch('/api/v1/...') from useGenerationSSE +
@@ -80,7 +87,10 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
+// Plugin order: next-intl first (it injects the request-config alias used by
+// the runtime), then Sentry (it patches the build to upload source maps).
+// Both wrappers compose by accepting and returning a Next config object.
+export default withSentryConfig(withNextIntl(nextConfig), {
   silent: true,
   org: process.env.SENTRY_ORG ?? '',
   project: process.env.SENTRY_PROJECT ?? '',

@@ -1,29 +1,35 @@
 // apps/web/src/app/admin/login/page.tsx
 //
-// Phase M-4 (Wave-2 Agent 5) — Admin sign-in entry. The locked
-// `admin/admin-login.jsx` screen is not yet exposed through the jsx-bridge
-// (no AdminLoginWrapper exists). Per the dispatch brief: "uses
-// admin/admin-login.jsx via jsx-bridge if available, otherwise basic Logto
-// redirect." Bridge wrapper is unavailable — fall back to the basic Logto
-// redirect.
+// Phase 3 / C4-login — Admin sign-in entry route.
 //
-// Gate is the same `ui_admin_panel_perm` flag; without it, the login page
-// 404s too (so the /admin/* surface stays fully invisible). Once the flag
-// is ON we redirect to Logto sign-in with /admin as the post-auth target;
-// the admin/page.tsx role check then either renders the panel or 404s if
-// the signed-in user is not an admin.
+// Renders the canon-style login UI (`<Login />`) directly, full-bleed —
+// the AdminShellGate (`apps/web/src/app/admin/_admin-shell-gate.tsx` from
+// C1) skips the AdminShell wrapper for `/admin/login` so this page paints
+// edge-to-edge.
+//
+// Two flag layers (per the dispatch brief):
+//   1. `ui_admin_panel_perm` (default OFF) — hides the entire `/admin/*`
+//      surface from end users. When OFF, login 404s alongside the rest.
+//   2. `ui_admin_login_perm` (default OFF) — gates the actual sign-in
+//      backends (Logto Okta SSO + MFA verify + session start). The flag
+//      is plumbed at the BFF call sites inside `<Login />` (toast/mock
+//      flow) until those endpoints exist; this page only owns the route
+//      visibility gate (panel_perm).
+//
+// Anonymous flag eval: at the sign-in entry we don't have a user yet, so
+// `entityId='anonymous'`. The flag's default is OFF for everyone; the
+// internal_users segment override resolves on user_id once the user is
+// authenticated downstream.
 
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
+import type { ReactElement } from 'react';
 
+import { Login } from '@/components/screens/admin/login/login';
 import { evaluateBooleanFlag } from '@/lib/flags';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminLoginPage(): Promise<never> {
-  // Anonymous flag-eval: we don't have a user yet (this is the sign-in
-  // entry). entityId='anonymous' is fine — the flag's default is OFF for
-  // everyone; internal_users segment override resolves on user_id once the
-  // user is authenticated.
+export default async function AdminLoginPage(): Promise<ReactElement> {
   const enabled = await evaluateBooleanFlag(
     'ui_admin_panel_perm',
     'anonymous',
@@ -31,5 +37,5 @@ export default async function AdminLoginPage(): Promise<never> {
     false,
   );
   if (!enabled) notFound();
-  redirect('/api/auth/logto/sign-in?redirect_to=/admin');
+  return <Login />;
 }

@@ -43,10 +43,19 @@
 // flag-first-then-auth ordering for `/billing/*` and `/admin/*`.
 
 import { getLogtoContext } from '@logto/next/server-actions';
+import createIntlMiddleware from 'next-intl/middleware';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { routing } from '@/i18n/routing';
 import { logtoConfig } from '@/lib/logto/client';
 import { isProtectedPath, PROTECTED_PATTERNS } from '@/lib/route-gate';
+
+// Phase F-i18n — locale routing middleware. Handles:
+//   - locale negotiation from Accept-Language / cookie / URL prefix
+//   - rewriting `/ru/dashboard` → `/dashboard` internally with locale ctx
+//   - setting NEXT_LOCALE cookie so subsequent navigations remember
+// Default locale ('en') has no URL prefix (`localePrefix: 'as-needed'`).
+const intlMiddleware = createIntlMiddleware(routing);
 
 // Re-export the predicate + pattern list so any tooling (and the existing
 // callers) can read them from the canonical middleware module.
@@ -82,10 +91,27 @@ interface FliptBooleanResponse {
   enabled?: boolean;
 }
 
+/**
+ * CI-only test override — comma-separated list of flag keys forced to `true`
+ * regardless of Flipt state. Used by the visual-lock CI workflow to expose
+ * `_perm`-gated routes for snapshot capture. NEVER set in production —
+ * bypasses the Flipt eval graph entirely.
+ *
+ * Format: `MCPGEN_FLAG_OVERRIDES_ON=ui_admin_panel_perm,ui_marketplace_perm`
+ */
+const FLAG_OVERRIDES_ON: ReadonlySet<string> = new Set(
+  (process.env.MCPGEN_FLAG_OVERRIDES_ON ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0),
+);
+
 /** Evaluate a Flipt boolean flag via REST. Returns `defaultValue` on any
  *  error (network, non-200, malformed body). 1.5s timeout — middleware
  *  must never block requests longer than the runtime budget. */
 async function evaluateFlagEdge(flagKey: string, defaultValue: boolean): Promise<boolean> {
+  if (FLAG_OVERRIDES_ON.has(flagKey)) return true;
+
   const url = process.env.FLIPT_URL ?? 'http://localhost:8090';
   const token = process.env.FLIPT_CLIENT_TOKEN;
 
@@ -112,13 +138,46 @@ async function evaluateFlagEdge(flagKey: string, defaultValue: boolean): Promise
   }
 }
 
+/**
+ * Strip a leading locale segment (e.g. `/ru/billing` → `/billing`) so
+ * the existing flag/auth gate logic — which keys off un-prefixed paths
+ * like `/billing` — keeps working under multi-locale routing. English
+ * paths have no prefix (`localePrefix: 'as-needed'`).
+ */
+function stripLocalePrefix(pathname: string): string {
+  for (const locale of routing.locales) {
+    if (locale === routing.defaultLocale) continue;
+    if (pathname === `/${locale}`) return '/';
+    if (pathname.startsWith(`/${locale}/`)) return pathname.slice(locale.length + 1);
+  }
+  return pathname;
+}
+
 export async function middleware(req: NextRequest): Promise<NextResponse> {
   const pathname = req.nextUrl.pathname;
+
+  // Step 0 — non-app paths bypass the gate logic entirely. The matcher
+  // already excludes /api/*, /_next/*, /_vercel/*, and static assets,
+  // but auth API routes (/api/auth/logto/*) and /404 are referenced by
+  // redirects below and must always pass through. Defensive guard.
+  if (
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/_vercel/') ||
+    pathname === '/404'
+  ) {
+    return NextResponse.next();
+  }
+
+  // Compute the canonical (locale-stripped) path once. All gate logic
+  // operates on this so `/ru/billing` and `/billing` get treated the
+  // same by the flag and auth checks.
+  const canonical = stripLocalePrefix(pathname);
 
   // Step 1 — flag-gated paths: evaluate flag FIRST. Flag OFF → 404 rewrite
   // regardless of auth state. Flag ON → fall through to auth check.
   for (const gate of FLAG_GATES) {
-    if (gate.matches(pathname)) {
+    if (gate.matches(canonical)) {
       const enabled = await evaluateFlagEdge(gate.flagKey, false);
       if (!enabled) {
         // Rewrite to /404 — Next.js renders the custom not-found.tsx with
@@ -133,38 +192,54 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   }
 
   // Step 2 — auth gate: protected paths require an authenticated Logto
-  // session. Public routes return early (no Logto call).
-  if (!isProtectedPath(pathname)) {
-    // Public route — let the request through without consulting Logto.
-    // Anon users keep their `mcpgen_anon_session` cookie issued by the BFF
-    // (plan 09.1-03) for ephemeral-deploy / cookie-scoped job reads.
-    return NextResponse.next();
+  // session. Public routes fall through to the intl middleware.
+  if (isProtectedPath(canonical)) {
+    const { isAuthenticated } = await getLogtoContext(logtoConfig);
+    if (!isAuthenticated) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/api/auth/logto/sign-in';
+      url.searchParams.set('redirect_to', pathname);
+      return NextResponse.redirect(url);
+    }
   }
 
-  const { isAuthenticated } = await getLogtoContext(logtoConfig);
-  if (!isAuthenticated) {
-    const url = req.nextUrl.clone();
-    url.pathname = '/api/auth/logto/sign-in';
-    url.searchParams.set('redirect_to', pathname);
-    return NextResponse.redirect(url);
-  }
+  // Step 3 — locale handling. With `localePrefix: 'never'` (cookie-only),
+  // we deliberately DO NOT call next-intl's middleware: even in 'never'
+  // mode it adds an `x-middleware-rewrite: /${locale}` header that under
+  // our flat App Router (no `[locale]` segment) yields a 404 because
+  // `/en` is not a real route. Locale resolution still works because
+  // layout.tsx calls `getLocale()` on the server which reads the
+  // NEXT_LOCALE cookie set by `LangSwitcher` (and respects Accept-Language
+  // for the first request via the request config). All routes serve the
+  // user's resolved locale at the same URL — matching the canon UX where
+  // `LangSwitcher` is the sole way to switch language and URLs never
+  // carry a prefix.
+  // The unused `intlMiddleware` import is retained for the future migration
+  // to `[locale]`-segment routing if/when SEO needs URL-prefix locales.
+  void intlMiddleware;
   return NextResponse.next();
 }
 
-// Matcher matches the SUPERSET of protected + flag-gated paths so the
-// middleware function only runs when a redirect/rewrite is potentially
-// needed. Public routes never invoke the middleware (zero Logto calls on
-// the anon hot path).
+// Phase F-i18n — the matcher now covers all app routes (excluding API,
+// static assets, and Next internals) because the intl middleware needs
+// to observe every navigation to set the locale cookie / handle prefix
+// rewrites. The flag + auth gates short-circuit on un-protected paths
+// inside the middleware function itself, so the cost is one cheap
+// `isProtectedPath` call per request rather than spinning up Logto.
+//
+// Anon hot path stays Logto-free: the auth check only fires when the
+// canonical path actually matches isProtectedPath().
+//
+// Pattern from next-intl docs: match everything except the listed
+// exceptions. Equivalent in spirit to the prior protected-paths list,
+// but allows intl to rewrite locale-prefixed URLs everywhere.
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/billing/:path*',
-    '/admin/:path*',
-    '/generate/:jobId/playground/:path*',
-    '/generate/:jobId/playground',
-    '/generate/:jobId/download/:path*',
-    '/generate/:jobId/download',
-    '/generate/:jobId/deploy/permanent/:path*',
-    '/generate/:jobId/deploy/permanent',
+    // Match all pathnames except for:
+    //   - API routes (handled by Logto callbacks / BFF rewrites)
+    //   - _next internals (build manifest, static chunks, image opt)
+    //   - _vercel deployment infra
+    //   - any path containing a dot (static files: .js, .css, .png, …)
+    '/((?!api|_next|_vercel|.*\\..*).*)',
   ],
 };

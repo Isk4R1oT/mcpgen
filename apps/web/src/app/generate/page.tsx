@@ -1,24 +1,27 @@
 // apps/web/src/app/generate/page.tsx
 //
-// Plan 07-03 / M-4 Agent 1 (FLOW) — /generate route segment (canvas). Server
-// Component shell that delegates to a Client shell which calls
-// next/dynamic({ ssr: false }) and wires POST /api/v1/generate on submit.
-//
-// Recent-generations prefetch: there is no `GET /api/v1/generations/recent`
-// endpoint in the BFF today, so we pass `null` per task brief — the Canvas
-// screen renders an empty inventory until a real job_id exists.
-//
-// Reference: CONTEXT D-06 (route map), Plan 07-02 patterns-established.
+// /generate route segment (Canvas screen). Server Component shell that reads
+// the `?spec_url=...` query param and forwards it to the Client Component
+// canvas. When `spec_url` is present the Canvas auto-submits
+// POST /api/v1/generate on mount and redirects to /generate/[jobId].
+// Otherwise it renders the canon canvas (3-pane editor with seed tool data).
 
 import type { ReactElement } from 'react';
 
-import CanvasClientShell from './_canvas-client';
+import { Canvas } from '@/components/screens/canvas/canvas';
 
 export const dynamic = 'force-dynamic';
 
-export default function GeneratePage(): ReactElement {
-  // No recent-generations endpoint exists yet. The wrapper handles a
-  // null/empty inventory cleanly (loading state in screen-canvas.jsx).
-  const recentGenerations = null;
-  return <CanvasClientShell recentGenerations={recentGenerations} />;
+interface GeneratePageProps {
+  // Next.js 15 — `searchParams` is a Promise of the parsed query.
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function GeneratePage({
+  searchParams,
+}: GeneratePageProps): Promise<ReactElement> {
+  const params = await searchParams;
+  const raw = params['spec_url'];
+  const specUrl = typeof raw === 'string' && raw !== '' ? raw : undefined;
+  return <Canvas specUrl={specUrl} />;
 }

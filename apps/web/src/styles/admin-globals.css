@@ -1,0 +1,39 @@
+/* apps/web/src/styles/admin-globals.css
+ *
+ * Phase 3 / C1 — supplemental admin styles.
+ *
+ * Canon `admin.css` covers nearly every selector used by canon admin
+ * screens (`.adm-shell`, `.adm-pill`, `.adm-kpi*`, `.adm-tabs`, etc.).
+ * This file adds only the rules introduced by the production admin-ui
+ * primitives that don't have a direct canon equivalent:
+ *
+ *   - `.adm-toolbar` — wrapper around `<Toolbar>` row (left/right slots).
+ *   - `.adm-filter-bar` — wrapper around `<FilterBar>` (search + actions
+ *     + chip rail). Canon ad-hoc filter strips have inline styles; we
+ *     migrate the same look here so admin screens never duplicate it.
+ *   - `.adm-table-grid` — wrapper class around `<Table>` so screen-level
+ *     selectors can target the production Table without hitting canon's
+ *     ad-hoc inline grids.
+ *
+ * Imported once from `app/admin/layout.tsx` (after `admin.css` so it can
+ * override if needed). Removing this file should not visibly affect any
+ * canon screen — it only grooms the production primitive classes.
+ */
+
+/* Toolbar — mirrors canon `.row` baseline + tabular padding. */
+.adm-toolbar {
+  border-bottom: 1px solid var(--border);
+}
+
+/* Filter-bar — passive wrapper. Canon admin-users embeds the same layout
+   inline (search input + filter button + chip rail). Keep selectors empty
+   here so canon's inline overrides win when both apply. */
+.adm-filter-bar {
+  /* No rules — child rows already supply padding/border. */
+}
+
+/* Table grid wrapper — matches canon Table inline border treatment. */
+.adm-table-grid {
+  /* Inline styles inside <Table> already supply the visual treatment;
+     this class exists so screens can target the wrapper if needed. */
+}

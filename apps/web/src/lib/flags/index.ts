@@ -38,10 +38,30 @@ async function client() {
 }
 
 /**
+ * Optional CI-only test override — comma-separated list of flag keys to force
+ * to `true` regardless of Flipt state. Used by the visual-lock CI workflow
+ * (`.github/workflows/visual-lock.yml`) to expose `_perm`-gated routes for
+ * snapshot capture without mutating the YAML manifest.
+ *
+ * NEVER set this in production — it bypasses the Flipt eval graph.
+ *
+ * Format: `MCPGEN_FLAG_OVERRIDES_ON=ui_admin_panel_perm,ui_marketplace_perm`
+ */
+const FLAG_OVERRIDES_ON: ReadonlySet<string> = new Set(
+  (process.env.MCPGEN_FLAG_OVERRIDES_ON ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0),
+);
+
+/**
  * Evaluate a boolean flag, attach result to Sentry scope, return the value.
  * Sentry's feature-flags integration buffers the (key, value) pair; if a
  * subsequent error happens, the buffered flag state lands on the error
  * event automatically (see Sentry v10 featureFlagsIntegration).
+ *
+ * If `MCPGEN_FLAG_OVERRIDES_ON` includes `flagKey`, the eval short-circuits
+ * to `true`. Used by visual-lock CI; never set in production.
  */
 export async function evaluateBooleanFlag(
   flagKey: string,
@@ -49,6 +69,10 @@ export async function evaluateBooleanFlag(
   context: FlagContext,
   defaultValue: boolean,
 ): Promise<boolean> {
+  if (FLAG_OVERRIDES_ON.has(flagKey)) {
+    reportFlagToSentry(flagKey, true);
+    return true;
+  }
   const c = await client();
   const value = evaluateBooleanWithDefault(c, flagKey, entityId, context, defaultValue);
   reportFlagToSentry(flagKey, value);

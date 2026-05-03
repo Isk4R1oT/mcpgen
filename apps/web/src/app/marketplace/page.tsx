@@ -1,21 +1,20 @@
 // apps/web/src/app/marketplace/page.tsx
 //
-// Phase M-4 (Wave-2 Agent 5) — Marketplace route, gated behind
+// Phase 2 / Agent B4 — Marketplace route, gated behind
 // `ui_marketplace_perm` (default OFF). When the flag is OFF the route
 // returns 404 so the marketplace module is invisible to end users until
-// the marketplace BFF lands. When ON the screen mounts via the locked
-// MarketplaceWrapper with an empty `servers` array (backend not ready)
-// — the wrapper renders the canon design layout with zero listings.
+// the marketplace BFF lands. When ON the rebuilt B4 screen mounts.
 //
 // References:
-//   - docs/mcpgen-frontend-rebuild-contract.md §5.1 (flags), §5.3 Level 1
-//   - .planning/ui-rebuild-sandbox/INTEGRATION-MAP.md §2.11
+//   - .planning/phase-rebuild/agent-briefs/PHASE-2.md (B4)
+//   - docs/mcpgen-feature-flags-contract.md
+//   - apps/web/src/components/screens/marketplace/marketplace.tsx
 
 import { getLogtoContext } from '@logto/next/server-actions';
 import { notFound } from 'next/navigation';
 import type { ReactElement } from 'react';
 
-import MarketplaceClientShell from './_marketplace-client';
+import Marketplace from '@/components/screens/marketplace/marketplace';
 import { evaluateBooleanFlag } from '@/lib/flags';
 import { logtoConfig } from '@/lib/logto/client';
 
@@ -32,7 +31,10 @@ export default async function MarketplacePage(): Promise<ReactElement> {
     typeof claims?.email === 'string' && claims.email.includes('@')
       ? (claims.email.split('@')[1] ?? '')
       : '';
-  const flagContext: Record<string, string> = { user_id: userId, email_domain: emailDomain };
+  const flagContext: Record<string, string> = {
+    user_id: userId,
+    email_domain: emailDomain,
+  };
 
   const enabled = await evaluateBooleanFlag(
     'ui_marketplace_perm',
@@ -44,8 +46,5 @@ export default async function MarketplacePage(): Promise<ReactElement> {
     notFound();
   }
 
-  // Canon Marketplace uses internal hardcoded sample data; the previous
-  // `servers` real-data slot was dropped on canon re-import. Future
-  // wiring will reintroduce a wired Marketplace variant.
-  return <MarketplaceClientShell />;
+  return <Marketplace />;
 }

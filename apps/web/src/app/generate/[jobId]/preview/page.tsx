@@ -1,47 +1,31 @@
 // apps/web/src/app/generate/[jobId]/preview/page.tsx
 //
-// Plan 07-03 — Server-side prefetch of fetchJobStatus(jobId). Reads the
-// completed job's `partial_result.final_tools` + `partial_result.quality_report`
-// and passes them to the Client shell.
+// Preview route. Server Component shell that prefetches the job snapshot from
+// the BFF (`GET /api/v1/jobs/:id`) for SSR-friendly first paint, then
+// delegates rendering to the `<Preview>` client component, which itself reads
+// the `final-tools` artifact via TanStack Query (`useJobArtifact`).
 //
-// Plan 07-04 — extends the prefetch to also pull `partial_result.tenant_worker_source`
-// (Stage E codegen output, single TS file) and renders it via the Shiki
-// Server Component CodeBlock adjacent to the locked Preview screen. The
-// locked Preview has no code-panel slot (verified at Task 1 spike), so the
-// CodeBlock sits below the Client wrapper inside the route's Server Component.
-//
-// FE-03 transparency principle: full Stage-E-generated TypeScript bundle is
-// visible in the preview screen.
+// The Stage E `tenant_worker_source` is rendered as a `<CodeBlock>` section
+// below the screen when the BFF returns it (FE-03 transparency principle).
 
 import type { ReactElement } from 'react';
 
-import type { FinalTool, QualityReport as QualityReportType } from '@mcpgen/ir';
-
 import { CodeBlock } from '@/lib/preview/code-block';
 
-import PreviewClientShell from './_preview-client';
+import Preview from '@/components/screens/preview/preview';
 
 export const dynamic = 'force-dynamic';
 
 interface Params {
   params: Promise<{ jobId: string }>;
+  searchParams?: Promise<{ spec_url?: string }>;
 }
 
 interface JobStatusShape {
   status: string;
   partial_result?: {
-    final_tools?: unknown;
-    quality_report?: unknown;
-    // POST-09.1: BFF derives endpoint_count from raw_ir.endpoints.length and
-    // spec_name from Pass 1's smart-id format prefix. Both feed
-    // `_preview-client.tsx::deriveSample` so the locked Preview screen shows
-    // real counts instead of the lumen FALLBACK fixture.
     endpoint_count?: unknown;
     spec_name?: unknown;
-    // Phase 5 + Stage E ship the generated TS bundle as a string. Field name
-    // verified against `apps/api/src/routes/v1/jobs/<id>` GET response (when
-    // Phase 8 + a follow-up plan close the BFF gap; current Phase-1 stub does
-    // NOT include this — falls through to `null` and CodeBlock is omitted).
     tenant_worker_source?: unknown;
   };
 }
@@ -61,18 +45,13 @@ const fetchJobStatusServerSide = async (
   }
 };
 
-export default async function PreviewPage({ params }: Params): Promise<ReactElement> {
+export default async function PreviewPage({ params, searchParams }: Params): Promise<ReactElement> {
   const { jobId } = await params;
-  // In fixture mode the GET /api/v1/jobs/:id endpoint returns
-  // `{ status: 'streaming', last_known_event_id: null, events: [] }` for fresh
-  // jobs — `partial_result` is undefined and the CodeBlock is skipped.
-  // Live mode (post-Phase-8 generate-kickoff implementation) returns
-  // `partial_result.tenant_worker_source` for completed jobs.
+  const sp = (await searchParams) ?? {};
   const origin =
-    process.env.MCPGEN_PUBLIC_URL ?? `http://localhost:${process.env.PORT ?? '3000'}`;
+    process.env['MCPGEN_PUBLIC_URL'] ?? `http://localhost:${process.env['PORT'] ?? '3000'}`;
   const job = await fetchJobStatusServerSide(jobId, origin);
-  const finalTools = job?.partial_result?.final_tools as ReadonlyArray<FinalTool> | undefined;
-  const qualityReport = job?.partial_result?.quality_report as QualityReportType | undefined;
+
   const endpointCount =
     typeof job?.partial_result?.endpoint_count === 'number'
       ? (job.partial_result.endpoint_count as number)
@@ -85,19 +64,18 @@ export default async function PreviewPage({ params }: Params): Promise<ReactElem
     typeof job?.partial_result?.tenant_worker_source === 'string'
       ? (job.partial_result.tenant_worker_source as string)
       : null;
+  const originalSpecUrl =
+    typeof sp.spec_url === 'string' && sp.spec_url.length > 0 ? sp.spec_url : undefined;
 
   return (
     <>
-      <PreviewClientShell
+      <Preview
         jobId={jobId}
         {...(endpointCount !== undefined ? { endpointCount } : {})}
         {...(specName !== undefined ? { specName } : {})}
-        {...(finalTools !== undefined ? { finalTools } : {})}
-        {...(qualityReport !== undefined ? { qualityReport } : {})}
+        {...(originalSpecUrl !== undefined ? { originalSpecUrl } : {})}
       />
-      {tenantWorkerSource !== null && (
-        // Server Component context — CodeBlock awaits Shiki's codeToHtml at
-        // request time. No client JS overhead.
+      {tenantWorkerSource !== null ? (
         <section
           aria-label="Generated TypeScript bundle"
           style={{
@@ -108,7 +86,7 @@ export default async function PreviewPage({ params }: Params): Promise<ReactElem
         >
           <CodeBlock code={tenantWorkerSource} lang="typescript" />
         </section>
-      )}
+      ) : null}
     </>
   );
 }

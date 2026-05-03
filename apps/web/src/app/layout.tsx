@@ -1,24 +1,16 @@
 // apps/web/src/app/layout.tsx
 //
-// Plan 07-02 + Phase M-4-INFRA — Root shell.
-//
-// Server Component (no 'use client'). Imports the locked global.css
-// once per CONTEXT D-07; loads the design fonts via next/font/google
-// (Instrument Serif, Inter, JetBrains Mono, Fraunces) so the
-// prototype's PP/Berkeley fall-through chain still resolves; wraps
+// Server Component (no 'use client'). Loads the design fonts via
+// next/font/google (Instrument Serif, Inter, JetBrains Mono, Fraunces)
+// so the canon's PP/Berkeley fall-through chain resolves; mounts the
+// production globals.css (with `:root` design tokens) and wraps
 // children in:
 //
-//     LogtoSessionProvider  (Server Component → context)
-//       QueryProvider       (TanStack Query)
-//         I18nProvider      (M-4-INFRA: wraps locked window.I18nProvider)
-//           NavShim         (M-4-INFRA: window.app.navigate + safe
-//                            window.mcpToast / window.mcpDrawer
-//                            console fallbacks)
-//             ApplyTokens   (CSS-vars from window.MCPTokens)
-//             {children}
-//
-// The layout itself uses ONLY locked primitives (no new visual
-// additions per CLAUDE.md §12 rule 15 + CONTEXT D-01/D-07).
+//     NextIntlClientProvider
+//       LogtoSessionProvider
+//         QueryProvider
+//           {children}
+//           Toaster + DrawerHost + ErrorModeSwitch
 //
 // Sentry: client/server/edge configs live at apps/web/sentry.*.config.ts
 // and are picked up by @sentry/nextjs's next.config.ts withSentryConfig.
@@ -26,18 +18,18 @@
 
 import { Fraunces, Instrument_Serif, Inter, JetBrains_Mono } from 'next/font/google';
 import type { Metadata } from 'next';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages } from 'next-intl/server';
 import type { ReactElement, ReactNode } from 'react';
 
-import '@/global.css';
+import '@/styles/globals.css';
 
-import TweaksPanelClientShell from '@/components/tweaks-panel-client-shell';
+import ErrorModeSwitch from '@/components/dev/error-mode-switch';
+import { DrawerHost } from '@/lib/drawer';
 import { evaluateBooleanFlag } from '@/lib/flags';
-import I18nProvider from '@/providers/i18n-provider';
+import { Toaster } from '@/lib/toast';
 import { LogtoSessionProvider } from '@/providers/logto-session';
-import NavShim from '@/providers/nav-shim';
 import QueryProvider from '@/providers/query-client';
-
-import ApplyTokens from './_apply-tokens';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const instrumentSerif = Instrument_Serif({
@@ -83,20 +75,39 @@ export default async function RootLayout({ children }: Props): Promise<ReactElem
     false,
   );
 
+  // Phase F-i18n — resolve active locale + messages on the server, then
+  // hand them to NextIntlClientProvider so client components can call
+  // useTranslations() / useLocale() without each one fetching its own
+  // dictionary. Falls back to defaultLocale ('en') when the request has
+  // no locale segment (e.g. SSG preview, root `/`).
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="en" className={fontVariables}>
+    <html lang={locale} className={fontVariables}>
       <body>
-        <LogtoSessionProvider>
-          <QueryProvider>
-            <I18nProvider>
-              <NavShim>
-                <ApplyTokens />
-                {children}
-                {tweaksEnabled ? <TweaksPanelClientShell /> : null}
-              </NavShim>
-            </I18nProvider>
-          </QueryProvider>
-        </LogtoSessionProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <LogtoSessionProvider>
+            <QueryProvider>
+              {children}
+              <Toaster
+                position="bottom-center"
+                toastOptions={{
+                  style: {
+                    background: 'var(--ink)',
+                    color: 'var(--paper)',
+                    borderRadius: 'var(--radius)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 12.5,
+                    boxShadow: 'var(--shadow)',
+                  },
+                }}
+              />
+              <DrawerHost />
+              <ErrorModeSwitch enabled={tweaksEnabled} />
+            </QueryProvider>
+          </LogtoSessionProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

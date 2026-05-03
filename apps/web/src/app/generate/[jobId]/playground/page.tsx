@@ -1,13 +1,18 @@
 // apps/web/src/app/generate/[jobId]/playground/page.tsx
 //
-// POST-09.1: server-side prefetch of the live job's artefact summary so the
-// locked Playground screen renders the spec's real name + endpoint / tool
-// counts in its bento header instead of the lumen FALLBACK fixture.
-// Mirrors the prefetch wired into preview/page.tsx.
+// Playground route. Server Component shell that renders the production
+// Playground client (`@/components/screens/playground`).
+//
+// Auth: this route is matched by `PROTECTED_PATTERNS` in `lib/route-gate.ts`,
+// so middleware redirects anonymous users to Logto sign-in BEFORE this page
+// runs. We therefore don't need to assert auth here.
+//
+// SSR prefetch: we fetch the job status JSON to extract `spec_name` for the
+// breadcrumb. Tool list is fetched client-side via `useJobArtifact`.
 
 import type { ReactElement } from 'react';
 
-import PlaygroundClientShell from './_playground-client';
+import Playground from '@/components/screens/playground/playground';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,10 +21,8 @@ interface Params {
 }
 
 interface JobStatusShape {
-  status: string;
+  status?: string;
   partial_result?: {
-    final_tools?: unknown;
-    endpoint_count?: unknown;
     spec_name?: unknown;
   };
 }
@@ -29,9 +32,10 @@ const fetchJobStatus = async (
   origin: string,
 ): Promise<JobStatusShape | null> => {
   try {
-    const res = await fetch(`${origin}/api/v1/jobs/${encodeURIComponent(jobId)}`, {
-      cache: 'no-store',
-    });
+    const res = await fetch(
+      `${origin}/api/v1/jobs/${encodeURIComponent(jobId)}`,
+      { cache: 'no-store' },
+    );
     if (!res.ok) return null;
     return (await res.json()) as JobStatusShape;
   } catch {
@@ -39,29 +43,30 @@ const fetchJobStatus = async (
   }
 };
 
-export default async function PlaygroundPage({ params }: Params): Promise<ReactElement> {
+export default async function PlaygroundPage({
+  params,
+}: Params): Promise<ReactElement> {
   const { jobId } = await params;
   const origin =
     process.env.MCPGEN_PUBLIC_URL ?? `http://localhost:${process.env.PORT ?? '3000'}`;
   const job = await fetchJobStatus(jobId, origin);
-  const finalTools = Array.isArray(job?.partial_result?.final_tools)
-    ? (job!.partial_result!.final_tools as ReadonlyArray<unknown>)
-    : undefined;
-  const endpointCount =
-    typeof job?.partial_result?.endpoint_count === 'number'
-      ? (job.partial_result.endpoint_count as number)
-      : undefined;
   const specName =
     typeof job?.partial_result?.spec_name === 'string'
       ? (job.partial_result.spec_name as string)
       : undefined;
 
-  return (
-    <PlaygroundClientShell
-      jobId={jobId}
-      {...(endpointCount !== undefined ? { endpointCount } : {})}
-      {...(specName !== undefined ? { specName } : {})}
-      {...(finalTools !== undefined ? { toolCount: finalTools.length } : {})}
-    />
-  );
+  const sample =
+    specName !== undefined
+      ? { id: slugifyName(specName), name: specName }
+      : undefined;
+
+  return <Playground jobId={jobId} {...(sample !== undefined ? { sample } : {})} />;
+}
+
+function slugifyName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24);
 }

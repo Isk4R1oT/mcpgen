@@ -1,24 +1,22 @@
 // apps/web/src/app/_auth-client.tsx
 //
-// Plan 07-02 — Client wrapper for the (auth)/sign-in + (auth)/sign-up
-// routes. Next.js 15 disallows `ssr: false` inside next/dynamic() when
-// called from a Server Component; the call must live inside a 'use client'
-// module. This is the indirection.
+// Client wrapper for the (auth)/sign-in + (auth)/sign-up routes. Renders
+// the production TSX AuthScreen from
+// `@/components/screens/auth/auth.tsx`. The `mode` prop is currently
+// informational — the AuthScreen renders the same selector regardless;
+// future work may diverge sign-in vs sign-up.
 
 'use client';
 
-import dynamic from 'next/dynamic';
 import type { ReactElement } from 'react';
 
-const AuthClient = dynamic(
-  () => import('@/lib/jsx-bridge/screens').then((m) => ({ default: m.AuthScreenWrapper })),
-  { ssr: false },
-);
+import { AuthScreen } from '@/components/screens/auth/auth';
 
 interface Props {
   mode: 'sign-in' | 'sign-up';
 }
 
-export default function AuthClientShell({ mode }: Props): ReactElement {
-  return <AuthClient mode={mode} />;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export default function AuthClientShell({ mode: _mode }: Props): ReactElement {
+  return <AuthScreen />;
 }
