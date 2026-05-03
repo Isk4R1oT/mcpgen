@@ -18,14 +18,28 @@ const PKG_ROOT = join(__dirname, '..');
 
 // We avoid a yaml dependency for portability — the schema we care about is
 // flat enough that a hand-rolled key extractor is sufficient.
-const FLAG_KEY_RE = /^\s+-\s+key:\s+(\w[\w_]*)\s*$/gm;
+//
+// Track the current top-level section (flags / segments / other) and only
+// extract `- key:` entries under `flags:` — segment keys must NOT leak
+// (internal_users / pro_users / beta_testers are NOT flags).
+const FLAG_ITEM_KEY_RE = /^\s+-\s+key:\s+(\w[\w_]*)\s*$/;
+const TOP_LEVEL_SECTION_RE = /^([a-zA-Z_][\w]*):\s*$/;
 
 const VALID_CATEGORIES = ['kill', 'rollout', 'exp', 'perm', 'ops'];
 
 function extractFlagKeys(yamlContent) {
   const keys = new Set();
-  const matches = yamlContent.matchAll(FLAG_KEY_RE);
-  for (const m of matches) keys.add(m[1]);
+  let section = null;
+  for (const line of yamlContent.split('\n')) {
+    const sectionMatch = TOP_LEVEL_SECTION_RE.exec(line);
+    if (sectionMatch !== null) {
+      section = sectionMatch[1];
+      continue;
+    }
+    if (section !== 'flags') continue;
+    const keyMatch = FLAG_ITEM_KEY_RE.exec(line);
+    if (keyMatch !== null) keys.add(keyMatch[1]);
+  }
   return keys;
 }
 
