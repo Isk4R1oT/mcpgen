@@ -1,6 +1,14 @@
 // screen-billing.jsx — billing & subscription
+//
+// Phase M-4 §6.2 point edits: PLANS / INVOICES / usage (used+quota) are
+// extracted to optional props so the new BFF can supply real Stripe state.
+// When omitted, the screen falls back to the canon design literals so it
+// renders identically in standalone mode (admin preview, Storybook, etc.).
+// Contract §6.2.4: behind ui_billing_active_perm flag the route is 404'd in
+// production until Stripe wiring lands, so these defaults never reach end
+// users with the flag OFF.
 
-const PLANS = [
+const DEFAULT_PLANS = [
   {
     id: 'free', name: 'free', price: 0, blurb: 'for tinkering and personal use',
     quota: '10K calls / mo',
@@ -54,18 +62,23 @@ const PLANS = [
   },
 ];
 
-const INVOICES = [
+const DEFAULT_INVOICES = [
   { date: 'apr 2026', period: 'apr 1 – apr 30', amount: '$29.00', status: 'paid',     calls: '82,180', overage: '$0.00' },
   { date: 'mar 2026', period: 'mar 1 – mar 31', amount: '$32.40', status: 'paid',     calls: '117,000', overage: '$3.40' },
   { date: 'feb 2026', period: 'feb 1 – feb 28', amount: '$29.00', status: 'paid',     calls: '64,200', overage: '$0.00' },
   { date: 'jan 2026', period: 'jan 1 – jan 31', amount: '$29.00', status: 'paid',     calls: '41,800', overage: '$0.00' },
 ];
 
-function Billing({ onBack, onLanding, onDashboard, onMarketplace }) {
+const DEFAULT_USAGE = { used: 82180, quota: 100000 };
+
+function Billing({ onBack, onLanding, onDashboard, onMarketplace, plans, invoices, usage }) {
   const { t } = window.useI18n();
   const [billingCycle, setBillingCycle] = React.useState('monthly');
 
-  const used = 82180, quota = 100000;
+  const PLANS = plans ?? DEFAULT_PLANS;
+  const INVOICES = invoices ?? DEFAULT_INVOICES;
+  const used = (usage ?? DEFAULT_USAGE).used;
+  const quota = (usage ?? DEFAULT_USAGE).quota;
   const usedPct = Math.round(used / quota * 100);
 
   return (
