@@ -22,7 +22,15 @@ import { withSentryConfig } from '@sentry/nextjs';
 // live SSE stream. /api/auth/* stays on Next.js (Logto server actions).
 // Production uses Vercel + Cloudflare path routing at the edge, so this
 // rewrite is dev-affinity-only.
-const BFF_PROXY_TARGET = process.env.MCPGEN_BFF_URL || 'http://localhost:8787';
+//
+// MCPGEN_BFF_URL may be set with OR without the trailing `/api/v1` segment
+// (different consumers in apps/web/src/lib/* expect different shapes). The
+// rewrite re-appends `/api/v1/:path*`, so we must strip a trailing `/api/v1`
+// from the env value to avoid producing `…/api/v1/api/v1/generate` — which
+// the BFF treats as "unknown route" and routes into the auth-protected
+// catch-all, returning 401. (Reported by E2E-FINDINGS-agent-b.)
+const RAW_BFF_URL = process.env.MCPGEN_BFF_URL || 'http://localhost:8787';
+const BFF_PROXY_TARGET = RAW_BFF_URL.replace(/\/api\/v1\/?$/, '');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
