@@ -29,9 +29,7 @@ export default async function DashboardDetailPage({
 
   const { isAuthenticated } = await getLogtoContext(logtoConfig);
   if (!isAuthenticated) {
-    redirect(
-      `/api/auth/logto/sign-in?redirect_to=/dashboard/${encodeURIComponent(id)}`,
-    );
+    redirect(`/sign-in?redirect_to=/dashboard/${encodeURIComponent(id)}`);
   }
 
   const qc = getQueryClient();

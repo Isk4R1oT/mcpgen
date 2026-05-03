@@ -8,7 +8,7 @@
 //   - hero copy uses the canon `mc-display-xl` class
 //   - the URL input uses `mc-input mc-mono` (Playwright e2e relies on it)
 //   - the primary CTA renders the localized "make it" label
-//   - sign-in button is wired to the cross-origin Logto redirect
+//   - sign-in button routes to /sign-in (canon embedded auth screen)
 //
 // Translation provider: messages are loaded from
 // `apps/web/messages/en.json` so we exercise real strings (catches stale
@@ -85,19 +85,10 @@ describe('<Landing>', () => {
     expect(input!.value).toBe('https://api.example.com/openapi.json');
   });
 
-  it('sign-in button hard-navigates via window.location.assign (Logto redirect)', () => {
-    const assignSpy = vi.fn();
-    const original = window.location;
-    Object.defineProperty(window, 'location', {
-      value: { ...original, assign: assignSpy },
-      writable: true,
-    });
-
+  it('sign-in button routes to /sign-in (canon embedded auth screen)', () => {
     const { getByRole } = renderLanding();
     fireEvent.click(getByRole('button', { name: /sign in/i }));
-    expect(assignSpy).toHaveBeenCalledWith('/api/auth/logto/sign-in');
-
-    Object.defineProperty(window, 'location', { value: original, writable: true });
+    expect(pushSpy).toHaveBeenCalledWith('/sign-in');
   });
 
   it('"make it" with empty input still routes to /generate (no spec_url)', () => {

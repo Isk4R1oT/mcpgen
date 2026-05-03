@@ -197,7 +197,10 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     const { isAuthenticated } = await getLogtoContext(logtoConfig);
     if (!isAuthenticated) {
       const url = req.nextUrl.clone();
-      url.pathname = '/api/auth/logto/sign-in';
+      // Canon embedded sign-in (MCPGen(5)) at /sign-in — replaces the prior
+      // direct redirect to Logto Hosted UI. The AccountScreen reads the
+      // ?redirect_to= query and routes there after successful auth.
+      url.pathname = '/sign-in';
       url.searchParams.set('redirect_to', pathname);
       return NextResponse.redirect(url);
     }

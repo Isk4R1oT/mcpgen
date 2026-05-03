@@ -35,7 +35,7 @@ export const dynamic = 'force-dynamic';
 export default async function SettingsPage(): Promise<ReactElement> {
   const { isAuthenticated, claims } = await getLogtoContext(logtoConfig);
   if (!isAuthenticated) {
-    redirect('/api/auth/logto/sign-in?redirect_to=/settings');
+    redirect('/sign-in?redirect_to=/settings');
   }
 
   // ─── Flag eval ──────────────────────────────────────────────────────────

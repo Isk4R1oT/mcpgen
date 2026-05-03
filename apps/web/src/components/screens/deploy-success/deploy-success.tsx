@@ -13,7 +13,8 @@
 //     post-deploy UX: copy buttons, share modal, marketplace toggle, claim CTA.
 //   - "claim permanent" CTA — deploy/ephemeral creates an anon ephemeral
 //     server which the user can claim by signing in. Per A5 brief:
-//     `window.location.assign('/api/auth/logto/sign-in?redirect_to=/generate/<jobId>/deploy/permanent')`.
+//     `window.location.assign('/sign-in?redirect_to=/generate/<jobId>/deploy/permanent')`
+//     (canon embedded sign-in screen).
 //   - Copy buttons use `navigator.clipboard.writeText` + `toast('copied')`
 //     per A5 brief.
 //   - "publish to marketplace" toggle is client-only (gated behind
@@ -96,7 +97,11 @@ export default function DeploySuccess({
 
   const claim = (): void => {
     if (typeof window === 'undefined') return;
-    const target = `/api/auth/logto/sign-in?redirect_to=${encodeURIComponent(
+    // Canon embedded sign-in (MCPGen(5)) at /sign-in — replaces the prior
+    // direct redirect to Logto Hosted UI. After successful auth the
+    // AccountScreen reads the `redirect_to` query and routes to the
+    // permanent-deploy claim page.
+    const target = `/sign-in?redirect_to=${encodeURIComponent(
       `/generate/${jobId}/deploy/permanent`,
     )}`;
     window.location.assign(target);

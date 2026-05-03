@@ -39,7 +39,7 @@ interface UserClaimsLite {
 export default async function DashboardPage(): Promise<ReactElement> {
   const { isAuthenticated, claims } = await getLogtoContext(logtoConfig);
   if (!isAuthenticated) {
-    redirect('/api/auth/logto/sign-in?redirect_to=/dashboard');
+    redirect('/sign-in?redirect_to=/dashboard');
   }
 
   const qc = getQueryClient();

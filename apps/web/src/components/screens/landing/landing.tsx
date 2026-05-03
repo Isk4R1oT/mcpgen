@@ -10,8 +10,7 @@
 //   - onMakeIt → router.push(`/generate?spec_url=${encodeURIComponent(...)}`)
 //   - onMarketplace → router.push('/marketplace')
 //   - onPricing → router.push('/pricing')
-//   - onSignIn → window.location.assign('/api/auth/logto/sign-in')
-//                (cross-origin redirect, router.push() can't follow it)
+//   - onSignIn → router.push('/sign-in')  (canon embedded auth screen)
 //
 // Sample-chip row: canon's static SAMPLE_APIS list is gated behind a future
 // `useSampleApis()` BFF hook (per Phase-1 catalog § landing). Until that hook
@@ -263,12 +262,12 @@ export default function Landing(): ReactElement {
   const onMarketplace = (): void => router.push('/marketplace');
   const onPricing = (): void => router.push('/pricing');
 
-  // `/api/auth/logto/sign-in` issues a cross-origin 307 to Logto Cloud;
-  // `router.push` resolves it through RSC fetch which can't follow that
-  // redirect, so we hard-navigate (per Phase-1 brief A1).
-  const onSignIn = (): void => {
-    window.location.assign('/api/auth/logto/sign-in');
-  };
+  // Canon-styled embedded sign-in screen at /sign-in (canon MCPGen(5)).
+  // Logto Hosted UI redirect (/api/auth/logto/sign-in) is no longer the
+  // primary auth surface — it remains as the SSO bounce-out for connected
+  // OAuth providers, gated behind ui_auth_*_sso_perm flags inside the
+  // embedded form.
+  const onSignIn = (): void => router.push('/sign-in');
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();

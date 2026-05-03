@@ -81,7 +81,7 @@ describe('<DeploySuccess>', () => {
     fireEvent.click(getByRole('button', { name: /claim permanent/i }));
     expect(assignSpy).toHaveBeenCalledTimes(1);
     expect(assignSpy.mock.calls[0]?.[0]).toBe(
-      '/api/auth/logto/sign-in?redirect_to=' +
+      '/sign-in?redirect_to=' +
         encodeURIComponent('/generate/jobabcdef/deploy/permanent'),
     );
 
