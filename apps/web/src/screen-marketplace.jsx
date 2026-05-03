@@ -1,12 +1,6 @@
 // screen-marketplace.jsx — public marketplace of MCP servers (github-for-mcp)
-//
-// Phase M-4 §6.2 point edit: the inline server roster is renamed to
-// MARKETPLACE_SAMPLE_DATA and treated as a fallback. A real `servers`
-// prop is forwarded by the route wrapper. The /marketplace route is gated
-// behind ui_marketplace_perm (default OFF) so the literals never reach end
-// users in production until the marketplace BFF lands.
 
-const MARKETPLACE_SAMPLE_DATA = [
+const MARKETPLACE_SERVERS = [
   { id: 'stripe-official',  name: 'stripe-mcp',          author: 'stripe', verified: true,  tools: 64, stars: 4280, installs: 42100, weekly: 8200, desc: 'official mcp server for stripe payments. charges, customers, subscriptions, and disputes.', tags: ['payments','official','stripe'], updated: '2 days ago', license: 'mit', forks: 38 },
   { id: 'github-explorer',  name: 'github-explorer-mcp', author: 'octocat',verified: true,  tools: 38, stars: 3120, installs: 28400, weekly: 5400, desc: 'browse repositories, read files, search code, and review PRs. token-optimized for big monorepos.', tags: ['developer','github','popular'], updated: '4 hours ago', license: 'mit', forks: 142 },
   { id: 'linear-issues',    name: 'linear-mcp',          author: 'linear', verified: true,  tools: 22, stars: 1840, installs: 14200, weekly: 3100, desc: 'manage linear issues, cycles, and projects from your agent.', tags: ['productivity','linear','official'], updated: '1 week ago', license: 'mit', forks: 24 },
@@ -18,9 +12,9 @@ const MARKETPLACE_SAMPLE_DATA = [
   { id: 'twilio-msg',       name: 'twilio-mcp',          author: 'twilio', verified: true,  tools: 31, stars: 1140, installs: 9800, weekly: 1620, desc: 'sms, voice, and verify api as tools. zero-token-bloat schemas.', tags: ['communications','twilio','official'], updated: '5 days ago', license: 'mit', forks: 12 },
 ];
 
-const DEFAULT_CATEGORIES = [
-  { id: 'all',           label: 'all',           count: MARKETPLACE_SAMPLE_DATA.length },
-  { id: 'official',      label: 'official',      count: MARKETPLACE_SAMPLE_DATA.filter(s => s.verified).length },
+const CATEGORIES = [
+  { id: 'all',           label: 'all',           count: MARKETPLACE_SERVERS.length },
+  { id: 'official',      label: 'official',      count: MARKETPLACE_SERVERS.filter(s => s.verified).length },
   { id: 'payments',      label: 'payments',      count: 1 },
   { id: 'developer',     label: 'developer tools', count: 2 },
   { id: 'productivity',  label: 'productivity',  count: 2 },
@@ -29,9 +23,7 @@ const DEFAULT_CATEGORIES = [
   { id: 'communications',label: 'communications',count: 1 },
 ];
 
-function Marketplace({ onBack, onDashboard, onOpen, onLanding, servers, categories }) {
-  const SERVERS = servers ?? MARKETPLACE_SAMPLE_DATA;
-  const CATEGORIES = categories ?? DEFAULT_CATEGORIES;
+function Marketplace({ onBack, onDashboard, onOpen, onLanding }) {
   const { t } = window.useI18n();
   const [cat, setCat] = React.useState('all');
   const [sort, setSort] = React.useState('popular'); // popular|recent|installs|tools
@@ -53,7 +45,7 @@ function Marketplace({ onBack, onDashboard, onOpen, onLanding, servers, categori
       ];
     }
     const matches = [];
-    SERVERS.forEach(s => {
+    MARKETPLACE_SERVERS.forEach(s => {
       if (s.name.toLowerCase().includes(acQuery)) matches.push({ kind: 'server', label: s.name, hint: `by ${s.author} · ${s.tools} tools`, server: s });
       else if (s.author.toLowerCase().includes(acQuery)) matches.push({ kind: 'server', label: s.name, hint: `by ${s.author}`, server: s });
     });
@@ -101,7 +93,7 @@ function Marketplace({ onBack, onDashboard, onOpen, onLanding, servers, categori
   const [minStars, setMinStars] = React.useState(0);
   const [updatedWithin, setUpdatedWithin] = React.useState('any'); // any|week|month
 
-  const filtered = SERVERS.filter(s => {
+  const filtered = MARKETPLACE_SERVERS.filter(s => {
     if (cat !== 'all' && cat !== 'official' && !s.tags.includes(cat)) return false;
     if (cat === 'official' && !s.verified) return false;
     if (scope === 'verified' && !s.verified) return false;
@@ -122,8 +114,8 @@ function Marketplace({ onBack, onDashboard, onOpen, onLanding, servers, categori
     return b.stars - a.stars;
   });
 
-  const featured = SERVERS.find(s => s.id === 'stripe-official');
-  const trending = [...SERVERS].sort((a,b) => b.weekly - a.weekly).slice(0, 3);
+  const featured = MARKETPLACE_SERVERS.find(s => s.id === 'stripe-official');
+  const trending = [...MARKETPLACE_SERVERS].sort((a,b) => b.weekly - a.weekly).slice(0, 3);
   const activeFilterCount = (licenseFilter !== 'any' ? 1 : 0) + (minStars > 0 ? 1 : 0) + (updatedWithin !== 'any' ? 1 : 0);
 
   return (
@@ -146,7 +138,7 @@ function Marketplace({ onBack, onDashboard, onOpen, onLanding, servers, categori
         <div style={{ marginBottom: 32 }}>
           <div className="mc-display-l" style={{ marginBottom: 8 }}>{t('marketplaceTitle')}</div>
           <div className="mc-mono muted" style={{ fontSize: 13, marginBottom: 20 }}>
-            {t('marketplaceSub')} · {SERVERS.length} {t('servers')} · {(SERVERS.reduce((a,s) => a + s.installs, 0)).toLocaleString()} installs
+            {t('marketplaceSub')} · {MARKETPLACE_SERVERS.length} {t('servers')} · {(MARKETPLACE_SERVERS.reduce((a,s) => a + s.installs, 0)).toLocaleString()} installs
           </div>
           <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
             <div ref={acRef} style={{ flex: 1, position: 'relative' }}>
@@ -396,7 +388,4 @@ function MarketRow({ s, onOpen }) {
 }
 
 window.Marketplace = Marketplace;
-// Bridge re-export for screen-server-detail.jsx fallback and the typed
-// jsx-bridge module. Always points at canon design samples; real listings
-// flow through the route-level `servers` prop, not this global.
-window['MARKETPLACE_SERVERS'] = MARKETPLACE_SAMPLE_DATA;
+window.MARKETPLACE_SERVERS = MARKETPLACE_SERVERS;

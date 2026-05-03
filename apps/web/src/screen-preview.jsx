@@ -1,41 +1,44 @@
 // screen-preview.jsx — Screen 1: Live preview / bento + Tools Review + Generation Settings
-//
-// Phase M-4 Agent 2 — `categories`, `excludedEndpoints`, `naiveTokenBudget`,
-// `baseOptTokenBudget` are now passed as props. Defaults preserve the locked
-// visual when called without artefacts (e.g. before BFF returns final tools).
-// See .planning/ui-rebuild-sandbox/PROP-CONTRACTS.md screen-preview entry.
 
-function Preview({
-  sample,
-  onMakeIt,
-  onBack,
-  categories,
-  excludedEndpoints,
-  naiveTokenBudget,
-  baseOptTokenBudget,
-}) {
-  const [cats, setCats] = React.useState(categories || []);
+const PREVIEW_CATEGORIES = [
+  { id: 'charges',   label: 'transactions', count: 24, on: true,  rare: false },
+  { id: 'customers', label: 'accounts',     count: 18, on: true,  rare: false },
+  { id: 'subs',      label: 'plans',        count: 15, on: true,  rare: false },
+  { id: 'reports',   label: 'reports',      count: 8,  on: false, rare: true },
+  { id: 'issuing',   label: 'card-issuing', count: 32, on: false, rare: true },
+];
+
+const EXCLUDED_ENDPOINTS_INIT = [
+  { method: 'POST',   path: '/v1/legacy_charges/migrate', reason: 'deprecated · sunsets 2026-Q3',           override: true  },
+  { method: 'GET',    path: '/admin/internal_state',      reason: 'internal · /admin namespace',              override: false },
+  { method: 'GET',    path: '/v1/charges/list',           reason: 'subsumed by /v1/charges/search',           override: true  },
+  { method: 'POST',   path: '/v1/webhooks/test',          reason: 'side-effect: writes test data',            override: true  },
+  { method: 'DELETE', path: '/v1/customers/:id/purge',    reason: 'destructive · GDPR-only',                  override: true  },
+  { method: 'GET',    path: '/v1/_health',                reason: 'meta endpoint · no business value',        override: false },
+  { method: 'PATCH',  path: '/v1/legacy_charges/:id',     reason: 'deprecated · use /v1/charges',             override: true  },
+  { method: 'POST',   path: '/v1/admin/regenerate_keys',  reason: 'internal · /admin namespace',              override: false },
+];
+
+function Preview({ sample, onMakeIt, onBack }) {
+  const [cats, setCats] = React.useState(PREVIEW_CATEGORIES);
   const [combine, setCombine] = React.useState(null);
   const [excludedOpen, setExcludedOpen] = React.useState(false);
   const [included, setIncluded] = React.useState(new Set()); // ids that user manually re-included
-  const [excluded] = React.useState(excludedEndpoints || []);
+  const [excluded] = React.useState(EXCLUDED_ENDPOINTS_INIT);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [complexity, setComplexity] = React.useState('standard');
-  const [serverName, setServerName] = React.useState(`${sample?.id || 'mcp'}-mcp`);
+  const [serverName, setServerName] = React.useState(`${sample?.id || 'lumen'}-mcp`);
   const [advancedOpen, setAdvancedOpen] = React.useState(false);
 
   const toggle = (id) => setCats(cs => cs.map(c => c.id === id ? { ...c, on: !c.on } : c));
   const includeEndpoint = (path) => setIncluded(s => new Set([...s, path]));
 
-  const totalEndpoints = sample?.endpoints || 0;
-  const naiveTokens = naiveTokenBudget || 0;
-  const optBaseline = baseOptTokenBudget || 0;
-  const baseOptTokens = combine === 'yes' ? Math.round(optBaseline * 0.82) : optBaseline;
+  const totalEndpoints = sample?.endpoints || 348;
+  const naiveTokens = 14200;
+  const baseOptTokens = combine === 'yes' ? 2800 : 3400;
   const optTokens = baseOptTokens + included.size * 42; // each re-included endpoint adds tokens
-  const pct = naiveTokens > 0 ? Math.round((1 - optTokens / naiveTokens) * 100) : 0;
-  const dollars = naiveTokens > 0
-    ? ((naiveTokens - optTokens) / 1000 * 0.015).toFixed(2)
-    : '0.00';
+  const pct = Math.round((1 - optTokens / naiveTokens) * 100);
+  const dollars = ((naiveTokens - optTokens) / 1000 * 0.015).toFixed(2);
 
   const COMPLEXITY = {
     minimal:       { tools: 15, label: 'minimal',       desc: 'core ops only — list / get / create essentials' },

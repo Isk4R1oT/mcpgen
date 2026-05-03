@@ -7,31 +7,30 @@ const SUGGESTED_PROMPTS = [
   'list active plans',
 ];
 
-// Real-data props (all optional — fall back to canon-shaped defaults for
-// snapshot testing / pure-visual storybook):
-//   - tools: list of `{ name }` for the locked agent dropdown / trace
-//   - history: prior runs from the BFF (history endpoint TBD; default [])
-//   - onRunTool({ tool_name, args, prompt }): wired tool-execution callback;
-//     wrapper resolves with `{ result, latency_ms, tokens }` so the trace
-//     panel can render real metrics. When undefined the locked component
-//     uses its visual-only fake-trace path (single FAKE_RESULT row).
-function Playground({
-  onBack,
-  onDeploy,
-  sample,
-  tools,
-  history: historyProp,
-  onRunTool,
-}) {
+const FAKE_TRANSACTIONS = [
+  { amt: '$42.00',  date: 'apr 23' },
+  { amt: '$18.50',  date: 'apr 22' },
+  { amt: '$9.99',   date: 'apr 22' },
+  { amt: '$204.00', date: 'apr 21' },
+  { amt: '$12.00',  date: 'apr 20' },
+];
+
+// Seed history so the history rail isn't empty on first visit.
+const SEED_HISTORY = [
+  { id: 'h1', label: 'list active plans',                  prompt: 'list active plans',                          tools: ['list_plans'],          tk: 412,  ms: 180, when: '2m ago',   savedAsTest: false },
+  { id: 'h2', label: 'find rio@example.com',               prompt: 'find account by email rio@example.com',     tools: ['find_customer'],       tk: 388,  ms: 220, when: '7m ago',   savedAsTest: true  },
+  { id: 'h3', label: 'order_lifecycle composite test',     prompt: 'create order for new customer kira@x.com',   tools: ['order_lifecycle'],     tk: 624,  ms: 410, when: '14m ago',  savedAsTest: true  },
+  { id: 'h4', label: 'refund w/ audit trail',              prompt: 'refund charge ch_8a2f and log it',          tools: ['refund_with_audit'],   tk: 506,  ms: 320, when: '22m ago',  savedAsTest: false },
+  { id: 'h5', label: 'last 10 transactions',               prompt: 'show last 10 transactions for customer ali', tools: ['list_charges'],        tk: 478,  ms: 260, when: '38m ago',  savedAsTest: false },
+];
+
+function Playground({ onBack, onDeploy, sample }) {
   const [messages, setMessages] = React.useState([]);
   const [input, setInput] = React.useState('');
   const [traces, setTraces] = React.useState([]);
   const [running, setRunning] = React.useState(false);
   const [keyTtl, setKeyTtl] = React.useState(47 * 60);
-  // History rail: real history (from prop) when present; empty state
-  // otherwise. Newer entries are unshifted as runs complete.
-  const seedHistory = Array.isArray(historyProp) ? historyProp : [];
-  const [history, setHistory] = React.useState(seedHistory);
+  const [history, setHistory] = React.useState(SEED_HISTORY);
   const [historyFilter, setHistoryFilter] = React.useState('all'); // all | tests
   const [activeRunId, setActiveRunId] = React.useState(null);
   const [savedToast, setSavedToast] = React.useState('');
@@ -47,77 +46,24 @@ function Playground({
     return `${m}m ${String(s).padStart(2, '0')}s`;
   };
 
-  // Default tool name for visual-fallback path: prefer first prop-supplied
-  // tool, then fall back to the locked screen's `list_charges` cue.
-  const fallbackToolName =
-    Array.isArray(tools) && tools.length > 0 && typeof tools[0]?.name === 'string'
-      ? tools[0].name
-      : 'list_charges';
-
-  const send = async (text, opts = {}) => {
+  const send = (text, opts = {}) => {
     if (!text.trim() || running) return;
     setRunning(true);
     setMessages(m => [...m, { role: 'user', text }]);
     setInput('');
     setActiveRunId(null);
 
-    if (typeof onRunTool === 'function') {
-      const toolName = opts.toolName || fallbackToolName;
-      setMessages(m => [...m, { role: 'agent', text: 'running…', tool: toolName }]);
-      const t0 = Date.now();
-      try {
-        const out = await onRunTool({ tool_name: toolName, args: { prompt: text }, prompt: text });
-        const elapsed = (out && typeof out.latency_ms === 'number') ? out.latency_ms : (Date.now() - t0);
-        const tokens = (out && typeof out.tokens === 'number') ? out.tokens : 0;
-        const resultText = (out && typeof out.text === 'string')
-          ? out.text
-          : (out && out.result !== undefined ? JSON.stringify(out.result, null, 2) : 'done.');
-        setTraces(t => [...t, { n: t.length + 1, name: toolName, in: 0, out: tokens, lat: elapsed }]);
-        setMessages(m => {
-          const copy = [...m];
-          copy[copy.length - 1] = {
-            role: 'agent', done: true, text: resultText,
-            rows: [], totalAmount: '',
-          };
-          return copy;
-        });
-        const newId = 'h' + Date.now();
-        setHistory(h => [{
-          id: newId,
-          label: text.length > 40 ? text.slice(0, 38) + '…' : text,
-          prompt: text,
-          tools: [toolName],
-          tk: tokens, ms: elapsed, when: 'just now', savedAsTest: !!opts.test,
-        }, ...h].slice(0, 24));
-        setActiveRunId(newId);
-      } catch (e) {
-        setMessages(m => {
-          const copy = [...m];
-          copy[copy.length - 1] = {
-            role: 'agent', done: true, text: `error: ${e?.message || String(e)}`,
-            rows: [], totalAmount: '',
-          };
-          return copy;
-        });
-      } finally {
-        setRunning(false);
-      }
-      return;
-    }
-
-    // Visual-only fallback (no wired tool runner — used in storybook /
-    // canon snapshots).
     setTimeout(() => {
-      setMessages(m => [...m, { role: 'agent', text: 'fetching…', tool: fallbackToolName }]);
+      setMessages(m => [...m, { role: 'agent', text: 'fetching…', tool: 'list_charges' }]);
     }, 400);
 
     setTimeout(() => {
-      setTraces(t => [...t, { n: t.length + 1, name: fallbackToolName, in: 38, out: 180, lat: 240 }]);
+      setTraces(t => [...t, { n: t.length + 1, name: 'list_charges', in: 38, out: 180, lat: 240 }]);
       setMessages(m => {
         const copy = [...m];
         copy[copy.length - 1] = {
-          role: 'agent', done: true, text: 'no tool runner attached — connect a wrapper to execute.',
-          rows: [], totalAmount: '',
+          role: 'agent', done: true, text: 'last 5 transactions:',
+          rows: FAKE_TRANSACTIONS, totalAmount: '$286.49',
         };
         return copy;
       });
@@ -127,8 +73,8 @@ function Playground({
         id: newId,
         label: text.length > 40 ? text.slice(0, 38) + '…' : text,
         prompt: text,
-        tools: [fallbackToolName],
-        tk: 0, ms: 240, when: 'just now', savedAsTest: !!opts.test,
+        tools: ['list_charges'],
+        tk: 1240, ms: 240, when: 'just now', savedAsTest: !!opts.test,
       }, ...h].slice(0, 24));
       setActiveRunId(newId);
       setRunning(false);
@@ -307,18 +253,14 @@ function Playground({
                     ) : (
                       <div>
                         <div style={{ fontSize: 15, marginBottom: 8 }}>{m.text}</div>
-                        {Array.isArray(m.rows) && m.rows.length > 0 && (
-                          <div className="mc-mono" style={{ fontSize: 13.5, lineHeight: 1.7, paddingLeft: 14, borderLeft: '2px solid var(--border)' }}>
-                            {m.rows.map(r => (
-                              <div key={r.amt}>• {r.amt}  <span className="muted">{r.date}</span></div>
-                            ))}
-                            {m.totalAmount && (
-                              <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed var(--border)' }}>
-                                total: <strong>{m.totalAmount}</strong>
-                              </div>
-                            )}
+                        <div className="mc-mono" style={{ fontSize: 13.5, lineHeight: 1.7, paddingLeft: 14, borderLeft: '2px solid var(--border)' }}>
+                          {m.rows.map(r => (
+                            <div key={r.amt}>• {r.amt}  <span className="muted">{r.date}</span></div>
+                          ))}
+                          <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed var(--border)' }}>
+                            total: <strong>{m.totalAmount}</strong>
                           </div>
-                        )}
+                        </div>
                       </div>
                     )}
                   </div>

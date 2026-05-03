@@ -35,6 +35,12 @@ import '@/tokens';                    // sets window.MCPTokens
 import '@/ui';                        // defines Btn, TopBar, Icon, Badge, etc. (globals)
 import '@/i18n';                      // sets window.I18nProvider, window.useI18n, window.LangSwitcher
 
+// Cross-screen error-mode hook + bus mirror of canon app.jsx:19-34.
+// Canon screen-{stream,quality,deploy}.jsx call `window.useErrorMode()`
+// but `@/app` is intentionally NOT side-effect-imported here (Pitfall 5).
+// This shim registers the missing global so those screens render.
+import '@/providers/error-mode-shim';
+
 // New canon — 13 public screens. Order follows hero-flow then admin/extras.
 import '@/screen-landing';            // sets window.Landing + window.SAMPLE_APIS
 import '@/screen-auth';               // sets window.AuthScreen

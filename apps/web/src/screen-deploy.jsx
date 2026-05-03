@@ -7,11 +7,7 @@ const DEPLOY_OPTIONS = [
   { id: 'src',    title: 'source + dockerfile',   tag: 'pro',         desc: 'we generate, you take, we never see runtime.', meta: 'for the truly paranoid.' },
 ];
 
-// `onSubmit` is the wired-deploy callback (Promise<void> | void). When it
-// resolves the wrapper has captured the live result and will navigate to
-// `DeploySuccess`; failures bubble as Promise rejection and surface the
-// recoverable failed-state UI.
-function Deploy({ onDeployed, onBack, sample, onSubmit }) {
+function Deploy({ onDeployed, onBack, sample }) {
   const [errorMode] = window.useErrorMode();
   const willFail = errorMode === 'deploy-fail';
   const [opt, setOpt] = React.useState('cloud');
@@ -19,23 +15,13 @@ function Deploy({ onDeployed, onBack, sample, onSubmit }) {
   const [deploying, setDeploying] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
 
-  const go = async () => {
+  const go = () => {
     setDeploying(true);
     setFailed(false);
-    if (typeof onSubmit === 'function') {
-      try {
-        await onSubmit({ target: opt, auth });
-        if (typeof onDeployed === 'function') onDeployed();
-      } catch (_e) {
-        setFailed(true);
-      }
-      return;
-    }
-    // Visual fallback path used by storybook / canon snapshots.
     setTimeout(() => {
       if (willFail) {
         setFailed(true);
-      } else if (typeof onDeployed === 'function') {
+      } else {
         onDeployed();
       }
     }, 1800);
@@ -177,51 +163,26 @@ function Deploy({ onDeployed, onBack, sample, onSubmit }) {
   );
 }
 
-// Real-deploy props (all optional — fall back to canon-shaped defaults for
-// snapshot testing / pure-visual storybook):
-//   - mcpUrl: full https://...mcp endpoint of the deployed MCP server
-//   - claudeDesktopConfig: pre-formatted JSON string (from
-//     `formatConfigJson(buildConfig(...))`)
-//   - serverName: snake-case server name; used in the share-link slug
-//   - onCopy(text, key): override the clipboard write (defaults to
-//     navigator.clipboard.writeText) — wrappers may inject toast hooks
-function DeploySuccess({
-  onDashboard,
-  sample,
-  mcpUrl,
-  claudeDesktopConfig,
-  serverName,
-  onCopy,
-  onDownload,
-}) {
+function DeploySuccess({ onDashboard, sample }) {
   const [copied, setCopied] = React.useState('');     // '' | 'url' | 'install' | 'share'
   const [shareSheet, setShareSheet] = React.useState(false);
   const [visibility, setVisibility] = React.useState('private'); // private|public
-  const fallbackId = serverName || sample?.id || 'lumen';
-  // `mcpUrl` from props is the full https endpoint. The screen renders it
-  // with the protocol split so the muted "https://" reads as a separator;
-  // strip it here when the upstream value already includes the scheme.
-  const fullUrl = mcpUrl || `https://${fallbackId}-mcp-abc123.mcpgen.app/mcp`;
-  const url = fullUrl.replace(/^https?:\/\//, '');
-  const installCmd = `npx mcpgen install ${fallbackId}`;
-  const shareUrl = `https://mcpgen.app/s/${fallbackId}`;
-  const config = claudeDesktopConfig || `{
+  const url = `${sample?.id || 'lumen'}-mcp-abc123.mcpgen.app/mcp`;
+  const installCmd = `npx mcpgen install ${sample?.id || 'lumen'}-mcp-abc123`;
+  const shareUrl = `https://mcpgen.app/s/${sample?.id || 'lumen'}-mcp-abc123`;
+  const config = `{
   "mcpServers": {
-    "${fallbackId}": {
-      "url": "${fullUrl}",
+    "${sample?.id || 'lumen'}": {
+      "url": "https://${url}",
       "headers": {
-        "Authorization": "Bearer \${${fallbackId.toUpperCase()}_KEY}"
+        "Authorization": "Bearer \${${(sample?.id || 'lumen').toUpperCase()}_KEY}"
       }
     }
   }
 }`;
 
   const copy = (text, key) => {
-    if (typeof onCopy === 'function') {
-      onCopy(text, key);
-    } else {
-      navigator.clipboard?.writeText(text);
-    }
+    navigator.clipboard?.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(''), 1400);
   };
