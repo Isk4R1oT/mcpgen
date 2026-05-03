@@ -42,7 +42,7 @@ const USER_SERVERS = [
   },
 ];
 
-function DashboardList({ onBack, onOpen, onMarketplace, onBilling, onLanding }) {
+function DashboardList({ onBack, onOpen, onMarketplace, onBilling, onLanding, onSettings }) {
   const { t } = window.useI18n();
   const [filter, setFilter] = React.useState('all'); // all|live|public|drift
   const [view, setView] = React.useState('grid');    // grid|table
@@ -80,6 +80,7 @@ function DashboardList({ onBack, onOpen, onMarketplace, onBilling, onLanding }) 
           <>
             <button className="mc-btn mc-btn-ghost mc-btn-sm" onClick={onMarketplace}>{t('marketplace')}</button>
             <button className="mc-btn mc-btn-ghost mc-btn-sm" onClick={onBilling}>{t('billing')}</button>
+            <button className="mc-btn mc-btn-ghost mc-btn-sm" onClick={onSettings}>settings</button>
             <LangSwitcher />
             <span className="mc-caption" style={{ marginRight: 4 }}>kira@dolla.io</span>
             <button className="mc-btn mc-btn-ghost mc-btn-sm" onClick={() => window.mcpDrawer('notifications', (

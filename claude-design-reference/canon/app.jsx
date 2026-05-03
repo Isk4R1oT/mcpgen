@@ -10,7 +10,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "bg": "paper"
 }/*EDITMODE-END*/;
 
-const SCREENS = ['landing', 'preview', 'auth', 'stream', 'canvas', 'quality', 'playground', 'deploy', 'success', 'dashboard', 'dash-list', 'marketplace', 'server', 'billing'];
+const SCREENS = ['landing', 'account', 'preview', 'auth', 'stream', 'canvas', 'quality', 'playground', 'deploy', 'success', 'dashboard', 'dash-list', 'marketplace', 'server', 'billing', 'settings'];
 
 // Lightweight cross-screen demo error state — controlled by a tiny floating
 // switch that shows on stream / quality / deploy. Values:
@@ -135,7 +135,12 @@ function App() {
                                 onMakeIt={() => go('preview')}
                                 onPricing={() => go('billing')}
                                 onMarketplace={() => go('marketplace')}
-                                onSignIn={() => go('dash-list')} />;
+                                onSignIn={() => go('account')} />;
+      case 'account':    return <AccountScreen
+                            mode="signin"
+                            onSignedIn={() => go('dash-list')}
+                            onBack={() => go('landing')}
+                            onMarketplace={() => go('marketplace')} />;
       case 'preview':    return <Preview sample={sample} onMakeIt={() => go('auth')} onBack={() => go('landing')} />;
       case 'auth':       return <AuthScreen sample={sample} onContinue={() => go('stream')} onBack={() => go('preview')} />;
       case 'stream':     return <StreamLog sample={sample} onDone={() => go('canvas')} onCancel={() => go('preview')} />;
@@ -150,6 +155,7 @@ function App() {
                             onOpen={(s) => { setSample(s); go('dashboard'); }}
                             onMarketplace={() => go('marketplace')}
                             onBilling={() => go('billing')}
+                            onSettings={() => go('settings')}
                           />;
       case 'marketplace':return <Marketplace
                             onLanding={() => go('landing')}
@@ -166,6 +172,12 @@ function App() {
                             onLanding={() => go('landing')}
                             onDashboard={() => go('dash-list')}
                             onMarketplace={() => go('marketplace')}
+                          />;
+      case 'settings':   return <SettingsScreen
+                            onBack={() => go('dash-list')}
+                            onDashboard={() => go('dash-list')}
+                            onMarketplace={() => go('marketplace')}
+                            onBilling={() => go('billing')}
                           />;
       default: return null;
     }
@@ -207,6 +219,7 @@ function App() {
             <div className="mc-cmdk-list">
               {[
                 { l: '> paste new api spec',           go: 'landing' },
+                { l: '> sign in / create account',     go: 'account' },
                 { l: '> review preview',               go: 'preview' },
                 { l: '> set up authentication',        go: 'auth' },
                 { l: '> open server canvas',           go: 'canvas' },
@@ -218,6 +231,7 @@ function App() {
                 { l: '> browse marketplace',           go: 'marketplace' },
                 { l: '> view a marketplace listing',   go: 'server' },
                 { l: '> billing & plans',              go: 'billing' },
+                { l: '> account · settings',           go: 'settings' },
               ].map((c, i) => (
                 <div key={c.l} className={`mc-cmdk-item ${i === 0 ? 'sel' : ''}`} onClick={() => go(c.go)}>
                   <span>{c.l}</span>
