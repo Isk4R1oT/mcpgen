@@ -193,7 +193,7 @@ function Preview({ sample, onMakeIt, onBack }) {
             <span style={{ flex: 1 }}>
               you added <strong>{included.size}</strong> endpoint{included.size === 1 ? '' : 's'}. re-run generation to include {included.size === 1 ? 'it' : 'them'}?
             </span>
-            <Btn kind="ink" size="sm">re-generate</Btn>
+            <Btn kind="ink" size="sm" onClick={() => window.mcpToast(`re-running with ${included.size} new endpoint${included.size===1?'':'s'}…`)}>re-generate</Btn>
             <Btn kind="ghost" size="sm" onClick={onMakeIt}>continue without</Btn>
           </div>
         )}
@@ -286,6 +286,4 @@ function Preview({ sample, onMakeIt, onBack }) {
   );
 }
 
-if (typeof window !== 'undefined') {
-  window.Preview = Preview;
-}
+window.Preview = Preview;

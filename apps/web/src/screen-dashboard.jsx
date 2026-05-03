@@ -22,6 +22,31 @@ function Dashboard({ onBack, onPlay, sample }) {
   const [driftDismissed, setDriftDismissed] = React.useState(false);
   const [diffTab, setDiffTab] = React.useState('new');
   const [autoRegen, setAutoRegen] = React.useState(false);
+  // drift review state
+  const [driftMode, setDriftMode] = React.useState('list'); // list | walk | pinned
+  const [walkIdx, setWalkIdx] = React.useState(0);
+  // each item is keyed `${section}:${path}` → 'accept' | 'skip' | undefined
+  const [decisions, setDecisions] = React.useState({});
+  const decKey = (section, path) => `${section}:${path}`;
+  const setDecision = (section, path, value) => setDecisions(d => ({ ...d, [decKey(section, path)]: value }));
+  const allDriftItems = [
+    ...SPEC_DIFF.new.map(e => ({ ...e, section: 'new' })),
+    ...SPEC_DIFF.removed.map(e => ({ ...e, section: 'removed' })),
+    ...SPEC_DIFF.modified.map(e => ({ ...e, section: 'modified', method: 'PATCH', desc: e.change })),
+  ];
+  const decidedCount = Object.values(decisions).filter(v => v === 'accept' || v === 'skip').length;
+  const acceptedCount = Object.values(decisions).filter(v => v === 'accept').length;
+  const acceptAll = () => {
+    const all = {};
+    allDriftItems.forEach(it => { all[decKey(it.section, it.path)] = 'accept'; });
+    setDecisions(all);
+  };
+  const skipAll = () => {
+    const all = {};
+    allDriftItems.forEach(it => { all[decKey(it.section, it.path)] = 'skip'; });
+    setDecisions(all);
+  };
+  const resetDrift = () => { setDecisions({}); setWalkIdx(0); setDriftMode('list'); };
   const [rotateOpen, setRotateOpen] = React.useState(false);
 
   return (
@@ -33,8 +58,8 @@ function Dashboard({ onBack, onPlay, sample }) {
           <>
             <span className="mc-caption"><span className="mc-dot live" style={{ marginRight: 6 }} />live for 12 days</span>
             <Btn kind="ghost" size="sm" icon="play" onClick={onPlay}>playground</Btn>
-            <Btn kind="ghost" size="sm" icon="doc">logs</Btn>
-            <Btn kind="ink" size="sm">settings</Btn>
+            <Btn kind="ghost" size="sm" icon="doc" onClick={() => window.mcpDrawer(`${sample?.name || 'lumen-payments'}-mcp · activity log`, <window.FullLogBody serverName={sample?.name || 'lumen'} />, { eyebrow: 'last 12,840 invocations' })}>logs</Btn>
+            <Btn kind="ink" size="sm" onClick={() => window.mcpDrawer(`${sample?.name || 'lumen-payments'}-mcp settings`, <window.SettingsBody serverName={`${sample?.name || 'lumen-payments'}-mcp`} />, { eyebrow: 'server configuration' })}>settings</Btn>
           </>
         }
       />
@@ -85,7 +110,7 @@ function Dashboard({ onBack, onPlay, sample }) {
           </div>
           <div className="row-bw mc-mono" style={{ fontSize: 11.5, marginTop: 8, color: 'var(--text-muted)' }}>
             <span>on track for 105K · projecting overage may 14</span>
-            <a className="mc-link">consider upgrading to pro →</a>
+            <a className="mc-link" onClick={() => window.mcpToast('opening pricing…')} style={{ cursor: 'pointer' }}>consider upgrading to pro →</a>
           </div>
         </Card>
 
@@ -103,8 +128,8 @@ function Dashboard({ onBack, onPlay, sample }) {
                 </div>
                 <div className="row" style={{ gap: 8 }}>
                   <Btn kind="ink" size="sm" icon="spark" onClick={() => setDriftOpen(true)}>review changes</Btn>
-                  <Btn kind="ghost" size="sm">auto-regenerate</Btn>
-                  <Btn kind="ghost" size="sm" onClick={() => setDriftDismissed(true)}>snooze 7 days</Btn>
+                  <Btn kind="ghost" size="sm" onClick={() => { acceptAll(); setDriftOpen(false); setDriftDismissed(true); window.mcpToast(`auto-regenerated · ${allDriftItems.length} changes applied`); }}>auto-regenerate</Btn>
+                  <Btn kind="ghost" size="sm" onClick={() => { setDriftDismissed(true); window.mcpToast('snoozed 7 days · we\'ll re-check on may 14'); }}>snooze 7 days</Btn>
                 </div>
               </div>
             </div>
@@ -171,7 +196,7 @@ function Dashboard({ onBack, onPlay, sample }) {
                 sk_live_••••••••8421 · last used 2 hours ago · 12,840 calls this month
               </div>
             </div>
-            <Btn kind="ghost" size="sm" icon="doc">access log</Btn>
+            <Btn kind="ghost" size="sm" icon="doc" onClick={() => window.mcpDrawer(`${sample?.name || 'lumen'} api key · access log`, <window.AccessLogBody keyName={`${sample?.name || 'lumen'} api key`} />, { eyebrow: 'who used this key' })}>access log</Btn>
             <Btn kind="ink" size="sm" icon="undo" onClick={() => setRotateOpen(true)}>rotate</Btn>
           </div>
 
@@ -185,8 +210,8 @@ function Dashboard({ onBack, onPlay, sample }) {
                 whsec_••••••••3211 · added 12 days ago · 0 invocations
               </div>
             </div>
-            <Btn kind="ghost" size="sm" icon="doc">access log</Btn>
-            <Btn kind="ghost" size="sm" icon="undo">rotate</Btn>
+            <Btn kind="ghost" size="sm" icon="doc" onClick={() => window.mcpDrawer('webhook signing secret · access log', <window.AccessLogBody keyName="webhook signing secret" />, { eyebrow: 'who used this key' })}>access log</Btn>
+            <Btn kind="ghost" size="sm" icon="undo" onClick={() => setRotateOpen(true)}>rotate</Btn>
           </div>
 
           <div className="mc-caption" style={{ marginTop: 12, fontSize: 11.5 }}>
@@ -196,7 +221,7 @@ function Dashboard({ onBack, onPlay, sample }) {
 
         {/* Activity */}
         <Card>
-          <SectionLabel right={<a className="mc-link mc-mono" style={{ fontSize: 11 }}>full log →</a>}>recent activity</SectionLabel>
+          <SectionLabel right={<a className="mc-link mc-mono" style={{ fontSize: 11, cursor: 'pointer' }} onClick={() => window.mcpDrawer(`${sample?.name || 'lumen-payments'}-mcp · activity log`, <window.FullLogBody serverName={sample?.name || 'lumen'} />, { eyebrow: 'last 12,840 invocations' })}>full log →</a>}>recent activity</SectionLabel>
           <div className="mc-mono" style={{ fontSize: 12.5, lineHeight: 1.9 }}>
             {[
               { t: '2m',  ev: 'list_charges',     meta: '218 tk · 240 ms · agent: claude desktop' },
@@ -220,54 +245,237 @@ function Dashboard({ onBack, onPlay, sample }) {
 
       {/* Spec Drift Diff Modal */}
       {driftOpen && (
-        <div className="mc-modal-veil" onClick={() => setDriftOpen(false)}>
-          <div className="mc-modal" style={{ width: 760 }} onClick={(e) => e.stopPropagation()}>
-            <div className="mc-modal-head">
-              <div>
-                <div className="mc-caption-up">spec changes · 2 days ago</div>
-                <div className="mc-h2" style={{ marginTop: 2 }}>review what changed</div>
-              </div>
-              <button className="mc-btn mc-btn-ghost mc-btn-sm" onClick={() => setDriftOpen(false)} style={{ padding: '0 8px' }}><Icon name="x" size={11} /></button>
-            </div>
-            <div className="mc-modal-body">
-              <div className="mc-tabs">
-                {[
-                  { id: 'new',      label: `new · ${SPEC_DIFF.new.length}` },
-                  { id: 'removed',  label: `removed · ${SPEC_DIFF.removed.length}` },
-                  { id: 'modified', label: `modified · ${SPEC_DIFF.modified.length}` },
-                ].map(t => (
-                  <button key={t.id} onClick={() => setDiffTab(t.id)} className={`mc-tab ${diffTab === t.id ? 'sel' : ''}`}>{t.label}</button>
-                ))}
+        <div className="mc-modal-veil" onClick={() => { setDriftOpen(false); }}>
+          <div className="mc-modal" style={{ width: 820 }} onClick={(e) => e.stopPropagation()}>
+            <div className="mc-modal-head" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 14 }}>
+              <div className="row-bw">
+                <div>
+                  <div className="mc-caption-up">spec changes · 2 days ago</div>
+                  <div className="mc-h2" style={{ marginTop: 2 }}>review what changed</div>
+                </div>
+                <button className="mc-btn mc-btn-ghost mc-btn-sm" onClick={() => setDriftOpen(false)} style={{ padding: '0 8px' }}><Icon name="x" size={11} /></button>
               </div>
 
-              {diffTab === 'new' && SPEC_DIFF.new.map(e => (
-                <div key={e.path} className="mc-excluded-row" style={{ borderBottom: '1px dashed var(--border)' }}>
-                  <span className={`mc-method ${e.method}`}>{e.method}</span>
-                  <span className="mc-mono" style={{ fontSize: 12.5 }}>{e.path}</span>
-                  <span className="muted" style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>{e.desc}</span>
-                  <span style={{ textAlign: 'right', color: 'var(--success)', fontFamily: 'var(--font-sans)', fontSize: 11.5 }}>+ added</span>
+              {/* Mode selector + bulk actions */}
+              <div className="row-bw" style={{ gap: 12, flexWrap: 'wrap' }}>
+                <div className="mc-chiprow">
+                  {[
+                    ['list', `review list · ${allDriftItems.length}`],
+                    ['walk', 'one-by-one'],
+                    ['pinned', 'pin to old version'],
+                  ].map(([id, label]) => (
+                    <button key={id} className={`mc-chip ${driftMode === id ? 'active' : ''}`} onClick={() => { setDriftMode(id); if (id === 'walk') setWalkIdx(0); }}>{label}</button>
+                  ))}
                 </div>
-              ))}
-              {diffTab === 'removed' && SPEC_DIFF.removed.map(e => (
-                <div key={e.path} className="mc-excluded-row" style={{ borderBottom: '1px dashed var(--border)' }}>
-                  <span className={`mc-method ${e.method}`}>{e.method}</span>
-                  <span className="mc-mono" style={{ fontSize: 12.5, textDecoration: 'line-through', opacity: .6 }}>{e.path}</span>
-                  <span className="muted" style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>{e.desc}</span>
-                  <span style={{ textAlign: 'right', color: 'var(--accent)', fontFamily: 'var(--font-sans)', fontSize: 11.5 }}>− removed</span>
+                {driftMode !== 'pinned' && (
+                  <div className="row" style={{ gap: 6 }}>
+                    <Btn kind="ghost" size="sm" onClick={skipAll}>skip all</Btn>
+                    <Btn kind="primary" size="sm" icon="check" onClick={acceptAll}>accept all {allDriftItems.length}</Btn>
+                  </div>
+                )}
+              </div>
+
+              {/* Progress strip — only meaningful in list/walk mode */}
+              {driftMode !== 'pinned' && (
+                <div>
+                  <div className="mc-progress" style={{ marginBottom: 4 }}>
+                    <div style={{ width: `${(decidedCount / allDriftItems.length) * 100}%` }} />
+                  </div>
+                  <div className="row-bw mc-mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    <span>{decidedCount} of {allDriftItems.length} decided · {acceptedCount} accepted</span>
+                    {decidedCount > 0 && <a className="mc-link" onClick={resetDrift} style={{ fontSize: 11 }}>reset</a>}
+                  </div>
                 </div>
-              ))}
-              {diffTab === 'modified' && SPEC_DIFF.modified.map(e => (
-                <div key={e.path} style={{ padding: '10px 0', borderBottom: '1px dashed var(--border)' }}>
-                  <div className="mc-mono" style={{ fontSize: 13, marginBottom: 2 }}>{e.path}</div>
-                  <div className="muted" style={{ fontSize: 12.5 }}>~ {e.change}</div>
-                </div>
-              ))}
+              )}
             </div>
+
+            <div className="mc-modal-body">
+              {driftMode === 'list' && (
+                <>
+                  <div className="mc-tabs">
+                    {[
+                      { id: 'new',      label: `new · ${SPEC_DIFF.new.length}` },
+                      { id: 'removed',  label: `removed · ${SPEC_DIFF.removed.length}` },
+                      { id: 'modified', label: `modified · ${SPEC_DIFF.modified.length}` },
+                    ].map(t => (
+                      <button key={t.id} onClick={() => setDiffTab(t.id)} className={`mc-tab ${diffTab === t.id ? 'sel' : ''}`}>{t.label}</button>
+                    ))}
+                  </div>
+
+                  {SPEC_DIFF[diffTab].map(e => {
+                    const dec = decisions[decKey(diffTab, e.path)];
+                    const isModified = diffTab === 'modified';
+                    return (
+                      <div key={e.path} className="row" style={{
+                        gap: 12, padding: '10px 4px', alignItems: 'flex-start',
+                        borderBottom: '1px dashed var(--border)',
+                        opacity: dec === 'skip' ? 0.5 : 1,
+                      }}>
+                        {!isModified && <span className={`mc-method ${e.method}`} style={{ minWidth: 56 }}>{e.method}</span>}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="mc-mono" style={{
+                            fontSize: 13,
+                            textDecoration: diffTab === 'removed' ? 'line-through' : 'none',
+                            opacity: diffTab === 'removed' ? .65 : 1,
+                          }}>{e.path}</div>
+                          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                            {diffTab === 'modified' ? `~ ${e.change}` : e.desc}
+                          </div>
+                        </div>
+                        <div className="row" style={{ gap: 4, flexShrink: 0 }}>
+                          <button
+                            className="mc-btn mc-btn-sm"
+                            onClick={() => setDecision(diffTab, e.path, 'skip')}
+                            style={{
+                              height: 26, padding: '0 8px',
+                              background: dec === 'skip' ? 'var(--smoke)' : 'transparent',
+                              borderColor: dec === 'skip' ? 'var(--border-sharp)' : 'var(--border)',
+                            }}
+                          ><Icon name="x" size={9} /> skip</button>
+                          <button
+                            className="mc-btn mc-btn-sm"
+                            onClick={() => setDecision(diffTab, e.path, 'accept')}
+                            style={{
+                              height: 26, padding: '0 8px',
+                              background: dec === 'accept' ? 'var(--primary)' : 'transparent',
+                              color: dec === 'accept' ? 'var(--primary-ink)' : 'var(--text)',
+                              borderColor: 'var(--border-sharp)',
+                            }}
+                          ><Icon name="check" size={9} /> accept</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
+              {driftMode === 'walk' && (() => {
+                const item = allDriftItems[walkIdx];
+                if (!item) return (
+                  <div style={{ padding: '60px 0', textAlign: 'center' }}>
+                    <div className="mc-display-l" style={{ fontSize: 36, marginBottom: 8 }}>all done.</div>
+                    <div className="muted" style={{ fontSize: 14 }}>{acceptedCount} accepted · {decidedCount - acceptedCount} skipped</div>
+                  </div>
+                );
+                const dec = decisions[decKey(item.section, item.path)];
+                const sectionLabel = { new: 'new endpoint', removed: 'removed endpoint', modified: 'modified endpoint' }[item.section];
+                return (
+                  <div>
+                    <div className="row-bw mc-caption-up" style={{ marginBottom: 14 }}>
+                      <span>{walkIdx + 1} of {allDriftItems.length} · {sectionLabel}</span>
+                      <span className="muted">←  · → to navigate</span>
+                    </div>
+
+                    <div className="mc-card mc-card-pad" style={{ marginBottom: 18 }}>
+                      <div className="row" style={{ gap: 10, marginBottom: 10 }}>
+                        {item.method && <span className={`mc-method ${item.method}`}>{item.method}</span>}
+                        <span className="mc-mono" style={{
+                          fontSize: 16, fontWeight: 500,
+                          textDecoration: item.section === 'removed' ? 'line-through' : 'none',
+                          opacity: item.section === 'removed' ? .65 : 1,
+                        }}>{item.path}</span>
+                      </div>
+                      <div style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--text)' }}>
+                        {item.section === 'modified' ? `~ ${item.desc}` : item.desc}
+                      </div>
+
+                      {/* Mock generated tool preview for the new ones */}
+                      {item.section === 'new' && (
+                        <div className="mc-code" style={{ marginTop: 14, fontSize: 11.5, padding: 12 }}>
+                          <span className="muted"># would generate:</span>{'\n'}
+                          tool: <span style={{ color: 'var(--accent)' }}>{item.path.split('/').pop()}</span>{'\n'}
+                          desc: "{item.desc}"{'\n'}
+                          tokens: <span style={{ color: 'var(--success)' }}>~38 tk</span>
+                        </div>
+                      )}
+                      {item.section === 'removed' && (
+                        <div className="mc-banner" style={{ marginTop: 14, fontSize: 12 }}>
+                          <Icon name="warn" size={11} />
+                          <span>removing this drops 1 tool. existing agents calling it will fail.</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="row-bw">
+                      <Btn kind="ghost" size="sm" icon="arrow-l" onClick={() => setWalkIdx(i => Math.max(0, i - 1))} disabled={walkIdx === 0}>prev</Btn>
+                      <div className="row" style={{ gap: 8 }}>
+                        <Btn kind="ghost" size="md" onClick={() => { setDecision(item.section, item.path, 'skip'); setWalkIdx(i => i + 1); }}>
+                          <Icon name="x" size={10} /> skip
+                        </Btn>
+                        <Btn kind="primary" size="md" iconR="arrow-r" onClick={() => { setDecision(item.section, item.path, 'accept'); setWalkIdx(i => i + 1); }}>
+                          accept &amp; next
+                        </Btn>
+                      </div>
+                    </div>
+
+                    {/* Decision badge if already decided */}
+                    {dec && (
+                      <div className="mc-caption" style={{ textAlign: 'center', marginTop: 12 }}>
+                        already decided: <strong style={{ color: dec === 'accept' ? 'var(--success)' : 'var(--accent)' }}>{dec}</strong>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {driftMode === 'pinned' && (
+                <div>
+                  <div className="mc-banner" style={{ marginBottom: 16 }}>
+                    <Icon name="lock" size={12} />
+                    <span>this server stays on <strong className="mc-mono">v1.2.0</strong> until you unpin. drift detection keeps running but never auto-applies.</span>
+                  </div>
+
+                  <SectionLabel>pin options</SectionLabel>
+                  <div className="col" style={{ gap: 8, marginBottom: 24 }}>
+                    {[
+                      { id: 'soft', title: 'soft pin', desc: 'keep current version. notify on drift but don\'t prompt to apply.', tag: 'recommended' },
+                      { id: 'hard', title: 'hard pin', desc: 'silence all drift notifications. revisit manually when ready.', tag: '' },
+                      { id: 'manual', title: 'pin per-tool', desc: 'choose which tools follow upstream and which freeze. for surgical control.', tag: 'pro' },
+                    ].map((o, i) => (
+                      <div key={o.id} className={`mc-radio-row ${i === 0 ? 'sel' : ''}`}>
+                        <span className="mc-radio-glyph">{i === 0 ? '◉' : '○'}</span>
+                        <div style={{ flex: 1 }}>
+                          <div className="row" style={{ gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontWeight: 600 }}>{o.title}</span>
+                            {o.tag === 'recommended' && <Badge kind="primary" mono={false}>recommended</Badge>}
+                            {o.tag === 'pro' && <Badge kind="ink" mono={false}>pro</Badge>}
+                          </div>
+                          <div className="muted" style={{ fontSize: 12.5 }}>{o.desc}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mc-rec">
+                    <Icon name="spark" size={12} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>tip: pin before a release window</div>
+                      <div className="muted" style={{ fontSize: 12 }}>most teams pin the day before a launch and unpin once the smoke tests pass. you can keep multiple pinned versions side-by-side under <a className="mc-link" style={{ cursor: 'pointer' }} onClick={() => { setDriftOpen(false); window.mcpDrawer('versions', <window.VersionsBody serverName={sample?.name || 'lumen'} />, { eyebrow: 'rollback or pin' }); }}>versions →</a>.</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="mc-modal-foot">
-              <span className="mc-caption">re-generation will preserve your custom edits</span>
+              <span className="mc-caption">
+                {driftMode === 'pinned'
+                  ? 're-generation paused while pinned'
+                  : `re-generation will preserve your custom edits${decidedCount > 0 ? ` · ${acceptedCount} change${acceptedCount === 1 ? '' : 's'} queued` : ''}`}
+              </span>
               <div className="row" style={{ gap: 8 }}>
                 <Btn kind="ghost" size="sm" onClick={() => setDriftOpen(false)}>cancel</Btn>
-                <Btn kind="ink" size="sm" icon="spark" onClick={() => { setDriftOpen(false); setDriftDismissed(true); }}>re-generate with these changes</Btn>
+                {driftMode === 'pinned' ? (
+                  <Btn kind="ink" size="sm" icon="lock" onClick={() => { setDriftOpen(false); setDriftDismissed(true); }}>pin this version</Btn>
+                ) : (
+                  <Btn
+                    kind="ink" size="sm" icon="spark"
+                    disabled={acceptedCount === 0}
+                    onClick={() => { setDriftOpen(false); setDriftDismissed(true); }}
+                  >
+                    apply {acceptedCount > 0 ? acceptedCount : ''} change{acceptedCount === 1 ? '' : 's'}
+                  </Btn>
+                )}
               </div>
             </div>
           </div>
@@ -299,8 +507,8 @@ function Dashboard({ onBack, onPlay, sample }) {
             <div className="mc-modal-foot">
               <Btn kind="ghost" size="sm" onClick={() => setRotateOpen(false)}>cancel</Btn>
               <div className="row" style={{ gap: 8 }}>
-                <Btn kind="ghost" size="sm">test only</Btn>
-                <Btn kind="ink" size="sm" icon="check" onClick={() => setRotateOpen(false)}>test & save</Btn>
+                <Btn kind="ghost" size="sm" onClick={() => window.mcpToast('verified against api · key not saved')}>test only</Btn>
+                <Btn kind="ink" size="sm" icon="check" onClick={() => { setRotateOpen(false); window.mcpToast('rotated · zero downtime · audit row written'); }}>test & save</Btn>
               </div>
             </div>
           </div>
@@ -310,6 +518,4 @@ function Dashboard({ onBack, onPlay, sample }) {
   );
 }
 
-if (typeof window !== 'undefined') {
-  window.Dashboard = Dashboard;
-}
+window.Dashboard = Dashboard;

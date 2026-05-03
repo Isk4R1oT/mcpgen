@@ -1,6 +1,8 @@
 // screen-quality.jsx — Quality Report (after canvas, before deploy)
 
 function QualityReport({ sample, onContinue, onBack }) {
+  const [errorMode] = window.useErrorMode();
+  const rateLimited = errorMode === 'rate-limit';
   const score = 4.3;
   const breakdown = [
     { label: 'description quality',   value: 4.2, max: 5,   note: 'concise, action-led, average 38 tk' },
@@ -69,6 +71,31 @@ function QualityReport({ sample, onContinue, onBack }) {
           <div className="mc-display-l">we graded the server.<br/>here's how it scored.</div>
         </div>
 
+        {rateLimited && (
+          <Card style={{ marginBottom: 18, borderColor: 'var(--accent)', borderLeftWidth: 4 }}>
+            <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+              <Icon name="warn" size={14} style={{ color: 'var(--accent)', marginTop: 4 }} />
+              <div style={{ flex: 1 }}>
+                <div className="mc-h3" style={{ marginBottom: 4 }}>agent eval skipped — anthropic api rate-limited</div>
+                <div style={{ fontSize: 13.5, lineHeight: 1.55, color: 'var(--text-muted)', marginBottom: 12 }}>
+                  we ran 8 of 15 evaluation prompts before getting <span className="mc-mono">429 too many requests</span>. partial scores below; agent pass-rate is unavailable until the limit resets in <strong className="mc-mono">~3 min</strong>.
+                </div>
+                <div className="row" style={{ gap: 8 }}>
+                  <Btn kind="primary" size="sm" icon="play" onClick={() => window.mcpToast('eval queued · will auto-start at 3:00')}>retry eval in 3:00</Btn>
+                  <Btn kind="ink" size="sm" icon="spark" onClick={() => window.mcpDrawer('use your own anthropic key', (
+                    <div className="col" style={{ gap: 12, fontSize: 13 }}>
+                      <div>paste your anthropic api key. we'll use it for evals only — it's never stored, only held in memory for this session.</div>
+                      <input className="mc-input" placeholder="sk-ant-..." style={{ width: '100%', padding: 10, fontFamily: 'var(--font-mono)', fontSize: 12, border: '1px solid var(--border-sharp)', background: 'var(--paper)', borderRadius: 'var(--radius)' }} />
+                      <Btn kind="ink" size="sm" full onClick={() => window.mcpToast('eval restarted with your key')}>retry now</Btn>
+                    </div>
+                  ), { eyebrow: 'bring your own key' })}>use your own anthropic key</Btn>
+                  <Btn kind="ghost" size="sm" onClick={onContinue}>skip — deploy anyway</Btn>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Hero: gauge + summary */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 18, marginBottom: 18 }}>
           <Card style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -100,7 +127,21 @@ function QualityReport({ sample, onContinue, onBack }) {
 
         {/* Per-tool drilldown */}
         <Card style={{ marginBottom: 18 }}>
-          <SectionLabel right={<a className="mc-link mc-mono" style={{ fontSize: 11 }}>view all 47 →</a>}>per-tool scores</SectionLabel>
+          <SectionLabel right={<a className="mc-link mc-mono" style={{ fontSize: 11, cursor: 'pointer' }} onClick={() => window.mcpDrawer('per-tool scores · all 47', (
+            <div className="mc-mono" style={{ fontSize: 12 }}>
+              {Array.from({length: 47}).map((_, i) => {
+                const score = 70 + Math.floor(Math.random() * 30);
+                const name = ['create_charge','refund_charge','list_customers','create_payout','search_invoices','update_subscription','void_charge'][i % 7] + (i > 6 ? `_v${Math.floor(i/7)+1}` : '');
+                return (
+                  <div key={i} className="row" style={{ gap: 12, padding: '6px 0', borderBottom: '1px dashed var(--border)' }}>
+                    <span style={{ flex: 1 }}>{name}</span>
+                    <span className="muted">{score}/100</span>
+                    <span style={{ color: score > 90 ? 'var(--success)' : score > 80 ? 'var(--text)' : 'var(--accent)' }}>{score > 90 ? '●●●' : score > 80 ? '●●○' : '●○○'}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ), { eyebrow: 'sorted by score · low first' })}>view all 47 →</a>}>per-tool scores</SectionLabel>
           <div className="mc-mono" style={{ fontSize: 12.5 }}>
             {tools.map((t, i) => (
               <div key={t.name} className="row" style={{ gap: 12, padding: '8px 0', borderBottom: i === tools.length - 1 ? 'none' : '1px dashed var(--border)' }}>
@@ -188,7 +229,7 @@ function QualityReport({ sample, onContinue, onBack }) {
         <div className="row-bw" style={{ marginTop: 24 }}>
           <Btn kind="ghost" size="md" icon="arrow-l" onClick={onBack}>back to canvas</Btn>
           <div className="row" style={{ gap: 8 }}>
-            <Btn kind="ghost" size="md">re-run eval</Btn>
+            <Btn kind="ghost" size="md" onClick={() => window.mcpToast('rerunning eval suite… ~28s')}>re-run eval</Btn>
             <Btn kind="primary" size="lg" iconR="arrow-r" onClick={onContinue}>
               looks good · deploy
             </Btn>
@@ -199,6 +240,4 @@ function QualityReport({ sample, onContinue, onBack }) {
   );
 }
 
-if (typeof window !== 'undefined') {
-  window.QualityReport = QualityReport;
-}
+window.QualityReport = QualityReport;

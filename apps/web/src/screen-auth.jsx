@@ -116,7 +116,7 @@ function AuthScreen({ sample, onContinue, onBack }) {
               you'll be redirected to {auth.provider}. we only request the scopes you check below — and never see the user's password.
             </div>
 
-            <button className="mc-btn mc-btn-ink mc-btn-lg mc-btn-full" style={{ marginBottom: 16, justifyContent: 'center' }}>
+            <button className="mc-btn mc-btn-ink mc-btn-lg mc-btn-full" style={{ marginBottom: 16, justifyContent: 'center' }} onClick={() => window.mcpToast(`opening ${auth.provider} consent screen…`)}>
               <span className="mc-mono" style={{ fontSize: 11, opacity: .7 }}>[ ◐ ]</span>
               <span style={{ marginLeft: 6 }}>connect with {auth.provider}</span>
             </button>
@@ -226,6 +226,4 @@ function AuthScreen({ sample, onContinue, onBack }) {
   );
 }
 
-if (typeof window !== 'undefined') {
-  window.AuthScreen = AuthScreen;
-}
+window.AuthScreen = AuthScreen;

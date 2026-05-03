@@ -241,6 +241,4 @@ function casing(text, mode) {
   return text; // lowercase mode: pass-through (we author in lowercase)
 }
 
-if (typeof window !== 'undefined') {
-  window.MCPTokens = { PALETTES, FONT_PAIRS, DENSITY, getPalette, makeCssVars, casing };
-}
+window.MCPTokens = { PALETTES, FONT_PAIRS, DENSITY, getPalette, makeCssVars, casing };
