@@ -42,6 +42,7 @@ References:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Final
 
@@ -114,8 +115,19 @@ def _json_schema_to_zod(schema: dict[str, Any], depth: int = 0) -> str:
 #   parents[6] = repo root
 # parents[6] is the repo root; templates live at
 # `packages/codegen-templates/templates/`.
-_REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[6]
-_TEMPLATES_DIR: Final[Path] = _REPO_ROOT / "packages" / "codegen-templates" / "templates"
+#
+# Docker / Fly override: when the engine runs in a container the source tree
+# is collapsed under /app and parents[6] doesn't reach the repo root. Set
+# MCPGEN_TEMPLATES_DIR to the absolute templates directory (e.g.
+# /pkgs/codegen-templates/templates) to bypass the parents-walk entirely.
+def _resolve_templates_dir() -> Path:
+    override = os.environ.get("MCPGEN_TEMPLATES_DIR")
+    if override is not None and override.strip():
+        return Path(override).resolve()
+    return Path(__file__).resolve().parents[6] / "packages" / "codegen-templates" / "templates"
+
+
+_TEMPLATES_DIR: Final[Path] = _resolve_templates_dir()
 
 # S701 (autoescape=False can lead to XSS) is intentionally suppressed at the
 # attribute level below — Stage E emits TypeScript / TOML / JSON / Markdown

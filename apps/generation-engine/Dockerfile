@@ -45,8 +45,13 @@ COPY apps/generation-engine/tests ./tests
 
 # Rewrite the workspace path source from `../../packages/ir` (host layout) to
 # `/pkgs/ir` (image layout) before running uv sync. The image layout has the
-# IR package in /pkgs/ir, NOT relative to /app.
+# IR package in /pkgs/ir, NOT relative to /app. uv.lock encodes the same
+# relative path twice (once as `path =`, once as `editable =`) so both
+# pyproject.toml AND uv.lock must be rewritten or uv refuses to use the
+# frozen lockfile ("cannot normalize a relative path beyond the base
+# directory").
 RUN sed -i 's|path = "\.\./\.\./packages/ir"|path = "/pkgs/ir"|' pyproject.toml \
+    && sed -i 's|"\.\./\.\./packages/ir"|"/pkgs/ir"|g' uv.lock \
     && uv sync --frozen --no-dev
 
 
@@ -58,6 +63,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY --from=builder /opt/venv /opt/venv
 
+# The mcpgen-ir package is installed editable into /opt/venv (it points to a
+# .pth file referencing /pkgs/ir/src). Without copying /pkgs/ir into the
+# runtime image, `import mcpgen_ir` raises ModuleNotFoundError at startup.
+COPY --from=builder /pkgs/ir /pkgs/ir
+
 # Install gitleaks 8.30.1 binary (F1 secret_scan dep — Phase 5 D-05 step 9).
 # Multi-stage COPY from the official zricethezav/gitleaks image keeps a single source of truth
 # for the pinned version. Bump in lock-step with packages/codegen-templates/package.json
@@ -65,6 +75,21 @@ COPY --from=builder /opt/venv /opt/venv
 COPY --from=zricethezav/gitleaks:v8.30.1 /usr/bin/gitleaks /usr/local/bin/gitleaks
 
 COPY apps/generation-engine/src /app/src
+
+# Stage E (codegen) renders Jinja2 templates that live in
+# `packages/codegen-templates/templates/`. The host code resolves that path
+# via `Path(__file__).resolve().parents[6]` which works when the source tree
+# is /Users/igor/Projects/mcpgen/apps/generation-engine/src/...; under /app
+# the parents-walk overshoots root and raises IndexError. We copy the
+# templates into the image and pin them via MCPGEN_TEMPLATES_DIR so
+# template_loader.py uses the env-override branch.
+COPY packages/codegen-templates /pkgs/codegen-templates
+ENV MCPGEN_TEMPLATES_DIR=/pkgs/codegen-templates/templates
+
+# Stage F (validation, F1 openai_compliance check) walks up from the
+# source file looking for `packages/engine-fixtures/_canonical/`. Mirror the
+# repo layout under /app so the walk-up finds the fixtures at /app/packages/...
+COPY packages/engine-fixtures /app/packages/engine-fixtures
 
 WORKDIR /app
 EXPOSE 8000

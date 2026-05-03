@@ -114,11 +114,13 @@ services:
       FLIPT_ENVIRONMENT: default
       # wrangler dev needs --ip 0.0.0.0 to bind outside the container.
       # Keep --port explicit so it doesn't drift if wrangler defaults change.
-    command: >
-      sh -c "
+    command:
+      - sh
+      - -c
+      - |
+        set -e
         pnpm install --frozen-lockfile --prefer-offline
-        && pnpm --filter @mcpgen/api exec wrangler dev --ip 0.0.0.0 --port 8787
-      "
+        exec pnpm --filter @mcpgen/api exec wrangler dev --ip 0.0.0.0 --port 8787
     depends_on:
       flipt:
         condition: service_healthy
@@ -152,11 +154,13 @@ services:
       # `next dev` reads NODE_ENV from this; explicit so production paths
       # are never accidentally enabled.
       NODE_ENV: development
-    command: >
-      sh -c "
+    command:
+      - sh
+      - -c
+      - |
+        set -e
         pnpm install --frozen-lockfile --prefer-offline
-        && pnpm --filter @mcpgen/web exec next dev -H 0.0.0.0 -p 3000
-      "
+        exec pnpm --filter @mcpgen/web exec next dev -H 0.0.0.0 -p 3000
     depends_on:
       flipt:
         condition: service_healthy
