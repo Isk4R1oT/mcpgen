@@ -49,7 +49,6 @@ import type {
   DeployProps,
   DeploySuccessProps,
   LandingProps,
-  LockedSample,
   MarketplaceProps,
   PlaygroundProps,
   PreviewProps,
@@ -222,5 +221,10 @@ export const DeployScreenWithAnonChrome = DeployWrapper;
 // Re-exports for convenience (callers that import from screens.tsx).
 // ----------------------------------------------------------------------
 
-export type { LockedSample };
+export type {
+  LockedSample,
+  DashboardServerSummary,
+  SpecDiff,
+  SpecDiffEntry,
+} from './index';
 export { SAMPLE_APIS, MARKETPLACE_SERVERS } from './index';

@@ -61,6 +61,8 @@ export interface LandingProps {
   onPricing?: () => void;
   onMarketplace?: () => void;
   onSignIn?: () => void;
+  // M-4-ENTRY: real-data slot. Empty / omitted hides the sample chip row.
+  samples?: ReadonlyArray<LockedSample>;
 }
 
 export interface AuthScreenProps {
@@ -112,18 +114,60 @@ export interface DeploySuccessProps {
   onDashboard?: () => void;
 }
 
+// Drift entry shape consumed by screen-dashboard.jsx drift state machine.
+// Phase 9 wires this from the upcoming GET /api/v1/servers/:id/drift response.
+export interface SpecDiffEntry {
+  method?: string;
+  path: string;
+  desc?: string;
+  change?: string;
+}
+export interface SpecDiff {
+  new: ReadonlyArray<SpecDiffEntry>;
+  removed: ReadonlyArray<SpecDiffEntry>;
+  modified: ReadonlyArray<SpecDiffEntry>;
+}
+
 export interface DashboardProps {
   sample?: LockedSample;
   onBack?: () => void;
   onPlay?: () => void;
+  // M-4-ENTRY: real-data slot. Null / omitted hides the drift banner.
+  specDiff?: SpecDiff | null;
+}
+
+// Server summary as rendered in the dashboard-list grid + table view. The
+// canon's USER_SERVERS shape — promoted to a typed contract surface so the
+// Server Component can adapt GET /api/v1/deployments rows into it.
+export interface DashboardServerSummary {
+  id: string;
+  name: string;
+  api: string;
+  tools: number;
+  status: 'live' | 'paused' | 'draft' | 'error';
+  visibility: 'public' | 'private';
+  uptime: string;
+  calls7: number;
+  p95: number;
+  deltaPct: number;
+  version: string;
+  updated: string;
+  stars?: number;
+  installs?: number;
+  drift?: { kind: string; count: number; severity: 'warn' | 'error' } | null;
+  region?: ReadonlyArray<string>;
+  owner?: string;
 }
 
 export interface DashboardListProps {
   onBack?: () => void;
-  onOpen?: (server: LockedSample) => void;
+  onOpen?: (server: DashboardServerSummary) => void;
   onMarketplace?: () => void;
   onBilling?: () => void;
   onLanding?: () => void;
+  // M-4-ENTRY: real-data slot. Empty / omitted renders the EmptyDashboard
+  // onboarding branch — same UX as the locked canon's "first-run" state.
+  servers?: ReadonlyArray<DashboardServerSummary>;
 }
 
 export interface BillingProps {
