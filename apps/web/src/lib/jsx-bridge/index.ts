@@ -83,10 +83,53 @@ export interface StreamLogProps {
   onCancel?: () => void;
 }
 
+export interface PlaygroundToolHint {
+  /** Tool name (e.g. `charges_create`) — surfaced in the agent dropdown
+   *  and the trace panel. Mirrors `FinalTool.name` from @mcpgen/ir. */
+  readonly name: string;
+}
+
+export interface PlaygroundHistoryRow {
+  readonly id: string;
+  readonly label: string;
+  readonly prompt: string;
+  readonly tools: ReadonlyArray<string>;
+  readonly tk: number;
+  readonly ms: number;
+  readonly when: string;
+  readonly savedAsTest: boolean;
+}
+
+export interface PlaygroundRunResult {
+  /** Free-text result rendered in the agent message body. */
+  readonly text?: string;
+  /** Full structured result (JSON-stringified into the message body when
+   *  `text` is absent). */
+  readonly result?: unknown;
+  /** Token count for the trace panel. */
+  readonly tokens?: number;
+  /** Wall-clock duration of the upstream call in ms. */
+  readonly latency_ms?: number;
+}
+
+export interface PlaygroundRunArgs {
+  readonly tool_name: string;
+  readonly args: Record<string, unknown>;
+  readonly prompt: string;
+}
+
 export interface PlaygroundProps {
   sample?: LockedSample;
   onBack?: () => void;
   onDeploy?: () => void;
+  /** Tool catalog from the live job artifacts (Pass 5 final tools). */
+  tools?: ReadonlyArray<PlaygroundToolHint>;
+  /** Prior runs from the BFF history endpoint (currently empty until the
+   *  endpoint exists — see SHARED-FILE-REQUESTS.md). */
+  history?: ReadonlyArray<PlaygroundHistoryRow>;
+  /** Wired tool-execution callback. When undefined the locked screen
+   *  renders its visual-only fake-trace path. */
+  onRunTool?: (args: PlaygroundRunArgs) => Promise<PlaygroundRunResult>;
 }
 
 export interface PreviewProps {
