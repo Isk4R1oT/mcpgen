@@ -78,8 +78,10 @@ afterEach(() => {
 
 describe('<AuthScreen>', () => {
   it('renders canon seed state (api key · passthrough)', () => {
+    // No specUrl + no sample → breadcrumb falls back to the generic
+    // "mcp-server-mcp · auth" instead of any canon literal server name.
     const { getByText, getAllByText } = render(<AuthScreen />);
-    expect(getByText(/lumen-payments-mcp · auth/i)).toBeTruthy();
+    expect(getByText(/mcp-server-mcp · auth/i)).toBeTruthy();
     // Canon detection card label (singular):
     expect(getByText('API Key')).toBeTruthy();
     // pass-through is the default mode; "most secure" badge confirms it's

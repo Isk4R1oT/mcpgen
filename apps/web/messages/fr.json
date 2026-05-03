@@ -149,5 +149,473 @@
   "onbEta": "environ 4 minutes",
   "skipTour": "passer",
   "sampleHint": "pas de spec sous la main ?",
-  "quickFromSample": "prendre un exemple"
+  "quickFromSample": "prendre un exemple",
+  "account": {
+    "crumb": "compte",
+    "marketplace": "marketplace",
+    "eyebrow": "mcpgen · compte",
+    "heroStartLine1": "lance",
+    "heroStartLine2": "tes MCP en production.",
+    "heroBackLine1": "ravis de te revoir sur",
+    "heroBackLine2": "tes serveurs.",
+    "pitchSignup": "50k appels d'outils par mois offerts. sans carte. tu reçois un budget d'évaluation sur opus et sonnet à l'inscription.",
+    "pitchSignin": "reprends là où tu t'étais arrêté — tes serveurs, alertes de drift et sessions playground t'attendent.",
+    "trustSoc2Title": "soc 2 type ii",
+    "trustSoc2Body": "audit annuel · liste des sous-traitants publique",
+    "trustTenantTitle": "single tenant sur demande",
+    "trustTenantBody": "vpc dédié en enterprise — eu, us, apac",
+    "trustByokTitle": "byok partout",
+    "trustByokBody": "tes propres clés anthropic / openai / bedrock",
+    "trustZeroLogTitle": "rétention zéro des logs",
+    "trustZeroLogBody": "prompts et réponses jamais stockés sauf opt-in",
+    "trustedBy": "fait confiance par les équipes de",
+    "trustedByList": "linear · vercel · supabase · neon · resend · plaid",
+    "tabSignin": "se connecter",
+    "tabSignup": "créer un compte",
+    "magicTitle": "connexion par lien magique",
+    "magicBlurb": "entre ton email — on t'envoie un lien à usage unique. pas de mot de passe à retenir.",
+    "magicSentTitle": "vérifie ta boîte mail",
+    "magicSentBodyPre": "lien de connexion à usage unique envoyé à",
+    "magicSentBodyPost": ". expire dans 15 minutes.",
+    "forgotTitle": "réinitialise ton mot de passe",
+    "forgotBlurb": "entre l'email de ton compte. on t'envoie un lien pour en définir un nouveau.",
+    "resetSentTitle": "lien de réinitialisation envoyé",
+    "resetSentBodyPre": "si un compte existe pour",
+    "resetSentBodyPost": ", tu vas recevoir un lien dans un instant.",
+    "emailLabel": "email",
+    "workEmailLabel": "email professionnel",
+    "emailPlaceholder": "you@team.dev",
+    "passwordLabel": "mot de passe",
+    "passwordPlaceholderSignin": "••••••••",
+    "passwordPlaceholderSignup": "8 caractères minimum · varie-les",
+    "forgotLink": "oublié ?",
+    "show": "voir",
+    "hide": "masquer",
+    "nameLabel": "nom complet",
+    "namePlaceholder": "ada lovelace",
+    "companyLabel": "entreprise · facultatif",
+    "companyPlaceholder": "analytical engines, ltd",
+    "strength": "force",
+    "strengthTip": "astuce : 12+ caractères · maj/min · 1 chiffre · 1 symbole",
+    "termsPre": "j'accepte les",
+    "termsLinkTerms": "conditions",
+    "termsAnd": "et la",
+    "termsLinkPrivacy": "politique de confidentialité",
+    "termsPost": ". tu peux supprimer ton compte à tout moment dans les paramètres.",
+    "ssoGoogle": "continuer avec google",
+    "ssoGithub": "github",
+    "ssoMicrosoft": "microsoft",
+    "ssoSaml": "sso",
+    "orWithEmail": "ou par email",
+    "magicCta": "envoie-moi plutôt un lien magique",
+    "btnSignin": "se connecter",
+    "btnSigningIn": "connexion…",
+    "btnCreate": "créer le compte",
+    "btnCreating": "création du compte…",
+    "btnSendMagic": "envoyer le lien magique",
+    "btnSendReset": "envoyer le lien de reset",
+    "btnSending": "envoi…",
+    "backToSignin": "← retour à la connexion",
+    "newHere": "première visite ?",
+    "createAccount": "créer un compte",
+    "haveAccount": "déjà un compte ?",
+    "allOperational": "tous les systèmes opérationnels",
+    "hcaptcha": "protégé par hcaptcha · pas de mailing marketing",
+    "needEnterpriseSso": "besoin de SSO entreprise ?",
+    "errEmail": "saisis un email valide",
+    "errName": "ton nom est requis",
+    "errPwEmpty": "saisis ton mot de passe",
+    "errPwWeak": "le mot de passe est trop faible",
+    "errTerms": "tu dois accepter les conditions pour continuer",
+    "toastSigninOk": "ravi de te revoir",
+    "toastSignupOk": "compte créé · bienvenue",
+    "toastMagicSent": "lien magique envoyé à {email}",
+    "toastResetSent": "lien de reset envoyé",
+    "toastSso": "ouverture du sso {provider}…",
+    "toastStatus": "ouverture de la page de statut…",
+    "toastEnterpriseSso": "ouverture de l'aide sso entreprise…",
+    "signupComingSoonTitle": "inscription · bientôt",
+    "signupComingSoonBody": "l'inscription en libre-service est déployée progressivement. écris-nous à hello@mcpgen.dev et on t'ajoute."
+  },
+  "settings": {
+    "preview": {
+      "title": "aperçu · backend pas encore branché",
+      "body": "cette section montre à quoi ressemblera l'interface. les actions ne font rien tant que le backend n'est pas livré."
+    },
+    "sidebar": {
+      "eyebrow": "compte · {name}",
+      "backToDashboard": "retour au tableau",
+      "shortcuts": "aide · raccourcis clavier",
+      "shortcutsToast": "ouverture des raccourcis…",
+      "signOut": "se déconnecter"
+    },
+    "header": {
+      "eyebrow": "étape · paramètres",
+      "title": "compte &",
+      "titleEm": "espace.",
+      "sub": "tout sur vous, vos clés, le filet de sécurité de votre équipe.",
+      "twofaOff": "2fa désactivée",
+      "twofaOn": "2fa · {mode}",
+      "stat": {
+        "plan": "plan",
+        "calls": "appels d'outils · ce mois",
+        "callsOf": "sur {cap}",
+        "servers": "serveurs actifs",
+        "serversSub": "en ce moment",
+        "lastLogin": "dernière connexion",
+        "lastLoginValue": "maintenant"
+      }
+    },
+    "nav": {
+      "profile": "profil",
+      "security": "sécurité",
+      "keys": "clés api",
+      "sso": "sso et saml",
+      "notifications": "notifications",
+      "integrations": "intégrations",
+      "usage": "usage & facturation",
+      "audit": "journal d'audit",
+      "danger": "zone de danger"
+    },
+    "sticky": {
+      "unsavedIn": "modifications non sauvegardées dans",
+      "discard": "annuler",
+      "save": "enregistrer",
+      "savedToast": "modifications enregistrées"
+    },
+    "profile": {
+      "title": "profil",
+      "desc": "comment vous apparaissez dans les vues collaboratives, journaux d'audit et e-mails.",
+      "fullName": "nom complet",
+      "handle": "pseudo",
+      "handleHint": "@{handle} sur les serveurs partagés",
+      "emailPrimary": "e-mail · principal",
+      "changeEmail": "changer d'e-mail",
+      "changeEmailToast": "changer d'e-mail · flux de confirmation",
+      "verified": "vérifié",
+      "timezone": "fuseau",
+      "language": "langue",
+      "bio": "bio · optionnel",
+      "bioHint": "affiché sur les listes du marketplace",
+      "upload": "envoyer",
+      "remove": "retirer",
+      "uploadAvatarToast": "envoi de l'avatar…",
+      "removeAvatarToast": "avatar supprimé"
+    },
+    "security": {
+      "title": "sécurité",
+      "desc": "mots de passe, double facteur, codes de récupération et sessions actives.",
+      "password": {
+        "title": "mot de passe",
+        "meta": "rappel à 90 jours",
+        "change": "changer le mot de passe",
+        "changeToast": "ouverture du changement de mot de passe…"
+      },
+      "twofa": {
+        "title": "authentification à deux facteurs",
+        "desc": "obligatoire pour les déploiements de production, la rotation des clés et les transferts d'équipe.",
+        "disabled": "désactivé",
+        "enabled": "activé · {mode}",
+        "recommended": "recommandé",
+        "policyBackup": "politique : secours uniquement",
+        "manage": "gérer",
+        "manageToast": "gestion de la méthode…",
+        "enroll": "activer",
+        "enrollToast": "activation en cours…",
+        "totp": {
+          "name": "app authentificateur · totp",
+          "desc": "1password, raycast, authy, google authenticator"
+        },
+        "passkey": {
+          "name": "passkeys · webauthn",
+          "desc": "touch id, windows hello, clés matérielles (yubikey, solo)",
+          "activeStatus": "actif",
+          "recommendedStatus": "recommandé"
+        },
+        "sms": {
+          "name": "sms · secours uniquement",
+          "desc": "non autorisé comme seul facteur — vulnérable au phishing"
+        }
+      },
+      "recovery": {
+        "title": "codes de récupération",
+        "meta": "10 codes à usage unique · régénérez quand il en reste peu",
+        "download": "télécharger",
+        "downloadToast": "téléchargement de codes.txt…",
+        "regenerate": "régénérer",
+        "regenerateToast": "régénération · anciens codes invalidés"
+      },
+      "sessions": {
+        "title": "sessions actives · {count}",
+        "desc": "appareils et clis connectés. révoquez ce que vous ne reconnaissez pas.",
+        "thisDevice": "cet appareil",
+        "revoked": "révoquée",
+        "revoke": "révoquer",
+        "revokeToast": "session révoquée · {device}",
+        "signOutAll": "déconnecter les autres",
+        "signOutAllToast": "toutes les autres sessions révoquées",
+        "emptyTitle": "uniquement cet appareil",
+        "emptyBody": "aucune autre session active. vous pouvez révoquer celle-ci en vous déconnectant.",
+        "unavailableTitle": "liste des sessions bientôt",
+        "unavailableBody": "logto cloud n'expose pas encore d'api liste de sessions pour votre tenant. nous brancherons dès la sortie."
+      }
+    },
+    "apiKeys": {
+      "title": "clés api",
+      "desc": "accès programmatique au control plane mcpgen. pour invoquer des outils, utilisez les deploy keys serveur.",
+      "newKey": "+ nouvelle clé api",
+      "emptyTitle": "pas encore de clé api",
+      "emptyBody": "créez une clé pour déployer depuis ci, des scripts, ou la transmettre à un coéquipier. chaque clé peut être limitée et expirée.",
+      "createFirst": "+ créer ma première clé",
+      "expired": "expirée",
+      "revoked": "révoquée",
+      "fullAccess": "accès complet",
+      "rotate": "rotation",
+      "rotateToast": "rotation · nouvelle clé affichée une fois",
+      "revoke": "révoquer",
+      "revokeToast": "révoquée · {prefix}…",
+      "delete": "supprimer",
+      "deleteToast": "supprimée",
+      "copy": "copier",
+      "copyToast": "copiée {prefix}…",
+      "scopes": "scopes",
+      "expires": "expire",
+      "lastUsed": "dernier usage",
+      "ipAllowlist": "liste ip autorisée",
+      "drawer": {
+        "newTitle": "nouvelle clé api",
+        "createdTitle": "clé créée",
+        "nameLabel": "nom · pour vos archives",
+        "namePlaceholder": "ci · github actions · prod",
+        "scopesLabel": "scopes",
+        "scopesHint": "principe du moindre privilège — décochez ce qui n'est pas utile",
+        "expiresLabel": "expire dans",
+        "expiry30": "30 jours",
+        "expiry90": "90 jours · recommandé",
+        "expiry365": "1 an",
+        "expiryNever": "sans expiration",
+        "ipAllowLabel": "liste ip · cidr · optionnel",
+        "createKey": "créer la clé",
+        "copyNow": "copiez cette clé maintenant",
+        "copied": "copiée",
+        "downloadEnv": "télécharger .env",
+        "downloaded": ".env téléchargé",
+        "warnOnce": "vous ne reverrez plus cette clé. nous ne stockons que le préfixe.",
+        "done": "terminé"
+      }
+    },
+    "sso": {
+      "title": "sso et saml",
+      "desc": "imposez le single sign-on pour votre domaine. nécessite enterprise.",
+      "enterpriseBadge": "enterprise",
+      "headline": "saml / oidc, provisionnement scim, vérification de domaine",
+      "body": "connectez okta, microsoft entra, jumpcloud, google workspace ou tout idp saml 2.0. provisionnement et déprovisionnement automatiques via scim 2.0.",
+      "talkSales": "parler aux ventes",
+      "talkSalesToast": "contact des ventes…",
+      "idp": {
+        "title": "fournisseur d'identité",
+        "meta": "okta · acme.okta.com · dernière sync il y a 4 min",
+        "connected": "connecté",
+        "configure": "configurer",
+        "configureToast": "ouverture config idp…"
+      },
+      "domain": {
+        "title": "vérification de domaine",
+        "meta": "your-domain.example · 142 utilisateurs",
+        "verified": "vérifié",
+        "verify": "vérifier dns",
+        "verifyToast": "vérification dns…"
+      },
+      "scim": {
+        "title": "provisionnement scim 2.0",
+        "meta": "endpoint: /scim/v2 · token: scim_•••• · dernier push il y a 2h",
+        "active": "actif",
+        "rotate": "rotation token",
+        "rotateToast": "rotation du token scim…",
+        "logs": "logs",
+        "logsToast": "ouverture logs scim…"
+      },
+      "enforce": {
+        "title": "imposer le sso à tous",
+        "meta": "si activé, la connexion par mot de passe est désactivée pour les comptes du domaine",
+        "toggleToast": "application sso mise à jour"
+      }
+    },
+    "notif": {
+      "title": "notifications",
+      "desc": "moins de pings, mais meilleurs. chaque ligne est une classe d'événement ; choisissez les canaux.",
+      "colEvent": "événement",
+      "colEmail": "e-mail",
+      "colSlack": "slack",
+      "colInApp": "in-app",
+      "colPager": "pager",
+      "channelsLabel": "canaux :",
+      "channelEmail": "e-mail",
+      "channelSlack": "slack · #mcp-alerts",
+      "channelPager": "pagerduty · prod-on-call",
+      "addChannel": "ajouter un canal",
+      "addChannelToast": "ouverture du gestionnaire de canaux…",
+      "drift": {
+        "name": "drift de spec détecté",
+        "hint": "l'openapi amont a changé de forme"
+      },
+      "errors": {
+        "name": "taux d'erreurs ↑",
+        "hint": "p95 erreurs dépasse votre slo"
+      },
+      "deploys": {
+        "name": "déploiements & rollbacks",
+        "hint": "chaque push en production"
+      },
+      "digest": {
+        "name": "résumé hebdomadaire",
+        "hint": "usage, coût, top outils, lundi 9h"
+      },
+      "quotas": {
+        "name": "quota à 80% / 100%",
+        "hint": "avant le throttling"
+      },
+      "security": {
+        "name": "sécurité · rotation clé, nouvelle connexion, changement 2fa",
+        "hint": "toujours activé pour l'e-mail"
+      }
+    },
+    "integ": {
+      "title": "intégrations",
+      "desc": "connectez mcpgen au reste de votre stack. toutes supportent les filtres par événement.",
+      "connected": "connecté",
+      "configure": "configurer",
+      "configureToast": "ouverture des paramètres {name}…",
+      "disconnect": "déconnecter",
+      "disconnectToast": "{name} déconnecté",
+      "connect": "connecter",
+      "connectToast": "connexion {name}…",
+      "slack": {
+        "name": "slack",
+        "desc": "envoie alertes et résumés vers les canaux",
+        "meta": "aperçu · métadonnées une fois connecté"
+      },
+      "github": {
+        "name": "github",
+        "desc": "auto-déploiement depuis les pr · status checks",
+        "meta": "aperçu · métadonnées une fois connecté"
+      },
+      "pagerduty": {
+        "name": "pagerduty",
+        "desc": "page l'astreinte quand les erreurs montent",
+        "meta": "aperçu · métadonnées une fois connecté"
+      },
+      "sentry": {
+        "name": "sentry",
+        "desc": "miroite les erreurs d'outil dans votre projet sentry"
+      },
+      "datadog": {
+        "name": "datadog",
+        "desc": "exporte les métriques : latence, appels, coût"
+      },
+      "linear": {
+        "name": "linear",
+        "desc": "auto-création de tickets pour les drifts"
+      },
+      "webhook": {
+        "name": "webhook générique",
+        "desc": "post d'événements vers n'importe quelle url · signature hmac",
+        "meta": "aperçu · nombre d'endpoints une fois configuré"
+      }
+    },
+    "usage": {
+      "title": "usage & facturation",
+      "desc": "vue allégée. pour les factures, moyens de paiement et infos fiscales, voir billing.",
+      "openBilling": "ouvrir billing complet",
+      "toolCallsLabel": "appels d'outils · ce mois",
+      "usedPct": "{pct}% utilisé",
+      "thisMonth": "ce mois",
+      "allServers": "tous les serveurs · {n}",
+      "allServersEmpty": "pas encore de serveur",
+      "forecast": "prévision",
+      "forecastSub": "disponible après 7 jours de données",
+      "lastMonth": "mois dernier",
+      "lastMonthSub": "disponible au prochain cycle",
+      "byok": "économies byok",
+      "byokSub": "disponible une fois byok configuré",
+      "changePlan": "changer de plan",
+      "downloadInvoices": "télécharger les factures",
+      "invoicesToast": "ouverture billing → factures…",
+      "taxInfo": "info fiscale",
+      "taxToast": "ouverture info fiscale…"
+    },
+    "audit": {
+      "title": "journal d'audit",
+      "desc": "toute action privilégiée sur votre compte. conservé 12 mois en pro, indéfiniment en enterprise.",
+      "export": "exporter csv",
+      "exportToast": "export du journal → csv…",
+      "emptyTitle": "aucun événement d'audit",
+      "emptyBody": "nous loguons chaque action privilégiée — connexions, rotations de clés, changements de politique — et vous pouvez l'exporter à la demande.",
+      "filter": {
+        "all": "tout",
+        "info": "info",
+        "warn": "warn",
+        "critical": "critique"
+      },
+      "col": {
+        "when": "quand",
+        "actor": "acteur",
+        "event": "événement",
+        "target": "cible",
+        "ip": "ip",
+        "sev": "sév"
+      }
+    },
+    "danger": {
+      "title": "zone de danger",
+      "desc": "actions réversibles et irréversibles. confirmation explicite demandée à chaque fois.",
+      "confirmLabel": "tapez « {phrase} » pour confirmer",
+      "queuedToast": "{cta} · en file",
+      "drawer": {
+        "cancel": "annuler"
+      },
+      "export": {
+        "title": "exporter toutes vos données",
+        "body": "export gdpr complet — serveurs, configs, logs, audit. livré en url signée, expire en 24h.",
+        "cta": "demander l'export",
+        "drawer": {
+          "title": "demande d'export de données",
+          "body": "nous enverrons par e-mail un lien signé à {email} dans 5 minutes.",
+          "cta": "demander l'export"
+        }
+      },
+      "transfer": {
+        "title": "transférer la propriété",
+        "body": "transmettez l'espace de travail à un autre utilisateur. vous serez rétrogradé à admin.",
+        "cta": "transférer la propriété",
+        "drawer": {
+          "title": "transférer la propriété",
+          "body": "vous serez rétrogradé à admin et perdrez les droits de facturation. le nouveau propriétaire doit accepter sous 7 jours.",
+          "cta": "transférer",
+          "newOwnerLabel": "e-mail du nouveau propriétaire · doit déjà avoir un compte",
+          "newOwnerPlaceholder": "new-owner@example.com"
+        }
+      },
+      "pause": {
+        "title": "mettre le compte en pause",
+        "body": "tous les serveurs hors ligne · facturation en pause · réversible depuis paramètres sous 30 jours.",
+        "cta": "mettre en pause",
+        "drawer": {
+          "title": "mettre ce compte en pause",
+          "body": "tous vos serveurs sont mis hors ligne immédiatement. vous pouvez reprendre sous 30 jours depuis n'importe quel appareil.",
+          "cta": "mettre en pause"
+        }
+      },
+      "delete": {
+        "title": "supprimer le compte",
+        "body": "définitif. tous les serveurs, clés, journaux et configs sont effacés sous 24h. pas d'annulation.",
+        "cta": "supprimer le compte",
+        "drawer": {
+          "title": "supprimer ce compte",
+          "body": "c'est définitif. la saisie de la phrase confirme que vous comprenez.",
+          "cta": "supprimer pour toujours"
+        }
+      }
+    }
+  }
 }

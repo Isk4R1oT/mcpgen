@@ -22,9 +22,10 @@ import { routing } from './routing';
 export default getRequestConfig(async ({ requestLocale }) => {
   const requested = await requestLocale;
   const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
-  const messages = (await import(`../../messages/${locale}.json`)).default as Record<
-    string,
-    string
-  >;
+  // next-intl supports nested message objects (`{ account: { tabSignin: '…' } }`)
+  // for namespaced consumption via `useTranslations('account')`. Cast wide.
+  type MessageNode = string | { [k: string]: MessageNode };
+  const messages = (await import(`../../messages/${locale}.json`))
+    .default as Record<string, MessageNode>;
   return { locale, messages };
 });

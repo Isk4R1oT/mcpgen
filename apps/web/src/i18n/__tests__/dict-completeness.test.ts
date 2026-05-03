@@ -11,6 +11,10 @@
 // failing loud. The canon dictionary in i18n.jsx historically enforced
 // this implicitly — every `en` key had a matching `ru/es/fr/de/zh`
 // entry. We keep that invariant.
+//
+// Phase Frontend Rebuild — extended to walk **nested** message objects
+// (e.g. `account.crumb`, `account.tabSignin`) so screens that use
+// `useTranslations('account')` namespacing keep parity across locales.
 
 import { describe, expect, test } from 'vitest';
 
@@ -23,17 +27,57 @@ import zh from '../../../messages/zh.json';
 
 import { routing } from '../routing';
 
-// Use a tuple of [locale, dict] pairs (instead of an indexed Record) so
-// the `noUncheckedIndexedAccess` strictness in tsconfig.base.json does
-// not infer `Record<string, string> | undefined` on lookups.
+type MessageNode = string | { [k: string]: MessageNode };
+
 const DICTS = {
-  en: en as Record<string, string>,
-  ru: ru as Record<string, string>,
-  es: es as Record<string, string>,
-  fr: fr as Record<string, string>,
-  de: de as Record<string, string>,
-  zh: zh as Record<string, string>,
+  en: en as Record<string, MessageNode>,
+  ru: ru as Record<string, MessageNode>,
+  es: es as Record<string, MessageNode>,
+  fr: fr as Record<string, MessageNode>,
+  de: de as Record<string, MessageNode>,
+  zh: zh as Record<string, MessageNode>,
 } as const;
+
+/**
+ * Recursively flatten a nested message object into dotted keys.
+ * `{ account: { tabSignin: 'sign in' } }` → `['account.tabSignin']`.
+ */
+function flattenKeys(node: MessageNode, prefix: string): ReadonlyArray<string> {
+  if (typeof node === 'string') {
+    return [prefix];
+  }
+  const out: string[] = [];
+  for (const [k, child] of Object.entries(node)) {
+    const next = prefix === '' ? k : `${prefix}.${k}`;
+    out.push(...flattenKeys(child, next));
+  }
+  return out;
+}
+
+function flattenDict(dict: Record<string, MessageNode>): ReadonlyArray<string> {
+  const out: string[] = [];
+  for (const [k, child] of Object.entries(dict)) {
+    out.push(...flattenKeys(child, k));
+  }
+  return out.sort();
+}
+
+/**
+ * Walk a nested message object and yield every leaf path → string value.
+ */
+function* leafEntries(
+  node: MessageNode,
+  prefix: string,
+): Generator<readonly [string, string]> {
+  if (typeof node === 'string') {
+    yield [prefix, node] as const;
+    return;
+  }
+  for (const [k, child] of Object.entries(node)) {
+    const next = prefix === '' ? k : `${prefix}.${k}`;
+    yield* leafEntries(child, next);
+  }
+}
 
 describe('i18n dictionary completeness', () => {
   test('routing.locales matches the set of message files on disk', () => {
@@ -43,12 +87,12 @@ describe('i18n dictionary completeness', () => {
   });
 
   test('every locale has the same key set as English', () => {
-    const enKeys = Object.keys(DICTS.en).sort();
+    const enKeys = flattenDict(DICTS.en);
     expect(enKeys.length).toBeGreaterThan(0);
 
     for (const locale of Object.keys(DICTS) as Array<keyof typeof DICTS>) {
       if (locale === 'en') continue;
-      const localeKeys = Object.keys(DICTS[locale]).sort();
+      const localeKeys = flattenDict(DICTS[locale]);
       expect(localeKeys, `locale "${locale}" key set mismatch`).toEqual(enKeys);
     }
   });
@@ -56,7 +100,7 @@ describe('i18n dictionary completeness', () => {
   test('no locale has empty string values', () => {
     for (const locale of Object.keys(DICTS) as Array<keyof typeof DICTS>) {
       const dict = DICTS[locale];
-      for (const [key, value] of Object.entries(dict)) {
+      for (const [key, value] of leafEntries(dict, '')) {
         expect(
           typeof value === 'string' && value.length > 0,
           `${locale}.${key} is empty or non-string`,

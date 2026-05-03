@@ -149,5 +149,473 @@
   "onbEta": "около 4 минут",
   "skipTour": "пропустить",
   "sampleHint": "нет спецификации под рукой?",
-  "quickFromSample": "взять пример"
+  "quickFromSample": "взять пример",
+  "account": {
+    "crumb": "аккаунт",
+    "marketplace": "маркетплейс",
+    "eyebrow": "mcpgen · аккаунт",
+    "heroStartLine1": "запускайте",
+    "heroStartLine2": "production MCP.",
+    "heroBackLine1": "снова рады видеть",
+    "heroBackLine2": "ваши серверы.",
+    "pitchSignup": "первые 50k вызовов инструментов в месяц бесплатно. без карты. при регистрации даём бюджет на opus и sonnet.",
+    "pitchSignin": "продолжайте с того места, где остановились — серверы, алерты дрейфа и сессии playground всё ещё на месте.",
+    "trustSoc2Title": "soc 2 type ii",
+    "trustSoc2Body": "ежегодный аудит · публичный список субпроцессоров",
+    "trustTenantTitle": "single tenant по запросу",
+    "trustTenantBody": "выделенный vpc на enterprise — eu, us, apac",
+    "trustByokTitle": "byok везде",
+    "trustByokBody": "ваши собственные ключи anthropic / openai / bedrock",
+    "trustZeroLogTitle": "нулевой retention логов",
+    "trustZeroLogBody": "промпты и ответы не сохраняются, если вы сами не включите",
+    "trustedBy": "нам доверяют команды",
+    "trustedByList": "linear · vercel · supabase · neon · resend · plaid",
+    "tabSignin": "войти",
+    "tabSignup": "регистрация",
+    "magicTitle": "вход по magic-ссылке",
+    "magicBlurb": "введите email — пришлём одноразовую ссылку. пароль помнить не нужно.",
+    "magicSentTitle": "проверьте почту",
+    "magicSentBodyPre": "одноразовая ссылка для входа отправлена на",
+    "magicSentBodyPost": ". действует 15 минут.",
+    "forgotTitle": "сбросить пароль",
+    "forgotBlurb": "введите email от аккаунта. пришлём ссылку для установки нового пароля.",
+    "resetSentTitle": "ссылка на сброс отправлена",
+    "resetSentBodyPre": "если аккаунт для",
+    "resetSentBodyPost": " существует, ссылка придёт сейчас.",
+    "emailLabel": "email",
+    "workEmailLabel": "рабочий email",
+    "emailPlaceholder": "you@team.dev",
+    "passwordLabel": "пароль",
+    "passwordPlaceholderSignin": "••••••••",
+    "passwordPlaceholderSignup": "минимум 8 символов · сделайте сложнее",
+    "forgotLink": "забыли?",
+    "show": "показать",
+    "hide": "скрыть",
+    "nameLabel": "полное имя",
+    "namePlaceholder": "ада лавлейс",
+    "companyLabel": "компания · опционально",
+    "companyPlaceholder": "analytical engines, ltd",
+    "strength": "надёжность",
+    "strengthTip": "совет: 12+ символов · регистр · 1 цифра · 1 символ",
+    "termsPre": "я принимаю",
+    "termsLinkTerms": "условия",
+    "termsAnd": "и",
+    "termsLinkPrivacy": "политику конфиденциальности",
+    "termsPost": ". удалить аккаунт можно в любой момент в настройках.",
+    "ssoGoogle": "войти через google",
+    "ssoGithub": "github",
+    "ssoMicrosoft": "microsoft",
+    "ssoSaml": "sso",
+    "orWithEmail": "или по email",
+    "magicCta": "лучше пришлите magic-ссылку",
+    "btnSignin": "войти",
+    "btnSigningIn": "вход…",
+    "btnCreate": "создать аккаунт",
+    "btnCreating": "создание аккаунта…",
+    "btnSendMagic": "отправить magic-ссылку",
+    "btnSendReset": "отправить ссылку на сброс",
+    "btnSending": "отправка…",
+    "backToSignin": "← к входу",
+    "newHere": "впервые здесь?",
+    "createAccount": "создать аккаунт",
+    "haveAccount": "уже есть аккаунт?",
+    "allOperational": "все системы работают",
+    "hcaptcha": "защищено hcaptcha · маркетинг не шлём",
+    "needEnterpriseSso": "нужен enterprise SSO?",
+    "errEmail": "введите корректный email",
+    "errName": "укажите имя",
+    "errPwEmpty": "введите пароль",
+    "errPwWeak": "пароль слишком слабый",
+    "errTerms": "необходимо принять условия",
+    "toastSigninOk": "с возвращением",
+    "toastSignupOk": "аккаунт создан · добро пожаловать",
+    "toastMagicSent": "magic-ссылка отправлена на {email}",
+    "toastResetSent": "ссылка на сброс отправлена",
+    "toastSso": "открываем sso через {provider}…",
+    "toastStatus": "открываем страницу статуса…",
+    "toastEnterpriseSso": "открываем справку по enterprise sso…",
+    "signupComingSoonTitle": "регистрация · скоро",
+    "signupComingSoonBody": "самостоятельная регистрация раскатывается постепенно. напишите на hello@mcpgen.dev — добавим вручную."
+  },
+  "settings": {
+    "preview": {
+      "title": "превью · бэкенд ещё не подключён",
+      "body": "этот раздел показывает, как будет выглядеть интерфейс. действия не выполняются до выпуска бэкенда."
+    },
+    "sidebar": {
+      "eyebrow": "аккаунт · {name}",
+      "backToDashboard": "к дашборду",
+      "shortcuts": "помощь · горячие клавиши",
+      "shortcutsToast": "открываю горячие клавиши…",
+      "signOut": "выйти"
+    },
+    "header": {
+      "eyebrow": "шаг · настройки",
+      "title": "аккаунт и",
+      "titleEm": "воркспейс.",
+      "sub": "всё о вас, ваших ключах, страховке вашей команды.",
+      "twofaOff": "2fa выкл",
+      "twofaOn": "2fa · {mode}",
+      "stat": {
+        "plan": "план",
+        "calls": "вызовы инструментов · в этом месяце",
+        "callsOf": "из {cap}",
+        "servers": "активные серверы",
+        "serversSub": "сейчас работают",
+        "lastLogin": "последний вход",
+        "lastLoginValue": "сейчас"
+      }
+    },
+    "nav": {
+      "profile": "профиль",
+      "security": "безопасность",
+      "keys": "api ключи",
+      "sso": "sso и saml",
+      "notifications": "уведомления",
+      "integrations": "интеграции",
+      "usage": "использование и оплата",
+      "audit": "журнал аудита",
+      "danger": "опасная зона"
+    },
+    "sticky": {
+      "unsavedIn": "несохранённые изменения в",
+      "discard": "отменить",
+      "save": "сохранить",
+      "savedToast": "изменения сохранены"
+    },
+    "profile": {
+      "title": "профиль",
+      "desc": "как вы отображаетесь в коллабах, журналах аудита и письмах.",
+      "fullName": "полное имя",
+      "handle": "ник",
+      "handleHint": "@{handle} на общих серверах",
+      "emailPrimary": "email · основной",
+      "changeEmail": "сменить email",
+      "changeEmailToast": "смена email · подтверждение по почте",
+      "verified": "подтверждено",
+      "timezone": "часовой пояс",
+      "language": "язык",
+      "bio": "био · опционально",
+      "bioHint": "показывается в маркетплейсе",
+      "upload": "загрузить",
+      "remove": "удалить",
+      "uploadAvatarToast": "загрузка аватара…",
+      "removeAvatarToast": "аватар удалён"
+    },
+    "security": {
+      "title": "безопасность",
+      "desc": "пароли, два фактора, коды восстановления и активные сессии.",
+      "password": {
+        "title": "пароль",
+        "meta": "напомним сменить через 90 дней",
+        "change": "сменить пароль",
+        "changeToast": "открываю окно смены пароля…"
+      },
+      "twofa": {
+        "title": "двухфакторная аутентификация",
+        "desc": "обязательна для продакшен-деплоев, ротации ключей и передачи команды.",
+        "disabled": "отключена",
+        "enabled": "включена · {mode}",
+        "recommended": "рекомендуется",
+        "policyBackup": "политика: только резерв",
+        "manage": "управление",
+        "manageToast": "управление методом…",
+        "enroll": "подключить",
+        "enrollToast": "подключение метода…",
+        "totp": {
+          "name": "приложение · totp",
+          "desc": "1password, raycast, authy, google authenticator"
+        },
+        "passkey": {
+          "name": "passkey · webauthn",
+          "desc": "touch id, windows hello, аппаратные ключи (yubikey, solo)",
+          "activeStatus": "активен",
+          "recommendedStatus": "рекомендуется"
+        },
+        "sms": {
+          "name": "sms · только резерв",
+          "desc": "не разрешён как единственный фактор — фишинг-уязвим"
+        }
+      },
+      "recovery": {
+        "title": "коды восстановления",
+        "meta": "10 одноразовых кодов · перегенерируйте, когда осталось мало",
+        "download": "скачать",
+        "downloadToast": "скачиваю codes.txt…",
+        "regenerate": "перегенерировать",
+        "regenerateToast": "перегенерация · старые коды отозваны"
+      },
+      "sessions": {
+        "title": "активные сессии · {count}",
+        "desc": "вошедшие устройства и cli. отзовите всё, что не узнаёте.",
+        "thisDevice": "это устройство",
+        "revoked": "отозвана",
+        "revoke": "отозвать",
+        "revokeToast": "сессия отозвана · {device}",
+        "signOutAll": "выйти со всех других устройств",
+        "signOutAllToast": "все остальные сессии отозваны",
+        "emptyTitle": "только это устройство",
+        "emptyBody": "других активных сессий нет. вы можете выйти из этой, нажав sign out.",
+        "unavailableTitle": "список сессий скоро",
+        "unavailableBody": "logto cloud пока не предоставляет api списка сессий для вашего тенанта. подключим, как только появится."
+      }
+    },
+    "apiKeys": {
+      "title": "api ключи",
+      "desc": "программный доступ к контрол-плейну mcpgen. для вызова инструментов используйте deploy-ключи серверов.",
+      "newKey": "+ новый api ключ",
+      "emptyTitle": "ключей api пока нет",
+      "emptyBody": "создайте ключ для деплоя из ci, скриптов или передачи коллеге. можно ограничить scope и срок.",
+      "createFirst": "+ создать первый ключ",
+      "expired": "истёк",
+      "revoked": "отозван",
+      "fullAccess": "полный доступ",
+      "rotate": "ротировать",
+      "rotateToast": "ротация · новый ключ показан один раз",
+      "revoke": "отозвать",
+      "revokeToast": "отозван · {prefix}…",
+      "delete": "удалить",
+      "deleteToast": "удалено",
+      "copy": "копировать",
+      "copyToast": "скопирован {prefix}…",
+      "scopes": "scope",
+      "expires": "истекает",
+      "lastUsed": "последнее использование",
+      "ipAllowlist": "ip allowlist",
+      "drawer": {
+        "newTitle": "новый api ключ",
+        "createdTitle": "ключ создан",
+        "nameLabel": "название · для вас",
+        "namePlaceholder": "ci · github actions · prod",
+        "scopesLabel": "scope",
+        "scopesHint": "принцип минимальных привилегий — отключите ненужное",
+        "expiresLabel": "срок",
+        "expiry30": "30 дней",
+        "expiry90": "90 дней · рекомендуется",
+        "expiry365": "1 год",
+        "expiryNever": "без срока",
+        "ipAllowLabel": "ip allowlist · cidr · опционально",
+        "createKey": "создать ключ",
+        "copyNow": "скопируйте этот ключ сейчас",
+        "copied": "скопировано",
+        "downloadEnv": "скачать .env",
+        "downloaded": "скачан .env",
+        "warnOnce": "вы больше не увидите этот ключ. мы храним только префикс.",
+        "done": "готово"
+      }
+    },
+    "sso": {
+      "title": "sso и saml",
+      "desc": "включите single sign-on для вашего домена. требуется enterprise.",
+      "enterpriseBadge": "enterprise",
+      "headline": "saml / oidc, scim provisioning, верификация домена",
+      "body": "подключите okta, microsoft entra, jumpcloud, google workspace или любой saml 2.0 idp. автопровижининг и деактивация через scim 2.0.",
+      "talkSales": "связаться с продажами",
+      "talkSalesToast": "связываюсь с продажами…",
+      "idp": {
+        "title": "провайдер идентификации",
+        "meta": "okta · acme.okta.com · последняя синхронизация 4 мин назад",
+        "connected": "подключён",
+        "configure": "настроить",
+        "configureToast": "открываю конфиг idp…"
+      },
+      "domain": {
+        "title": "верификация домена",
+        "meta": "your-domain.example · 142 пользователя",
+        "verified": "подтверждён",
+        "verify": "проверить dns",
+        "verifyToast": "проверяю dns…"
+      },
+      "scim": {
+        "title": "scim 2.0 provisioning",
+        "meta": "endpoint: /scim/v2 · token: scim_•••• · последний пуш 2ч назад",
+        "active": "активно",
+        "rotate": "ротировать токен",
+        "rotateToast": "ротация scim токена…",
+        "logs": "логи",
+        "logsToast": "открываю логи scim…"
+      },
+      "enforce": {
+        "title": "обязательный sso для всех",
+        "meta": "если включено, вход по паролю выключен для аккаунтов с этим доменом",
+        "toggleToast": "правила sso обновлены"
+      }
+    },
+    "notif": {
+      "title": "уведомления",
+      "desc": "мы за меньше, но лучше. каждая строка — класс событий; выберите каналы.",
+      "colEvent": "событие",
+      "colEmail": "email",
+      "colSlack": "slack",
+      "colInApp": "в приложении",
+      "colPager": "пейджер",
+      "channelsLabel": "каналы:",
+      "channelEmail": "email",
+      "channelSlack": "slack · #mcp-alerts",
+      "channelPager": "pagerduty · prod-on-call",
+      "addChannel": "добавить канал",
+      "addChannelToast": "открываю менеджер каналов…",
+      "drift": {
+        "name": "обнаружен дрейф spec",
+        "hint": "форма openapi апстрима изменилась"
+      },
+      "errors": {
+        "name": "рост ошибок инструментов ↑",
+        "hint": "p95 ошибок выше slo"
+      },
+      "deploys": {
+        "name": "деплои и откаты",
+        "hint": "каждый push в production"
+      },
+      "digest": {
+        "name": "недельный дайджест",
+        "hint": "использование, стоимость, топ инструменты, понедельник 9 утра"
+      },
+      "quotas": {
+        "name": "квота 80% / 100%",
+        "hint": "до того как мы притормозим"
+      },
+      "security": {
+        "name": "безопасность · ротация ключа, новый вход, смена 2fa",
+        "hint": "всегда включено для email"
+      }
+    },
+    "integ": {
+      "title": "интеграции",
+      "desc": "подключите mcpgen к остальному стеку. все интеграции поддерживают фильтры по событиям.",
+      "connected": "подключено",
+      "configure": "настроить",
+      "configureToast": "открываю настройки {name}…",
+      "disconnect": "отключить",
+      "disconnectToast": "отключено {name}",
+      "connect": "подключить",
+      "connectToast": "подключаю {name}…",
+      "slack": {
+        "name": "slack",
+        "desc": "отправка алертов и дайджестов в каналы",
+        "meta": "превью · метаданные после подключения"
+      },
+      "github": {
+        "name": "github",
+        "desc": "автодеплой из pr · status checks",
+        "meta": "превью · метаданные после подключения"
+      },
+      "pagerduty": {
+        "name": "pagerduty",
+        "desc": "пейдж on-call при росте ошибок",
+        "meta": "превью · метаданные после подключения"
+      },
+      "sentry": {
+        "name": "sentry",
+        "desc": "зеркалить ошибки инструментов в ваш проект sentry"
+      },
+      "datadog": {
+        "name": "datadog",
+        "desc": "метрики: латентность, вызовы, стоимость"
+      },
+      "linear": {
+        "name": "linear",
+        "desc": "автозаведение задач для drift-событий"
+      },
+      "webhook": {
+        "name": "вебхук",
+        "desc": "post события на любой url · подпись hmac",
+        "meta": "превью · число эндпоинтов после настройки"
+      }
+    },
+    "usage": {
+      "title": "использование и оплата",
+      "desc": "это лайт-вью. для счетов, методов оплаты и налогов смотрите billing.",
+      "openBilling": "открыть полный billing",
+      "toolCallsLabel": "вызовы инструментов · в этом месяце",
+      "usedPct": "использовано {pct}%",
+      "thisMonth": "этот месяц",
+      "allServers": "все серверы · {n}",
+      "allServersEmpty": "серверов пока нет",
+      "forecast": "прогноз",
+      "forecastSub": "доступен после 7 дней данных",
+      "lastMonth": "прошлый месяц",
+      "lastMonthSub": "будет в следующем цикле",
+      "byok": "экономия byok",
+      "byokSub": "доступна после настройки byok",
+      "changePlan": "сменить план",
+      "downloadInvoices": "скачать счета",
+      "invoicesToast": "открываю billing → счета…",
+      "taxInfo": "налоговая информация",
+      "taxToast": "открываю налоговую информацию…"
+    },
+    "audit": {
+      "title": "журнал аудита",
+      "desc": "каждое привилегированное действие в вашем аккаунте. хранится 12 месяцев на pro и бессрочно на enterprise.",
+      "export": "экспорт csv",
+      "exportToast": "экспортирую журнал → csv…",
+      "emptyTitle": "событий аудита нет",
+      "emptyBody": "мы логируем каждое привилегированное действие — входы, ротации ключей, изменения политик — и вы можете экспортировать по запросу.",
+      "filter": {
+        "all": "все",
+        "info": "info",
+        "warn": "warn",
+        "critical": "critical"
+      },
+      "col": {
+        "when": "когда",
+        "actor": "кто",
+        "event": "событие",
+        "target": "цель",
+        "ip": "ip",
+        "sev": "уров"
+      }
+    },
+    "danger": {
+      "title": "опасная зона",
+      "desc": "обратимые и необратимые действия. для каждого спросим явное подтверждение.",
+      "confirmLabel": "введите \"{phrase}\" для подтверждения",
+      "queuedToast": "{cta} · в очереди",
+      "drawer": {
+        "cancel": "отмена"
+      },
+      "export": {
+        "title": "экспортировать все данные",
+        "body": "полный gdpr-экспорт — серверы, конфиги, логи, журнал аудита. отдадим подписанной ссылкой со сроком 24ч.",
+        "cta": "запросить экспорт",
+        "drawer": {
+          "title": "запрос экспорта данных",
+          "body": "мы отправим подписанную ссылку на скачивание на {email} в течение 5 минут.",
+          "cta": "запросить экспорт"
+        }
+      },
+      "transfer": {
+        "title": "передать владение",
+        "body": "передать воркспейс другому пользователю. вы будете понижены до admin.",
+        "cta": "передать владение",
+        "drawer": {
+          "title": "передать владение",
+          "body": "вас понизят до admin и снимут права на оплату. новый владелец должен принять в течение 7 дней.",
+          "cta": "передать",
+          "newOwnerLabel": "email нового владельца · должен уже иметь аккаунт",
+          "newOwnerPlaceholder": "new-owner@example.com"
+        }
+      },
+      "pause": {
+        "title": "приостановить аккаунт",
+        "body": "все серверы офлайн · оплата на паузе · обратимо в течение 30 дней.",
+        "cta": "приостановить",
+        "drawer": {
+          "title": "приостановить этот аккаунт",
+          "body": "все ваши серверы немедленно офлайн. вы можете возобновить в течение 30 дней с любого устройства.",
+          "cta": "приостановить"
+        }
+      },
+      "delete": {
+        "title": "удалить аккаунт",
+        "body": "перманентно. все серверы, ключи, журналы аудита и конфиги стираются за 24ч. отмены нет.",
+        "cta": "удалить аккаунт",
+        "drawer": {
+          "title": "удалить этот аккаунт",
+          "body": "это перманентно. ввод фразы ниже подтверждает, что вы понимаете.",
+          "cta": "удалить навсегда"
+        }
+      }
+    }
+  }
 }

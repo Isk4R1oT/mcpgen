@@ -5,6 +5,7 @@
 //   - apps/web/src/middleware.ts (auth guard on /dashboard/*)
 //   - apps/web/src/providers/logto-session.tsx
 //   - apps/web/src/app/api/auth/logto/{sign-in,sign-up,callback,sign-out}/route.ts
+//   - apps/web/src/app/api/auth/embedded/* (canon-styled embedded sign-in flow)
 //
 // References:
 //   - .planning/phases/07-frontend-wire-up/07-RESEARCH.md "Code Examples" Logto config
@@ -20,6 +21,33 @@
 //     `assertLogtoConfigValid()` from inside the route handlers if you want
 //     fail-fast at request time. Plan 07-02 doesn't call it (Vercel sets the
 //     env vars before serving traffic); kept as an opt-in for Phase 9 wiring.
+//
+// ─── Required env vars ─────────────────────────────────────────────────────
+//
+// Hosted-UI redirect flow (existing /api/auth/logto/*):
+//   LOGTO_ENDPOINT          (e.g. https://t3qfgh.logto.app)
+//   LOGTO_APP_ID            (web app client id from Logto Console)
+//   LOGTO_APP_SECRET        (web app client secret)
+//   LOGTO_BASE_URL          (e.g. http://localhost:3000)
+//   LOGTO_COOKIE_SECRET     (32-byte base64url; CookieStorage encryption key)
+//
+// Embedded-auth API routes (/api/auth/embedded/*) additionally require:
+//   LOGTO_M2M_APP_ID        (Machine-to-Machine application id —
+//                            Logto Console → Applications → Create
+//                            "MachineToMachine"; needed for Management API
+//                            calls: createUser, deleteUser, password-reset,
+//                            change-password, get-user-profile)
+//   LOGTO_M2M_APP_SECRET    (M2M client secret — never log)
+//
+// Optional (only when ui_auth_magic_link_perm is flipped ON):
+//   LOGTO_EMAIL_CONNECTOR_ID  (Logto Console → Connectors → Email; the
+//                              connector record must exist and be configured
+//                              with a transactional template — Resend in
+//                              MCPGen's case. If unset, the magic-link route
+//                              returns 501 magic_link_not_configured.)
+//
+// All three M2M/connector vars are read at request time inside the route
+// handlers — module load stays env-tolerant (D-19 pattern).
 
 import type { LogtoNextConfig } from '@logto/next';
 

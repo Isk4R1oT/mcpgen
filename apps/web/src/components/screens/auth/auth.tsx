@@ -15,9 +15,9 @@
 //   - secret value (when stored mode is selected);
 //   - OAuth scopes (when oauth mode is selected).
 //
-// NOT to be confused with `apps/web/src/app/(auth)/sign-in/route.ts` — that's
-// the user-side Logto sign-in. This screen wraps the upstream-API credential
-// dance.
+// NOT to be confused with `apps/web/src/app/sign-in/page.tsx` — that's the
+// user-side AccountScreen (sign-in / sign-up / magic / forgot). This screen
+// wraps the upstream-API credential dance.
 //
 // Behaviors (per SCREEN-BEHAVIORS-CATALOG.md § auth + PHASE-2.md B1):
 // - On `authType` change → reset `mode` if not in the new type's mode list.
@@ -48,6 +48,7 @@ import {
 import { useRouter } from 'next/navigation';
 
 import { Badge, Btn, Card, SectionLabel, TopBar } from '@/components/ui';
+import { deriveServerNameFromSpecUrl } from '@/components/screens/canvas/canvas';
 import { toast } from '@/lib/toast';
 
 // ─── Auth type registry (canon AUTH_TYPES) ────────────────────────────────────
@@ -272,7 +273,15 @@ export function AuthScreen({
     router.push('/generate');
   }, [onBack, router]);
 
-  const breadcrumb = `${sample?.name ?? 'lumen-payments'}-mcp · auth`;
+  // Breadcrumb server name — same chain as canvas/preview screens.
+  // Priority: explicit sample.name (server-side prop, derived from spec URL
+  // hostname) → derived from spec URL on the client → "mcp-server".
+  const specNameFromUrl = deriveServerNameFromSpecUrl(specUrl);
+  const derivedServerName: string =
+    sample?.name !== undefined && sample.name !== ''
+      ? sample.name
+      : specNameFromUrl;
+  const breadcrumb = `${derivedServerName}-mcp · auth`;
 
   return (
     <div className="mc-screen mc-grain" style={SCREEN_STYLE}>

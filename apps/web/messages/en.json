@@ -149,5 +149,473 @@
   "onbEta": "about 4 minutes",
   "skipTour": "skip tour",
   "sampleHint": "no spec handy?",
-  "quickFromSample": "try sample"
+  "quickFromSample": "try sample",
+  "account": {
+    "crumb": "account",
+    "marketplace": "marketplace",
+    "eyebrow": "mcpgen · account",
+    "heroStartLine1": "start shipping",
+    "heroStartLine2": "production MCPs.",
+    "heroBackLine1": "welcome back to",
+    "heroBackLine2": "your servers.",
+    "pitchSignup": "free for the first 50k tool calls per month. no card required. all signups get an evaluation budget on opus and sonnet.",
+    "pitchSignin": "pick up where you left off — your servers, drift alerts, and playground sessions are right where you parked them.",
+    "trustSoc2Title": "soc 2 type ii",
+    "trustSoc2Body": "audited annually · subprocessor list public",
+    "trustTenantTitle": "single tenant on request",
+    "trustTenantBody": "dedicated vpc on enterprise — eu, us, apac",
+    "trustByokTitle": "byok everywhere",
+    "trustByokBody": "bring your own anthropic / openai / bedrock keys",
+    "trustZeroLogTitle": "zero log retention",
+    "trustZeroLogBody": "prompts and responses never stored unless you opt-in",
+    "trustedBy": "trusted by teams at",
+    "trustedByList": "linear · vercel · supabase · neon · resend · plaid",
+    "tabSignin": "sign in",
+    "tabSignup": "create account",
+    "magicTitle": "sign in with a magic link",
+    "magicBlurb": "enter your email — we'll send you a one-time link. no password to remember.",
+    "magicSentTitle": "check your email",
+    "magicSentBodyPre": "we sent a one-time sign-in link to",
+    "magicSentBodyPost": ". it expires in 15 minutes.",
+    "forgotTitle": "reset your password",
+    "forgotBlurb": "enter the email on your account. we'll send a link to set a new password.",
+    "resetSentTitle": "reset link on the way",
+    "resetSentBodyPre": "if an account exists for",
+    "resetSentBodyPost": ", you'll get a link in a moment.",
+    "emailLabel": "email",
+    "workEmailLabel": "work email",
+    "emailPlaceholder": "you@team.dev",
+    "passwordLabel": "password",
+    "passwordPlaceholderSignin": "••••••••",
+    "passwordPlaceholderSignup": "at least 8 chars · mix it up",
+    "forgotLink": "forgot?",
+    "show": "show",
+    "hide": "hide",
+    "nameLabel": "full name",
+    "namePlaceholder": "ada lovelace",
+    "companyLabel": "company · optional",
+    "companyPlaceholder": "analytical engines, ltd",
+    "strength": "strength",
+    "strengthTip": "tip: 12+ chars · mix case · 1 number · 1 symbol",
+    "termsPre": "i agree to the",
+    "termsLinkTerms": "terms",
+    "termsAnd": "and",
+    "termsLinkPrivacy": "privacy policy",
+    "termsPost": ". you can delete your account at any time from settings.",
+    "ssoGoogle": "continue with google",
+    "ssoGithub": "github",
+    "ssoMicrosoft": "microsoft",
+    "ssoSaml": "sso",
+    "orWithEmail": "or with email",
+    "magicCta": "email me a magic link instead",
+    "btnSignin": "sign in",
+    "btnSigningIn": "signing in…",
+    "btnCreate": "create account",
+    "btnCreating": "creating account…",
+    "btnSendMagic": "send magic link",
+    "btnSendReset": "send reset link",
+    "btnSending": "sending…",
+    "backToSignin": "← back to sign in",
+    "newHere": "new here?",
+    "createAccount": "create an account",
+    "haveAccount": "already have one?",
+    "allOperational": "all systems operational",
+    "hcaptcha": "protected by hcaptcha · we never email marketing",
+    "needEnterpriseSso": "need enterprise SSO?",
+    "errEmail": "enter a valid email",
+    "errName": "your name is required",
+    "errPwEmpty": "enter your password",
+    "errPwWeak": "password is too weak",
+    "errTerms": "you must accept the terms to continue",
+    "toastSigninOk": "welcome back",
+    "toastSignupOk": "account created · welcome",
+    "toastMagicSent": "magic link sent to {email}",
+    "toastResetSent": "reset link sent",
+    "toastSso": "opening {provider} sso…",
+    "toastStatus": "opening status page…",
+    "toastEnterpriseSso": "opening enterprise sso help…",
+    "signupComingSoonTitle": "create account · coming soon",
+    "signupComingSoonBody": "self-serve sign-up is rolling out gradually. drop us a line at hello@mcpgen.dev and we'll get you in."
+  },
+  "settings": {
+    "preview": {
+      "title": "preview · backend not yet wired",
+      "body": "this section ships canon-style ui to show what it will look like. actions are no-ops until the backend lands."
+    },
+    "sidebar": {
+      "eyebrow": "account · {name}",
+      "backToDashboard": "back to dashboard",
+      "shortcuts": "help · keyboard shortcuts",
+      "shortcutsToast": "opening shortcuts…",
+      "signOut": "sign out"
+    },
+    "header": {
+      "eyebrow": "step · settings",
+      "title": "account &",
+      "titleEm": "workspace.",
+      "sub": "everything about you, your keys, your team's safety net.",
+      "twofaOff": "2fa off",
+      "twofaOn": "2fa · {mode}",
+      "stat": {
+        "plan": "plan",
+        "calls": "tool calls · this month",
+        "callsOf": "of {cap}",
+        "servers": "active servers",
+        "serversSub": "live now",
+        "lastLogin": "last login",
+        "lastLoginValue": "now"
+      }
+    },
+    "nav": {
+      "profile": "profile",
+      "security": "security",
+      "keys": "api keys",
+      "sso": "sso & saml",
+      "notifications": "notifications",
+      "integrations": "integrations",
+      "usage": "usage & billing",
+      "audit": "audit log",
+      "danger": "danger zone"
+    },
+    "sticky": {
+      "unsavedIn": "unsaved changes in",
+      "discard": "discard",
+      "save": "save changes",
+      "savedToast": "changes saved"
+    },
+    "profile": {
+      "title": "profile",
+      "desc": "how you appear in collaboration views, audit logs, and email.",
+      "fullName": "full name",
+      "handle": "handle",
+      "handleHint": "@{handle} on shared servers",
+      "emailPrimary": "email · primary",
+      "changeEmail": "change email",
+      "changeEmailToast": "change email · email confirmation flow",
+      "verified": "verified",
+      "timezone": "timezone",
+      "language": "language",
+      "bio": "bio · optional",
+      "bioHint": "shown on shared marketplace listings",
+      "upload": "upload",
+      "remove": "remove",
+      "uploadAvatarToast": "upload avatar…",
+      "removeAvatarToast": "avatar removed"
+    },
+    "security": {
+      "title": "security",
+      "desc": "passwords, two-factor, recovery codes, and active sessions.",
+      "password": {
+        "title": "password",
+        "meta": "we'll nudge you at 90 days",
+        "change": "change password",
+        "changeToast": "opening change-password drawer…"
+      },
+      "twofa": {
+        "title": "two-factor authentication",
+        "desc": "required for production deploys, key rotation, and team transfers.",
+        "disabled": "disabled",
+        "enabled": "enabled · {mode}",
+        "recommended": "recommended",
+        "policyBackup": "policy: backup only",
+        "manage": "manage",
+        "manageToast": "manage method…",
+        "enroll": "enroll",
+        "enrollToast": "enrolling method…",
+        "totp": {
+          "name": "authenticator app · totp",
+          "desc": "1password, raycast, authy, google authenticator"
+        },
+        "passkey": {
+          "name": "passkeys · webauthn",
+          "desc": "touch id, windows hello, hardware keys (yubikey, solo)",
+          "activeStatus": "active",
+          "recommendedStatus": "recommended"
+        },
+        "sms": {
+          "name": "sms · backup only",
+          "desc": "not allowed as the only factor — phishable"
+        }
+      },
+      "recovery": {
+        "title": "recovery codes",
+        "meta": "10 single-use codes · regenerate when you've used most",
+        "download": "download",
+        "downloadToast": "downloading codes.txt…",
+        "regenerate": "regenerate",
+        "regenerateToast": "regenerating · old codes invalidated"
+      },
+      "sessions": {
+        "title": "active sessions · {count}",
+        "desc": "signed-in devices and clis. revoke anything you don't recognize.",
+        "thisDevice": "this device",
+        "revoked": "revoked",
+        "revoke": "revoke",
+        "revokeToast": "session revoked · {device}",
+        "signOutAll": "sign out everywhere else",
+        "signOutAllToast": "all other sessions revoked",
+        "emptyTitle": "only this device",
+        "emptyBody": "no other active sessions. you can revoke this one by signing out.",
+        "unavailableTitle": "session listing coming soon",
+        "unavailableBody": "logto cloud doesn't yet expose a session list api for your tenant. we'll wire it the moment it ships."
+      }
+    },
+    "apiKeys": {
+      "title": "api keys",
+      "desc": "programmatic access to the mcpgen control plane. for tool invocation use server-level deploy keys.",
+      "newKey": "+ new api key",
+      "emptyTitle": "no api keys yet",
+      "emptyBody": "create a key to deploy from ci, run scripts, or hand off to a teammate. you can scope and expire each one.",
+      "createFirst": "+ create your first key",
+      "expired": "expired",
+      "revoked": "revoked",
+      "fullAccess": "full access",
+      "rotate": "rotate",
+      "rotateToast": "rotated · new key shown once",
+      "revoke": "revoke",
+      "revokeToast": "revoked · {prefix}…",
+      "delete": "delete",
+      "deleteToast": "deleted",
+      "copy": "copy",
+      "copyToast": "copied {prefix}…",
+      "scopes": "scopes",
+      "expires": "expires",
+      "lastUsed": "last used",
+      "ipAllowlist": "ip allowlist",
+      "drawer": {
+        "newTitle": "new api key",
+        "createdTitle": "key created",
+        "nameLabel": "name · for your records",
+        "namePlaceholder": "ci · github actions · prod",
+        "scopesLabel": "scopes",
+        "scopesHint": "principle of least privilege — uncheck what you don't need",
+        "expiresLabel": "expires in",
+        "expiry30": "30 days",
+        "expiry90": "90 days · recommended",
+        "expiry365": "1 year",
+        "expiryNever": "no expiry",
+        "ipAllowLabel": "ip allowlist · cidr · optional",
+        "createKey": "create key",
+        "copyNow": "copy this key now",
+        "copied": "copied",
+        "downloadEnv": "download .env",
+        "downloaded": "downloaded .env",
+        "warnOnce": "you won't see this key again. we only store the prefix.",
+        "done": "done"
+      }
+    },
+    "sso": {
+      "title": "sso & saml",
+      "desc": "enforce single sign-on for your domain. requires enterprise.",
+      "enterpriseBadge": "enterprise",
+      "headline": "saml / oidc, scim provisioning, domain capture",
+      "body": "connect okta, microsoft entra, jumpcloud, google workspace, or any saml 2.0 idp. provision and deprovision users automatically via scim 2.0.",
+      "talkSales": "talk to sales",
+      "talkSalesToast": "contacting sales…",
+      "idp": {
+        "title": "identity provider",
+        "meta": "okta · acme.okta.com · last sync 4 min ago",
+        "connected": "connected",
+        "configure": "configure",
+        "configureToast": "opening idp config…"
+      },
+      "domain": {
+        "title": "domain capture",
+        "meta": "your-domain.example · 142 users auto-provisioned",
+        "verified": "verified",
+        "verify": "verify dns",
+        "verifyToast": "verifying dns…"
+      },
+      "scim": {
+        "title": "scim 2.0 provisioning",
+        "meta": "endpoint: /scim/v2 · token: scim_•••• · last push 2h ago",
+        "active": "active",
+        "rotate": "rotate token",
+        "rotateToast": "rotating scim token…",
+        "logs": "logs",
+        "logsToast": "opening scim logs…"
+      },
+      "enforce": {
+        "title": "enforce sso for everyone",
+        "meta": "if on, password login is disabled for matching domain accounts",
+        "toggleToast": "sso enforcement updated"
+      }
+    },
+    "notif": {
+      "title": "notifications",
+      "desc": "we believe in fewer, better pings. each row is a class of event; pick the channels.",
+      "colEvent": "event",
+      "colEmail": "email",
+      "colSlack": "slack",
+      "colInApp": "in-app",
+      "colPager": "pager",
+      "channelsLabel": "channels:",
+      "channelEmail": "email",
+      "channelSlack": "slack · #mcp-alerts",
+      "channelPager": "pagerduty · prod-on-call",
+      "addChannel": "add a channel",
+      "addChannelToast": "opening channel manager…",
+      "drift": {
+        "name": "spec drift detected",
+        "hint": "upstream openapi changed shape"
+      },
+      "errors": {
+        "name": "tool error rate ↑",
+        "hint": "p95 errors crosses your slo"
+      },
+      "deploys": {
+        "name": "deploys & rollbacks",
+        "hint": "every push to production"
+      },
+      "digest": {
+        "name": "weekly digest",
+        "hint": "usage, cost, top tools, mondays 9am"
+      },
+      "quotas": {
+        "name": "quota at 80% / 100%",
+        "hint": "before we throttle you"
+      },
+      "security": {
+        "name": "security · key rotated, new login, 2fa change",
+        "hint": "always on for the email channel"
+      }
+    },
+    "integ": {
+      "title": "integrations",
+      "desc": "connect mcpgen to the rest of your stack. all integrations support per-event filtering.",
+      "connected": "connected",
+      "configure": "configure",
+      "configureToast": "opening {name} settings…",
+      "disconnect": "disconnect",
+      "disconnectToast": "disconnected {name}",
+      "connect": "connect",
+      "connectToast": "connecting {name}…",
+      "slack": {
+        "name": "slack",
+        "desc": "send alerts and digests to channels",
+        "meta": "preview · workspace metadata once connected"
+      },
+      "github": {
+        "name": "github",
+        "desc": "auto-deploy from prs · status checks",
+        "meta": "preview · org metadata once connected"
+      },
+      "pagerduty": {
+        "name": "pagerduty",
+        "desc": "page on-call when error rate spikes",
+        "meta": "preview · service metadata once connected"
+      },
+      "sentry": {
+        "name": "sentry",
+        "desc": "mirror tool errors to your sentry project"
+      },
+      "datadog": {
+        "name": "datadog",
+        "desc": "export metrics: latency, calls, cost"
+      },
+      "linear": {
+        "name": "linear",
+        "desc": "auto-file issues for drift events"
+      },
+      "webhook": {
+        "name": "generic webhook",
+        "desc": "post events to any url · hmac signed",
+        "meta": "preview · endpoint count once configured"
+      }
+    },
+    "usage": {
+      "title": "usage & billing",
+      "desc": "this is the lite view. for invoices, payment methods, and tax info, see billing.",
+      "openBilling": "open full billing",
+      "toolCallsLabel": "tool calls · this month",
+      "usedPct": "{pct}% used",
+      "thisMonth": "this month",
+      "allServers": "all servers · {n}",
+      "allServersEmpty": "no servers yet",
+      "forecast": "forecast",
+      "forecastSub": "available once 7 days of data exist",
+      "lastMonth": "last month",
+      "lastMonthSub": "available next cycle",
+      "byok": "byok savings",
+      "byokSub": "available once byok is configured",
+      "changePlan": "change plan",
+      "downloadInvoices": "download invoices",
+      "invoicesToast": "opening billing → invoices…",
+      "taxInfo": "tax info",
+      "taxToast": "opening tax info…"
+    },
+    "audit": {
+      "title": "audit log",
+      "desc": "every privileged action across your account. retained for 12 months on pro, indefinitely on enterprise.",
+      "export": "export csv",
+      "exportToast": "exporting audit log → csv…",
+      "emptyTitle": "no audit events",
+      "emptyBody": "we'll log every privileged action — sign-ins, key rotations, policy changes — and you can export it on demand.",
+      "filter": {
+        "all": "all",
+        "info": "info",
+        "warn": "warn",
+        "critical": "critical"
+      },
+      "col": {
+        "when": "when",
+        "actor": "actor",
+        "event": "event",
+        "target": "target",
+        "ip": "ip",
+        "sev": "sev"
+      }
+    },
+    "danger": {
+      "title": "danger zone",
+      "desc": "reversible and irreversible actions. we ask for explicit confirmation on each.",
+      "confirmLabel": "type \"{phrase}\" to confirm",
+      "queuedToast": "{cta} · queued",
+      "drawer": {
+        "cancel": "cancel"
+      },
+      "export": {
+        "title": "export all your data",
+        "body": "full gdpr export — servers, configs, logs, audit trail. delivered as a signed url, expires in 24h.",
+        "cta": "request export",
+        "drawer": {
+          "title": "request data export",
+          "body": "we will email a signed download link to {email} within 5 minutes.",
+          "cta": "request export"
+        }
+      },
+      "transfer": {
+        "title": "transfer ownership",
+        "body": "hand the workspace to another user. you'll be downgraded to admin.",
+        "cta": "transfer ownership",
+        "drawer": {
+          "title": "transfer ownership",
+          "body": "you will be downgraded to admin and lose billing rights. the new owner must accept within 7 days.",
+          "cta": "transfer",
+          "newOwnerLabel": "new owner email · must already have an account",
+          "newOwnerPlaceholder": "new-owner@example.com"
+        }
+      },
+      "pause": {
+        "title": "pause account",
+        "body": "all servers go offline · billing pauses · reversible from settings within 30 days.",
+        "cta": "pause account",
+        "drawer": {
+          "title": "pause this account",
+          "body": "all your servers go offline immediately. you can resume within 30 days from any device.",
+          "cta": "pause account"
+        }
+      },
+      "delete": {
+        "title": "delete account",
+        "body": "permanent. all servers, keys, audit logs, and configs are scrubbed within 24h. no undo.",
+        "cta": "delete account",
+        "drawer": {
+          "title": "delete this account",
+          "body": "this is permanent. typing the phrase below confirms you understand.",
+          "cta": "delete forever"
+        }
+      }
+    }
+  }
 }

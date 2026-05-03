@@ -149,5 +149,473 @@
   "onbEta": "大约 4 分钟",
   "skipTour": "跳过",
   "sampleHint": "手边没有 spec？",
-  "quickFromSample": "试用样例"
+  "quickFromSample": "试用样例",
+  "account": {
+    "crumb": "账户",
+    "marketplace": "市场",
+    "eyebrow": "mcpgen · 账户",
+    "heroStartLine1": "开始上线",
+    "heroStartLine2": "生产级 MCP。",
+    "heroBackLine1": "欢迎回到",
+    "heroBackLine2": "你的服务器。",
+    "pitchSignup": "每月前 50k 次工具调用免费。无需信用卡。注册即赠送 opus 与 sonnet 评估额度。",
+    "pitchSignin": "从你停下的地方继续——服务器、漂移告警和 playground 会话都在原处。",
+    "trustSoc2Title": "soc 2 type ii",
+    "trustSoc2Body": "年度审计 · 子处理方清单公开",
+    "trustTenantTitle": "可申请 single tenant",
+    "trustTenantBody": "企业版独立 vpc — eu、us、apac",
+    "trustByokTitle": "全程 byok",
+    "trustByokBody": "自带 anthropic / openai / bedrock 密钥",
+    "trustZeroLogTitle": "零日志保留",
+    "trustZeroLogBody": "未开启 opt-in 时绝不存储 prompts 与响应",
+    "trustedBy": "深受这些团队信赖",
+    "trustedByList": "linear · vercel · supabase · neon · resend · plaid",
+    "tabSignin": "登录",
+    "tabSignup": "创建账户",
+    "magicTitle": "用魔法链接登录",
+    "magicBlurb": "输入邮箱——发送一次性链接给你。不用记密码。",
+    "magicSentTitle": "请查收邮件",
+    "magicSentBodyPre": "一次性登录链接已发送至",
+    "magicSentBodyPost": "，15 分钟后失效。",
+    "forgotTitle": "重置密码",
+    "forgotBlurb": "输入账户邮箱，我们会发送一条用于设置新密码的链接。",
+    "resetSentTitle": "重置链接已发出",
+    "resetSentBodyPre": "如果存在与",
+    "resetSentBodyPost": "对应的账户，链接稍后送达。",
+    "emailLabel": "邮箱",
+    "workEmailLabel": "工作邮箱",
+    "emailPlaceholder": "you@team.dev",
+    "passwordLabel": "密码",
+    "passwordPlaceholderSignin": "••••••••",
+    "passwordPlaceholderSignup": "至少 8 位 · 多种字符混合",
+    "forgotLink": "忘记？",
+    "show": "显示",
+    "hide": "隐藏",
+    "nameLabel": "全名",
+    "namePlaceholder": "ada lovelace",
+    "companyLabel": "公司 · 可选",
+    "companyPlaceholder": "analytical engines, ltd",
+    "strength": "强度",
+    "strengthTip": "提示：12+ 位 · 大小写 · 数字 · 符号",
+    "termsPre": "我同意",
+    "termsLinkTerms": "条款",
+    "termsAnd": "及",
+    "termsLinkPrivacy": "隐私政策",
+    "termsPost": "。可在设置中随时删除账户。",
+    "ssoGoogle": "用 google 继续",
+    "ssoGithub": "github",
+    "ssoMicrosoft": "microsoft",
+    "ssoSaml": "sso",
+    "orWithEmail": "或使用邮箱",
+    "magicCta": "改用魔法链接登录",
+    "btnSignin": "登录",
+    "btnSigningIn": "登录中…",
+    "btnCreate": "创建账户",
+    "btnCreating": "创建账户中…",
+    "btnSendMagic": "发送魔法链接",
+    "btnSendReset": "发送重置链接",
+    "btnSending": "发送中…",
+    "backToSignin": "← 返回登录",
+    "newHere": "第一次来？",
+    "createAccount": "创建账户",
+    "haveAccount": "已有账户？",
+    "allOperational": "所有系统正常",
+    "hcaptcha": "受 hcaptcha 保护 · 我们绝不发送营销邮件",
+    "needEnterpriseSso": "需要企业 SSO？",
+    "errEmail": "请输入有效邮箱",
+    "errName": "请填写姓名",
+    "errPwEmpty": "请输入密码",
+    "errPwWeak": "密码强度不足",
+    "errTerms": "继续前需接受条款",
+    "toastSigninOk": "欢迎回来",
+    "toastSignupOk": "账户已创建 · 欢迎",
+    "toastMagicSent": "魔法链接已发送至 {email}",
+    "toastResetSent": "重置链接已发送",
+    "toastSso": "正在打开 {provider} sso…",
+    "toastStatus": "正在打开状态页…",
+    "toastEnterpriseSso": "正在打开企业 sso 帮助…",
+    "signupComingSoonTitle": "注册 · 即将开放",
+    "signupComingSoonBody": "自助注册正在分批开放。给 hello@mcpgen.dev 发邮件，我们会拉你进来。"
+  },
+  "settings": {
+    "preview": {
+      "title": "预览 · 后端尚未对接",
+      "body": "本节展示后端就绪后的样子。在后端落地之前，所有操作都是空操作。"
+    },
+    "sidebar": {
+      "eyebrow": "账户 · {name}",
+      "backToDashboard": "返回仪表板",
+      "shortcuts": "帮助 · 键盘快捷键",
+      "shortcutsToast": "正在打开快捷键…",
+      "signOut": "退出登录"
+    },
+    "header": {
+      "eyebrow": "步骤 · 设置",
+      "title": "账户与",
+      "titleEm": "工作区。",
+      "sub": "关于您、您的密钥、团队的安全网。",
+      "twofaOff": "2fa 关闭",
+      "twofaOn": "2fa · {mode}",
+      "stat": {
+        "plan": "套餐",
+        "calls": "工具调用 · 本月",
+        "callsOf": "共 {cap}",
+        "servers": "活跃服务器",
+        "serversSub": "正在运行",
+        "lastLogin": "上次登录",
+        "lastLoginValue": "刚刚"
+      }
+    },
+    "nav": {
+      "profile": "资料",
+      "security": "安全",
+      "keys": "api 密钥",
+      "sso": "sso 和 saml",
+      "notifications": "通知",
+      "integrations": "集成",
+      "usage": "用量与账单",
+      "audit": "审计日志",
+      "danger": "危险区域"
+    },
+    "sticky": {
+      "unsavedIn": "未保存的更改在",
+      "discard": "放弃",
+      "save": "保存更改",
+      "savedToast": "更改已保存"
+    },
+    "profile": {
+      "title": "资料",
+      "desc": "您在协作视图、审计日志和邮件中的呈现方式。",
+      "fullName": "全名",
+      "handle": "用户名",
+      "handleHint": "在共享服务器上为 @{handle}",
+      "emailPrimary": "邮箱 · 主要",
+      "changeEmail": "更改邮箱",
+      "changeEmailToast": "更改邮箱 · 邮件确认流程",
+      "verified": "已验证",
+      "timezone": "时区",
+      "language": "语言",
+      "bio": "简介 · 可选",
+      "bioHint": "显示在共享市场列表中",
+      "upload": "上传",
+      "remove": "移除",
+      "uploadAvatarToast": "上传头像…",
+      "removeAvatarToast": "头像已移除"
+    },
+    "security": {
+      "title": "安全",
+      "desc": "密码、双因素、恢复码和活跃会话。",
+      "password": {
+        "title": "密码",
+        "meta": "90 天后会提醒",
+        "change": "更改密码",
+        "changeToast": "正在打开更改密码…"
+      },
+      "twofa": {
+        "title": "双因素认证",
+        "desc": "生产部署、密钥轮换和团队转让必需。",
+        "disabled": "已禁用",
+        "enabled": "已启用 · {mode}",
+        "recommended": "推荐",
+        "policyBackup": "策略：仅备份",
+        "manage": "管理",
+        "manageToast": "管理方法…",
+        "enroll": "启用",
+        "enrollToast": "正在启用…",
+        "totp": {
+          "name": "验证器应用 · totp",
+          "desc": "1password、raycast、authy、google authenticator"
+        },
+        "passkey": {
+          "name": "passkey · webauthn",
+          "desc": "touch id、windows hello、硬件密钥（yubikey、solo）",
+          "activeStatus": "已启用",
+          "recommendedStatus": "推荐"
+        },
+        "sms": {
+          "name": "短信 · 仅备份",
+          "desc": "不允许作为唯一因素 — 易被钓鱼"
+        }
+      },
+      "recovery": {
+        "title": "恢复码",
+        "meta": "10 个一次性码 · 剩余较少时请重新生成",
+        "download": "下载",
+        "downloadToast": "正在下载 codes.txt…",
+        "regenerate": "重新生成",
+        "regenerateToast": "重新生成 · 旧码已失效"
+      },
+      "sessions": {
+        "title": "活跃会话 · {count}",
+        "desc": "已登录的设备和 cli。撤销任何您不认识的。",
+        "thisDevice": "本设备",
+        "revoked": "已撤销",
+        "revoke": "撤销",
+        "revokeToast": "会话已撤销 · {device}",
+        "signOutAll": "在所有其他位置退出",
+        "signOutAllToast": "所有其他会话已撤销",
+        "emptyTitle": "仅本设备",
+        "emptyBody": "没有其他活跃会话。您可以通过退出登录来撤销此会话。",
+        "unavailableTitle": "会话列表即将推出",
+        "unavailableBody": "logto cloud 暂未为您的租户公开会话 api。一旦可用我们就会接入。"
+      }
+    },
+    "apiKeys": {
+      "title": "api 密钥",
+      "desc": "对 mcpgen 控制平面的程序化访问。工具调用请使用服务器级 deploy 密钥。",
+      "newKey": "+ 新建 api 密钥",
+      "emptyTitle": "尚无 api 密钥",
+      "emptyBody": "创建密钥用于 ci 部署、运行脚本或交给队友。每个密钥都可以指定权限和有效期。",
+      "createFirst": "+ 创建第一个密钥",
+      "expired": "已过期",
+      "revoked": "已撤销",
+      "fullAccess": "完全访问",
+      "rotate": "轮换",
+      "rotateToast": "已轮换 · 新密钥仅显示一次",
+      "revoke": "撤销",
+      "revokeToast": "已撤销 · {prefix}…",
+      "delete": "删除",
+      "deleteToast": "已删除",
+      "copy": "复制",
+      "copyToast": "已复制 {prefix}…",
+      "scopes": "权限",
+      "expires": "过期",
+      "lastUsed": "上次使用",
+      "ipAllowlist": "ip 白名单",
+      "drawer": {
+        "newTitle": "新建 api 密钥",
+        "createdTitle": "密钥已创建",
+        "nameLabel": "名称 · 仅供您参考",
+        "namePlaceholder": "ci · github actions · prod",
+        "scopesLabel": "权限",
+        "scopesHint": "最小权限原则 — 取消勾选不需要的",
+        "expiresLabel": "过期时间",
+        "expiry30": "30 天",
+        "expiry90": "90 天 · 推荐",
+        "expiry365": "1 年",
+        "expiryNever": "永不过期",
+        "ipAllowLabel": "ip 白名单 · cidr · 可选",
+        "createKey": "创建密钥",
+        "copyNow": "立即复制此密钥",
+        "copied": "已复制",
+        "downloadEnv": "下载 .env",
+        "downloaded": "已下载 .env",
+        "warnOnce": "您将不再看到此密钥。我们仅保存前缀。",
+        "done": "完成"
+      }
+    },
+    "sso": {
+      "title": "sso 和 saml",
+      "desc": "为您的域名强制单点登录。需要 enterprise。",
+      "enterpriseBadge": "enterprise",
+      "headline": "saml / oidc、scim 配置、域名认领",
+      "body": "对接 okta、microsoft entra、jumpcloud、google workspace 或任何 saml 2.0 idp。通过 scim 2.0 自动开通和注销用户。",
+      "talkSales": "联系销售",
+      "talkSalesToast": "正在联系销售…",
+      "idp": {
+        "title": "身份提供商",
+        "meta": "okta · acme.okta.com · 4 分钟前同步",
+        "connected": "已连接",
+        "configure": "配置",
+        "configureToast": "正在打开 idp 配置…"
+      },
+      "domain": {
+        "title": "域名认领",
+        "meta": "your-domain.example · 142 位用户",
+        "verified": "已验证",
+        "verify": "验证 dns",
+        "verifyToast": "正在验证 dns…"
+      },
+      "scim": {
+        "title": "scim 2.0 配置",
+        "meta": "endpoint: /scim/v2 · token: scim_•••• · 2 小时前推送",
+        "active": "活跃",
+        "rotate": "轮换 token",
+        "rotateToast": "正在轮换 scim token…",
+        "logs": "日志",
+        "logsToast": "正在打开 scim 日志…"
+      },
+      "enforce": {
+        "title": "为所有人强制 sso",
+        "meta": "如果开启，匹配域名的账户将无法使用密码登录",
+        "toggleToast": "sso 强制设置已更新"
+      }
+    },
+    "notif": {
+      "title": "通知",
+      "desc": "我们相信通知应当少而精。每行是一类事件；选择渠道即可。",
+      "colEvent": "事件",
+      "colEmail": "邮件",
+      "colSlack": "slack",
+      "colInApp": "应用内",
+      "colPager": "pager",
+      "channelsLabel": "渠道：",
+      "channelEmail": "邮件",
+      "channelSlack": "slack · #mcp-alerts",
+      "channelPager": "pagerduty · prod-on-call",
+      "addChannel": "添加渠道",
+      "addChannelToast": "正在打开渠道管理器…",
+      "drift": {
+        "name": "检测到 spec 漂移",
+        "hint": "上游 openapi 形态发生变化"
+      },
+      "errors": {
+        "name": "工具错误率 ↑",
+        "hint": "p95 错误超出您的 slo"
+      },
+      "deploys": {
+        "name": "部署与回滚",
+        "hint": "每次推送到生产"
+      },
+      "digest": {
+        "name": "每周摘要",
+        "hint": "用量、成本、热门工具，周一上午 9 点"
+      },
+      "quotas": {
+        "name": "配额 80% / 100%",
+        "hint": "在我们限流之前"
+      },
+      "security": {
+        "name": "安全 · 密钥轮换、新登录、2fa 变更",
+        "hint": "邮件渠道始终开启"
+      }
+    },
+    "integ": {
+      "title": "集成",
+      "desc": "把 mcpgen 接入您的整个技术栈。所有集成都支持按事件过滤。",
+      "connected": "已连接",
+      "configure": "配置",
+      "configureToast": "正在打开 {name} 设置…",
+      "disconnect": "断开",
+      "disconnectToast": "已断开 {name}",
+      "connect": "连接",
+      "connectToast": "正在连接 {name}…",
+      "slack": {
+        "name": "slack",
+        "desc": "向频道发送告警和摘要",
+        "meta": "预览 · 连接后显示元数据"
+      },
+      "github": {
+        "name": "github",
+        "desc": "从 pr 自动部署 · 状态检查",
+        "meta": "预览 · 连接后显示元数据"
+      },
+      "pagerduty": {
+        "name": "pagerduty",
+        "desc": "错误率飙升时呼叫值班",
+        "meta": "预览 · 连接后显示元数据"
+      },
+      "sentry": {
+        "name": "sentry",
+        "desc": "把工具错误同步到您的 sentry 项目"
+      },
+      "datadog": {
+        "name": "datadog",
+        "desc": "导出指标：延迟、调用、成本"
+      },
+      "linear": {
+        "name": "linear",
+        "desc": "为漂移事件自动建 issue"
+      },
+      "webhook": {
+        "name": "通用 webhook",
+        "desc": "把事件 post 到任意 url · hmac 签名",
+        "meta": "预览 · 配置后显示 endpoint 数量"
+      }
+    },
+    "usage": {
+      "title": "用量与账单",
+      "desc": "这是精简视图。发票、支付方式和税务信息请见 billing。",
+      "openBilling": "打开完整 billing",
+      "toolCallsLabel": "工具调用 · 本月",
+      "usedPct": "已使用 {pct}%",
+      "thisMonth": "本月",
+      "allServers": "所有服务器 · {n}",
+      "allServersEmpty": "尚无服务器",
+      "forecast": "预测",
+      "forecastSub": "需要 7 天数据后可用",
+      "lastMonth": "上月",
+      "lastMonthSub": "下个周期可用",
+      "byok": "byok 节省",
+      "byokSub": "配置 byok 后可用",
+      "changePlan": "更换套餐",
+      "downloadInvoices": "下载发票",
+      "invoicesToast": "正在打开 billing → 发票…",
+      "taxInfo": "税务信息",
+      "taxToast": "正在打开税务信息…"
+    },
+    "audit": {
+      "title": "审计日志",
+      "desc": "您账户内的每个特权操作。pro 保留 12 个月，enterprise 永久保留。",
+      "export": "导出 csv",
+      "exportToast": "正在导出审计日志 → csv…",
+      "emptyTitle": "暂无审计事件",
+      "emptyBody": "我们记录每个特权操作 — 登录、密钥轮换、策略变更 — 并支持按需导出。",
+      "filter": {
+        "all": "全部",
+        "info": "信息",
+        "warn": "警告",
+        "critical": "严重"
+      },
+      "col": {
+        "when": "时间",
+        "actor": "操作者",
+        "event": "事件",
+        "target": "目标",
+        "ip": "ip",
+        "sev": "级别"
+      }
+    },
+    "danger": {
+      "title": "危险区域",
+      "desc": "可逆和不可逆的操作。每个都需要明确确认。",
+      "confirmLabel": "输入「{phrase}」以确认",
+      "queuedToast": "{cta} · 已排队",
+      "drawer": {
+        "cancel": "取消"
+      },
+      "export": {
+        "title": "导出您的所有数据",
+        "body": "完整 gdpr 导出 — 服务器、配置、日志、审计跟踪。以签名 url 交付，24 小时后过期。",
+        "cta": "请求导出",
+        "drawer": {
+          "title": "请求数据导出",
+          "body": "我们将在 5 分钟内通过电子邮件向 {email} 发送签名下载链接。",
+          "cta": "请求导出"
+        }
+      },
+      "transfer": {
+        "title": "转让所有权",
+        "body": "把工作区交给另一个用户。您将被降级为管理员。",
+        "cta": "转让所有权",
+        "drawer": {
+          "title": "转让所有权",
+          "body": "您将被降级为管理员并失去账单权。新所有者必须在 7 天内接受。",
+          "cta": "转让",
+          "newOwnerLabel": "新所有者邮箱 · 必须已经有账户",
+          "newOwnerPlaceholder": "new-owner@example.com"
+        }
+      },
+      "pause": {
+        "title": "暂停账户",
+        "body": "所有服务器下线 · 账单暂停 · 30 天内可从设置恢复。",
+        "cta": "暂停账户",
+        "drawer": {
+          "title": "暂停此账户",
+          "body": "您的所有服务器立即下线。您可以在 30 天内从任何设备恢复。",
+          "cta": "暂停账户"
+        }
+      },
+      "delete": {
+        "title": "删除账户",
+        "body": "永久删除。所有服务器、密钥、审计日志和配置在 24 小时内擦除。无法撤销。",
+        "cta": "删除账户",
+        "drawer": {
+          "title": "删除此账户",
+          "body": "这是永久的。输入下面的短语确认您理解。",
+          "cta": "永久删除"
+        }
+      }
+    }
+  }
 }
