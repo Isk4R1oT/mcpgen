@@ -1,25 +1,26 @@
 // screen-quality.jsx — Quality Report (after canvas, before deploy)
+//
+// Phase M-4 Agent 2 — `score`, `breakdown`, `tools`, `evalTasks` and
+// `cacheHitMeta` are now passed as props derived from QualityReport
+// (Stage F output). Defaults preserve the locked visual when called
+// without artefacts. See .planning/ui-rebuild-sandbox/PROP-CONTRACTS.md
+// screen-quality entry.
 
-function QualityReport({ sample, onContinue, onBack }) {
+function QualityReport({
+  sample,
+  onContinue,
+  onBack,
+  score: scoreProp,
+  breakdown: breakdownProp,
+  tools: toolsProp,
+  evalTasks,
+  cacheHitMeta,
+}) {
   const [errorMode] = window.useErrorMode();
   const rateLimited = errorMode === 'rate-limit';
-  const score = 4.3;
-  const breakdown = [
-    { label: 'description quality',   value: 4.2, max: 5,   note: 'concise, action-led, average 38 tk' },
-    { label: 'annotations coverage',  value: 5.0, max: 5,   note: 'every tool tagged · readonly / destructive / idempotent' },
-    { label: 'composite tools',       value: 3,   max: 5,   note: '3 created · order_lifecycle, refund_with_audit, customer_with_history' },
-    { label: 'agent eval pass-rate',  value: 87,  max: 100, suffix: '%', note: '5 tasks tested · claude opus 4 · 13/15 successful' },
-    { label: 'param naming',          value: 4.6, max: 5,   note: 'snake_case throughout · 0 collisions · 2 minor abbreviations' },
-  ];
-
-  const tools = [
-    { name: 'list_charges',     score: 4.8, flags: [] },
-    { name: 'create_charge',    score: 4.5, flags: ['needs example'] },
-    { name: 'order_lifecycle',  score: 4.9, flags: ['composite'] },
-    { name: 'refund_charge',    score: 4.6, flags: [] },
-    { name: 'find_customer',    score: 4.0, flags: ['vague description'] },
-    { name: 'subscribe',        score: 3.9, flags: ['missing param doc'] },
-  ];
+  const score = typeof scoreProp === 'number' ? scoreProp : 0;
+  const breakdown = breakdownProp || [];
+  const tools = toolsProp || [];
 
   const Gauge = ({ score }) => {
     const pct = score / 5;
@@ -170,14 +171,8 @@ function QualityReport({ sample, onContinue, onBack }) {
           <Card>
             <SectionLabel>agent eval — sample tasks</SectionLabel>
             <div className="mc-mono" style={{ fontSize: 12.5, lineHeight: 1.8 }}>
-              {[
-                { task: '"refund last week\'s charge for alice@x.io"',     ok: true,  ms: 1840 },
-                { task: '"how much did we charge in march?"',              ok: true,  ms: 2120 },
-                { task: '"create a $99 subscription for new customer"',    ok: true,  ms: 2980 },
-                { task: '"list failed payments from last 24h"',            ok: false, ms: 4200, why: 'used 3 calls instead of 1' },
-                { task: '"pause then resume bob\'s subscription"',         ok: true,  ms: 2640 },
-              ].map((r, i) => (
-                <div key={i} style={{ padding: '6px 0', borderBottom: i === 4 ? 'none' : '1px dashed var(--border)' }}>
+              {(evalTasks || []).map((r, i, arr) => (
+                <div key={i} style={{ padding: '6px 0', borderBottom: i === arr.length - 1 ? 'none' : '1px dashed var(--border)' }}>
                   <div className="row" style={{ gap: 8 }}>
                     <span style={{ color: r.ok ? 'var(--success)' : 'var(--accent)', fontWeight: 600, minWidth: 16 }}>
                       {r.ok ? '✓' : '✗'}
@@ -188,7 +183,17 @@ function QualityReport({ sample, onContinue, onBack }) {
                   {r.why && <div className="muted" style={{ fontSize: 11, paddingLeft: 24 }}>↳ {r.why}</div>}
                 </div>
               ))}
+              {(!evalTasks || evalTasks.length === 0) && (
+                <div className="muted" style={{ fontSize: 12, padding: '6px 0' }}>
+                  no agent-eval tasks reported
+                </div>
+              )}
             </div>
+            {cacheHitMeta && (
+              <div className="mc-caption" style={{ marginTop: 10, fontSize: 11 }}>
+                served from cache · original quality {cacheHitMeta.original_quality.toFixed(1)} · src {cacheHitMeta.served_from}
+              </div>
+            )}
           </Card>
 
           <Card>
