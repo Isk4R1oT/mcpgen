@@ -1,61 +1,12 @@
 // screen-canvas.jsx — Screen 3: Generated server canvas (three-pane) + Screen 4: Refinement diff
 
+// M-4 FLOW: TOOL_DATA literal removed — tool inventory is now a prop (`tools`)
+// passed by the wrapper from real generation results (post Stage E codegen).
+// Until a generation completes the wrapper passes `null` and we render an
+// empty/loading state below.
+
 // Each tool has rawTk (naive 1:1 from the openapi spec) and tk (after our pass)
 // — that delta is the killer feature, so it's surfaced everywhere.
-const TOOL_DATA = {
-  transactions: {
-    label: 'transactions',
-    tools: [
-      { id: 'create_charge', name: 'create_charge', tk: 47, rawTk: 186, desc: 'charges a customer\'s card. returns a charge object.', short: 'charges a card. returns charge.', source: 'POST /v1/charges',
-        params: [
-          { name: 'amount', type: 'number', req: true },
-          { name: 'currency', type: 'string', req: true },
-          { name: 'customer', type: 'string', req: true },
-          { name: 'metadata', type: 'object', req: false },
-        ]},
-      { id: 'list_charges', name: 'list_charges', tk: 38, rawTk: 142, desc: 'lists charges; supports filters by date, customer, status.', source: 'GET /v1/charges',
-        params: [
-          { name: 'limit', type: 'number', req: false },
-          { name: 'customer', type: 'string', req: false },
-          { name: 'starting_after', type: 'string', req: false },
-        ]},
-      { id: 'refund_charge', name: 'refund_charge', tk: 32, rawTk: 118, desc: 'refunds a charge by id. partial amounts supported.', source: 'POST /v1/charges/:id/refund',
-        params: [
-          { name: 'charge_id', type: 'string', req: true },
-          { name: 'amount', type: 'number', req: false },
-        ]},
-      { id: 'capture_charge', name: 'capture_charge', tk: 28, rawTk: 96, desc: 'captures a previously authorized charge.', source: 'POST /v1/charges/:id/capture', params: [{ name: 'charge_id', type: 'string', req: true }] },
-    ],
-  },
-  accounts: {
-    label: 'accounts',
-    tools: [
-      { id: 'create_customer', name: 'create_customer', tk: 41, rawTk: 152, desc: 'creates a customer record.', source: 'POST /v1/customers', params: [{ name: 'email', type: 'string', req: true }, { name: 'name', type: 'string', req: false }] },
-      { id: 'find_customer', name: 'find_customer', tk: 35, rawTk: 128, desc: 'finds a customer by id or email.', source: 'GET /v1/customers/search', params: [{ name: 'query', type: 'string', req: true }] },
-      { id: 'update_customer', name: 'update_customer', tk: 33, rawTk: 124, desc: 'updates customer attributes.', source: 'PATCH /v1/customers/:id', params: [{ name: 'customer_id', type: 'string', req: true }] },
-    ],
-  },
-  plans: {
-    label: 'plans',
-    tools: [
-      { id: 'list_plans', name: 'list_plans', tk: 26, rawTk: 88, desc: 'lists subscription plans.', source: 'GET /v1/plans', params: [] },
-      { id: 'subscribe',  name: 'subscribe',  tk: 44, rawTk: 168, desc: 'subscribes a customer to a plan.', source: 'POST /v1/subscriptions', params: [{ name: 'customer_id', type: 'string', req: true }, { name: 'plan_id', type: 'string', req: true }] },
-    ],
-  },
-  composite: {
-    label: 'composite',
-    icon: 'bolt',
-    tools: [
-      { id: 'order_lifecycle', name: 'order_lifecycle', tk: 62, rawTk: 412, composite: true, desc: 'creates a customer if missing, charges them, returns charge + receipt.', source: '3 endpoints merged',
-        params: [
-          { name: 'email', type: 'string', req: true },
-          { name: 'amount', type: 'number', req: true },
-          { name: 'currency', type: 'string', req: true },
-        ]},
-      { id: 'refund_with_audit', name: 'refund_with_audit', tk: 48, rawTk: 286, composite: true, desc: 'refunds and writes an audit log entry.', source: '2 endpoints merged', params: [{ name: 'charge_id', type: 'string', req: true }] },
-    ],
-  },
-};
 
 // Inline mini-badge: shows "raw → tk" with a savings %. Used in the tools list and
 // detail header. Color is muted by default; primary when % savings is high.
@@ -86,12 +37,25 @@ function TokenSaveBadge({ raw, tk, size = 'sm' }) {
   );
 }
 
-function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
-  const [openCats, setOpenCats] = React.useState({ transactions: true, accounts: true, plans: false, composite: true });
-  const [selected, setSelected] = React.useState('create_charge');
+function Canvas({ sample, tools, onPlay, onDeploy, onCmdK, onBack }) {
+  // M-4 FLOW: `tools` is the real generated tool inventory (replaces TOOL_DATA
+  // mock). Shape: { [categoryId]: { label, icon?, tools: ToolPlan[] } }. When
+  // the wrapper has no data yet (loading / no spec) we render with an empty
+  // shape so the canvas chrome still mounts without throwing.
+  const TOOL_DATA = tools || {};
+  const firstCategory = Object.keys(TOOL_DATA)[0];
+  const firstTool = firstCategory && TOOL_DATA[firstCategory].tools[0]
+    ? TOOL_DATA[firstCategory].tools[0]
+    : null;
+  const initialOpenCats = Object.keys(TOOL_DATA).reduce((acc, k, i) => {
+    acc[k] = i < 2;
+    return acc;
+  }, {});
+  const [openCats, setOpenCats] = React.useState(initialOpenCats);
+  const [selected, setSelected] = React.useState(firstTool ? firstTool.id : '');
   const [filter, setFilter] = React.useState('');
   const [chatOpen, setChatOpen] = React.useState(true);
-  const [tool, setTool] = React.useState(TOOL_DATA.transactions.tools[0]);
+  const [tool, setTool] = React.useState(firstTool);
   const [diff, setDiff] = React.useState(null);   // { id, before, after, beforeTk, afterTk }
   const [autoCountdown, setAutoCountdown] = React.useState(0);
   const [changedSet, setChangedSet] = React.useState(new Set());
@@ -121,12 +85,13 @@ function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
   }, [selected]);
 
   const triggerDiff = () => {
+    if (!tool) return;
     setDiff({
       id: tool.id,
       before: tool.desc,
-      after: tool.short || 'charges a card. returns charge.',
+      after: tool.short || tool.desc,
       beforeTk: tool.tk,
-      afterTk: 23,
+      afterTk: Math.max(1, Math.round(tool.tk * 0.5)),
     });
     setAutoCountdown(3);
   };
@@ -153,12 +118,12 @@ function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
   const matchFilter = (t) => !filter || t.name.includes(filter.toLowerCase());
 
   const allTools = Object.values(TOOL_DATA).flatMap(c => c.tools);
-  const totalTk = allTools.reduce((s, t) => s + (changedSet.has(t.id) && t.id === tool.id ? tool.tk : t.tk), 0);
+  const totalTk = allTools.reduce((s, t) => s + (tool && changedSet.has(t.id) && t.id === tool.id ? tool.tk : t.tk), 0);
 
   return (
     <div className="mc-screen" style={{ minHeight: '100vh' }}>
       <TopBar
-        crumb={`${sample?.name || 'lumen-payments'}-mcp · draft`}
+        crumb={`${sample?.name || 'untitled'}-mcp · draft`}
         onLogo={onBack}
         right={
           <>
@@ -256,7 +221,7 @@ function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 14 }}>
                 <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--paper)' }}>
                   <div className="mc-mono" style={{ fontSize: 22, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em' }}>{allTools.length}</div>
-                  <div className="mc-caption" style={{ fontSize: 11, marginTop: 4 }}>tools (from 348 endpoints)</div>
+                  <div className="mc-caption" style={{ fontSize: 11, marginTop: 4 }}>tools{sample?.endpoints ? ` (from ${sample.endpoints} endpoints)` : ''}</div>
                 </div>
                 <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--paper)' }}>
                   <div className="mc-mono" style={{ fontSize: 22, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em' }}>
@@ -265,7 +230,7 @@ function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
                   <div className="mc-caption" style={{ fontSize: 11, marginTop: 4 }}>composite (multi-step)</div>
                 </div>
                 <div style={{ padding: '10px 12px', border: '1px solid var(--border-sharp)', borderRadius: 'var(--radius)', background: 'var(--primary)', color: 'var(--primary-ink)' }}>
-                  <div className="mc-mono" style={{ fontSize: 22, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em' }}>↓76%</div>
+                  <div className="mc-mono" style={{ fontSize: 22, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em' }}>{sample?.save ? `↓${sample.save}%` : '—'}</div>
                   <div className="mc-mono" style={{ fontSize: 11, marginTop: 4, opacity: .8 }}>fewer tokens vs naive</div>
                 </div>
               </div>
@@ -282,6 +247,8 @@ function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
             </div>
           )}
 
+          {tool ? (
+          <>
           <div style={{ marginBottom: 8 }}>
             <div className="row" style={{ gap: 10, marginBottom: 8 }}>
               {tool.composite && <Badge kind="primary" mono={false}><Icon name="bolt" size={10} /> composite</Badge>}
@@ -344,8 +311,8 @@ function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
           <div style={{ marginBottom: 24 }}>
             <SectionLabel>parameters</SectionLabel>
             <div className="mc-mono" style={{ fontSize: 13 }}>
-              {tool.params.length === 0 && <div className="muted">none</div>}
-              {tool.params.map(p => (
+              {(!tool.params || tool.params.length === 0) && <div className="muted">none</div>}
+              {(tool.params || []).map(p => (
                 <div key={p.name} className="row" style={{ padding: '6px 0', borderBottom: '1px dashed var(--border)', gap: 12 }}>
                   <span style={{ minWidth: 140 }}>{p.name}</span>
                   <span className="muted" style={{ minWidth: 80 }}>{p.type}</span>
@@ -360,7 +327,7 @@ function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
             <SectionLabel>source</SectionLabel>
             <div className="mc-code" style={{ background: 'var(--paper-alt)' }}>
               <span className="muted"># mapped from openapi spec</span>{'\n'}
-              <span style={{ color: 'var(--accent)' }}>{tool.source.split(' ')[0]}</span> {tool.source.split(' ').slice(1).join(' ')}
+              <span style={{ color: 'var(--accent)' }}>{(tool.source || '').split(' ')[0]}</span> {(tool.source || '').split(' ').slice(1).join(' ')}
             </div>
           </div>
 
@@ -369,6 +336,12 @@ function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
             <Btn kind="ghost" size="sm" onClick={() => setEditing(true)}>edit description</Btn>
             <Btn kind="ink" size="sm" icon="play" onClick={onPlay}>test in playground</Btn>
           </div>
+          </>
+          ) : (
+            <div className="mc-caption" style={{ padding: 32, textAlign: 'center' }}>
+              no tools yet — start a generation from the landing page.
+            </div>
+          )}
         </main>
 
         {/* Right: chat */}
@@ -428,7 +401,7 @@ function Canvas({ sample, onPlay, onDeploy, onCmdK, onBack }) {
       <div className="mc-statusbar">
         <span>{allTools.length} tools</span>
         <span>{totalTk.toLocaleString()} tokens</span>
-        <span style={{ color: 'var(--success)' }}>↓76%</span>
+        {sample?.save ? <span style={{ color: 'var(--success)' }}>↓{sample.save}%</span> : null}
         <span style={{ marginLeft: 'auto' }}>last edit 10s ago</span>
         <span><Icon name="cmd" size={10} /> K</span>
       </div>

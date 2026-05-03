@@ -1,79 +1,87 @@
 // screen-stream.jsx — Screen 2: generation streaming log
 
+// M-4 FLOW: Stream steps mirror the 7 visible stages of the engine pipeline
+// (A=parse, B=architect, then 4 inner Author/Shape passes, then E=codegen).
+// SSE drives `stepIdx` via `currentStage`; `note` is filled from
+// partial_result.note when the engine emits one, otherwise default copy.
 const STREAM_STEPS = [
-  { id: 'parse',   label: 'parsed openapi spec',         note: '348 endpoints, 12 cats',     dur: 800 },
-  { id: 'auth',    label: 'detected auth strategy',      note: 'oauth + api key',            dur: 900 },
-  { id: 'prune',   label: 'pruned deprecated paths',     note: 'removed 14',                 dur: 1100 },
-  { id: 'compress',label: 'compressing descriptions',    note: '247 / 348 done',             dur: 4200, examples: true },
-  { id: 'cluster', label: 'clustering similar endpoints',note: 'found 12 clusters',          dur: 1600 },
-  { id: 'compose', label: 'generating composite tools',  note: '3 created',                  dur: 1400 },
-  { id: 'finalize',label: 'finalizing typescript module',note: '4.2 kb minified',            dur: 1000 },
+  { id: 'parse',   stage: 'A',  label: 'parsed openapi spec',         note: '' },
+  { id: 'auth',    stage: 'B',  label: 'detected auth strategy',      note: '' },
+  { id: 'prune',   stage: 'C',  label: 'pruned deprecated paths',     note: '' },
+  { id: 'compress',stage: 'C',  label: 'compressing descriptions',    note: '', examples: true },
+  { id: 'cluster', stage: 'D',  label: 'clustering similar endpoints',note: '' },
+  { id: 'compose', stage: 'E',  label: 'generating composite tools',  note: '' },
+  { id: 'finalize',stage: 'F1', label: 'finalizing typescript module',note: '' },
 ];
 
-const COMPRESSION_EXAMPLES = [
-  { from: '"create_charge"',   to: '"charges a customer\'s card."' },
-  { from: '"list_charges"',    to: '"lists charges; supports filters."' },
-  { from: '"refund_charge"',   to: '"refunds a charge by id."' },
-  { from: '"create_customer"', to: '"creates a customer record."' },
-  { from: '"update_subscription"', to: '"updates a subscription plan."' },
-];
+// Map SSE stage code → step index (highest stage seen wins).
+const STAGE_TO_STEP = {
+  A: 0,
+  B: 1,
+  C: 3,
+  D: 4,
+  E: 5,
+  F1: 6,
+  F2: 6,
+  F3: 6,
+  validation_complete: 7,
+  completed: 7,
+};
 
-function StreamLog({ onDone, onCancel, sample }) {
-  const [errorMode] = window.useErrorMode();
-  // Spec-fail / auth-fail freeze the streaming at the relevant step and show
-  // a recovery card. Other modes are pass-through (rate-limit / deploy-fail
-  // are surfaced on later screens).
-  const failStep =
-    errorMode === 'spec-fail' ? 0 :
-    errorMode === 'auth-fail' ? 1 : -1;
+function StreamLog({ onDone, onCancel, sample, events, cacheHit, currentStage }) {
+  // Determine current step from SSE `currentStage`. Falls back to 0 when no
+  // events have arrived yet (loading state).
+  const stepIdx = React.useMemo(() => {
+    if (typeof currentStage === 'string' && currentStage in STAGE_TO_STEP) {
+      return STAGE_TO_STEP[currentStage];
+    }
+    return 0;
+  }, [currentStage]);
 
-  const [stepIdx, setStepIdx] = React.useState(0);
-  const [progress, setProgress] = React.useState(0);
+  // Detect terminal failure from an event with status === 'error' or
+  // stage === 'failed'. Surface the same recovery UI the design demo had.
+  const failedEvent = React.useMemo(() => {
+    if (!Array.isArray(events)) return null;
+    return events.find((e) => e && (e.status === 'error' || e.stage === 'failed'));
+  }, [events]);
+  const errored = Boolean(failedEvent);
+  // Best-effort mapping of failure to the step that owned it. Engine emits
+  // `stage` on the failed event; map back via STAGE_TO_STEP, default 0.
+  const failStep = errored
+    ? (STAGE_TO_STEP[failedEvent?.stage] ?? 0)
+    : -1;
+
+  // Progress bar: linear by step index. With 7 steps + completion, each
+  // completed step = 100/7 % progress.
+  const progress = Math.min(100, (stepIdx / STREAM_STEPS.length) * 100);
+  // Total duration (for ETA) — engine runs ~30–60s; estimate 8s per remaining step.
+  const total = (STREAM_STEPS.length - stepIdx) * 8 * 1000;
+
+  React.useEffect(() => {
+    if (currentStage === 'completed' || currentStage === 'validation_complete') {
+      const id = setTimeout(() => onDone && onDone(), 400);
+      return () => clearTimeout(id);
+    }
+  }, [currentStage, onDone]);
+
+  // Compression examples — sourced from event partial_result when the engine
+  // surfaces them; empty otherwise. No mock fallback (per §6.2).
+  const compressionExamples = React.useMemo(() => {
+    if (!Array.isArray(events)) return [];
+    const examples = [];
+    for (const e of events) {
+      const ex = e?.partial_result?.compression_examples;
+      if (Array.isArray(ex)) examples.push(...ex);
+    }
+    return examples;
+  }, [events]);
   const [exampleIdx, setExampleIdx] = React.useState(0);
-  const [errored, setErrored] = React.useState(false);
-  const total = STREAM_STEPS.reduce((s, st) => s + st.dur, 0);
-
   React.useEffect(() => {
-    let cancelled = false;
-    let elapsedTotal = 0;
-    let i = 0;
-    const next = () => {
-      if (cancelled) return;
-      // Halt at the failing step
-      if (failStep >= 0 && i > failStep) {
-        setErrored(true);
-        return;
-      }
-      if (i >= STREAM_STEPS.length) {
-        setTimeout(() => !cancelled && onDone(), 400);
-        return;
-      }
-      const start = performance.now();
-      const dur = STREAM_STEPS[i].dur;
-      const tick = (now) => {
-        if (cancelled) return;
-        const t = Math.min(1, (now - start) / dur);
-        setProgress(((elapsedTotal + t * dur) / total) * 100);
-        if (t < 1) requestAnimationFrame(tick);
-        else {
-          elapsedTotal += dur;
-          i += 1;
-          setStepIdx(i);
-          next();
-        }
-      };
-      requestAnimationFrame(tick);
-    };
-    next();
-    return () => { cancelled = true; };
-  }, [failStep]);
-
-  React.useEffect(() => {
-    if (STREAM_STEPS[stepIdx]?.examples) {
-      const id = setInterval(() => setExampleIdx(i => (i + 1) % COMPRESSION_EXAMPLES.length), 700);
+    if (STREAM_STEPS[stepIdx]?.examples && compressionExamples.length > 0) {
+      const id = setInterval(() => setExampleIdx(i => (i + 1) % compressionExamples.length), 700);
       return () => clearInterval(id);
     }
-  }, [stepIdx]);
+  }, [stepIdx, compressionExamples.length]);
 
   const eta = Math.max(0, Math.round(((100 - progress) / 100) * (total / 1000)));
   const spinFrames = ['⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
@@ -86,7 +94,7 @@ function StreamLog({ onDone, onCancel, sample }) {
   return (
     <div className="mc-screen mc-grain" style={{ minHeight: '100vh' }}>
       <TopBar
-        crumb={`generating ${sample?.name || 'lumen-payments'}-mcp`}
+        crumb={`generating ${sample?.name || 'spec'}-mcp${cacheHit ? ' · cache hit' : ''}`}
         right={<Btn kind="ghost" size="sm" icon="x" onClick={onCancel}>cancel</Btn>}
       />
 
@@ -119,14 +127,14 @@ function StreamLog({ onDone, onCancel, sample }) {
                     </span>
                     <span className={`mc-mono ${next ? 'next' : 'muted'}`} style={{ fontSize: 12, color: failed ? 'var(--accent)' : undefined }}>
                       {failed
-                        ? (failStep === 0 ? 'parse error · line 412' : '401 unauthorized')
+                        ? (failedEvent?.error?.code || failedEvent?.error?.message || 'failed')
                         : done ? st.note : live ? st.note : 'next'}
                     </span>
                   </div>
-                  {live && st.examples && (
+                  {live && st.examples && compressionExamples.length > 0 && (
                     <div style={{ paddingLeft: 24, marginTop: 6, marginBottom: 8, borderLeft: '2px solid var(--primary)', paddingLeft: 12 }}>
-                      {COMPRESSION_EXAMPLES.slice(0, 3).map((ex, idx) => {
-                        const e = COMPRESSION_EXAMPLES[(exampleIdx + idx) % COMPRESSION_EXAMPLES.length];
+                      {compressionExamples.slice(0, 3).map((_, idx) => {
+                        const e = compressionExamples[(exampleIdx + idx) % compressionExamples.length];
                         return (
                           <div key={idx} className="mc-mono" style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7, opacity: 1 - idx * 0.3 }}>
                             └─ <span style={{ color: 'var(--text)' }}>{e.from}</span>  →  {e.to}
@@ -144,48 +152,26 @@ function StreamLog({ onDone, onCancel, sample }) {
         {/* Error recovery card */}
         {errored && (
           <Card style={{ marginTop: 24, borderColor: 'var(--accent)', borderLeftWidth: 4 }}>
-            {failStep === 0 ? (
-              <div>
-                <div className="row" style={{ gap: 10, marginBottom: 8 }}>
-                  <Icon name="warn" size={14} style={{ color: 'var(--accent)' }} />
-                  <span className="mc-h3" style={{ color: 'var(--accent)' }}>spec failed to parse</span>
-                </div>
-                <div style={{ fontSize: 14, lineHeight: 1.55, marginBottom: 14 }}>
-                  unexpected token at <span className="mc-mono">line 412, col 18</span> — looks like an unbalanced quote in a description string. we stopped before generating anything.
-                </div>
-                <div className="mc-code" style={{ marginBottom: 14, fontSize: 11.5, padding: 12 }}>
-                  <span className="muted">  410 |   "$ref": "#/components/schemas/Charge"</span>{'\n'}
-                  <span className="muted">  411 | }</span>{'\n'}
-                  <span style={{ color: 'var(--accent)' }}>  412 | "description": "refunds a customer's charge — partial</span>{'\n'}
-                  <span className="muted">                                                ^^^^^^^^^^^^</span>{'\n'}
-                  <span style={{ color: 'var(--accent)' }}>      |   unterminated string</span>
-                </div>
-                <div className="row" style={{ gap: 8 }}>
-                  <Btn kind="primary" size="sm" icon="spark" onClick={() => window.mcpToast('ai re-parsing spec… this usually takes 6s')}>try repair with ai</Btn>
-                  <Btn kind="ink" size="sm" onClick={() => window.mcpToast('opening inline spec editor')}>edit spec inline</Btn>
-                  <Btn kind="ghost" size="sm" onClick={onCancel}>upload new spec</Btn>
-                </div>
+            <div>
+              <div className="row" style={{ gap: 10, marginBottom: 8 }}>
+                <Icon name="warn" size={14} style={{ color: 'var(--accent)' }} />
+                <span className="mc-h3" style={{ color: 'var(--accent)' }}>
+                  generation failed{failedEvent?.error?.code ? ` · ${failedEvent.error.code}` : ''}
+                </span>
               </div>
-            ) : (
-              <div>
-                <div className="row" style={{ gap: 10, marginBottom: 8 }}>
-                  <Icon name="warn" size={14} style={{ color: 'var(--accent)' }} />
-                  <span className="mc-h3" style={{ color: 'var(--accent)' }}>auth probe returned 401</span>
-                </div>
-                <div style={{ fontSize: 14, lineHeight: 1.55, marginBottom: 14 }}>
-                  we tested your api key against <span className="mc-mono">GET /v1/charges</span> and got rejected. the rest of the generation is paused — fixing the credential will resume from here.
-                </div>
+              <div style={{ fontSize: 14, lineHeight: 1.55, marginBottom: 14 }}>
+                {failedEvent?.error?.message || 'the engine reported an error during this stage. fix the upstream spec or credentials and try again.'}
+              </div>
+              {typeof failedEvent?.error?.retry_after_seconds === 'number' && (
                 <div className="mc-banner" style={{ marginBottom: 14 }}>
                   <Icon name="lock" size={11} />
-                  <span>most common cause: copied <span className="mc-mono">sk_test_…</span> when the endpoint expects <span className="mc-mono">sk_live_…</span></span>
+                  <span>retry after {failedEvent.error.retry_after_seconds}s</span>
                 </div>
-                <div className="row" style={{ gap: 8 }}>
-                  <Btn kind="primary" size="sm" icon="spark" onClick={() => window.mcpToast('credential vault opening…')}>re-enter credential</Btn>
-                  <Btn kind="ink" size="sm" onClick={() => window.mcpToast('switching to oauth2 client_credentials')}>use a different scheme</Btn>
-                  <Btn kind="ghost" size="sm" onClick={() => window.mcpToast('skipping auth · read-only mode')}>skip auth (read-only)</Btn>
-                </div>
+              )}
+              <div className="row" style={{ gap: 8 }}>
+                <Btn kind="ghost" size="sm" onClick={onCancel}>start over</Btn>
               </div>
-            )}
+            </div>
           </Card>
         )}
 
@@ -203,7 +189,7 @@ function StreamLog({ onDone, onCancel, sample }) {
 
         {!errored && (
           <div style={{ marginTop: 20, textAlign: 'center' }}>
-            <Btn kind="ghost" size="sm" icon="bell" onClick={() => window.mcpToast("we'll email kira@dolla.io when it's done")}>notify me when done — i'll do something else</Btn>
+            <Btn kind="ghost" size="sm" icon="bell" onClick={() => window.mcpToast("we'll email you when it's done")}>notify me when done — i'll do something else</Btn>
           </div>
         )}
       </main>
