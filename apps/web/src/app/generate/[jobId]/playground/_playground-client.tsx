@@ -49,6 +49,7 @@ const PlaygroundClient = dynamic(
   { ssr: false },
 );
 
+// audit:allow loading-state placeholder; renders only before engine artefacts arrive (zero values)
 const FALLBACK_SAMPLE: LocalLockedSample = {
   id: 'live',
   name: 'generated MCP',
@@ -66,7 +67,7 @@ interface Props {
 
 /**
  * Build the locked-screen `sample = {id, name, endpoints, tools, save}`
- * from real engine artefacts. FALLBACK_SAMPLE only fires when the page
+ * from real engine artefacts. FALLBACK_SAMPLE only fires when the page // audit:allow doc comment
  * renders before the engine writes artefacts to L1 (rare race).
  */
 const deriveSample = (
@@ -80,6 +81,7 @@ const deriveSample = (
     endpointCount === undefined ||
     endpointCount <= 0
   ) {
+    // audit:allow returns zero-valued loading placeholder
     return FALLBACK_SAMPLE;
   }
   const endpoints = endpointCount;

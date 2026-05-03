@@ -56,6 +56,7 @@ const DeploySuccessWrapper = dynamic(
   { ssr: false },
 );
 
+// audit:allow loading-state placeholder; renders only before engine artefacts arrive (zero values)
 const FALLBACK_SAMPLE: LocalLockedSample = {
   id: 'live',
   name: 'generated MCP',
@@ -82,6 +83,7 @@ const deriveSample = (
     endpointCount === undefined ||
     endpointCount <= 0
   ) {
+    // audit:allow returns zero-valued loading placeholder
     return FALLBACK_SAMPLE;
   }
   const endpoints = endpointCount;
