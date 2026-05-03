@@ -59,3 +59,46 @@ flags:
     related_issues: []
     notes: |
       Long-lived. Phase 10 may restrict by plan if abuse becomes an issue.
+
+  - key: ui_marketplace_perm
+    category: perm
+    owner: igor
+    created_at: 2026-05-03
+    related_issues: []
+    notes: |
+      Gates /marketplace and /marketplace/[serverId] routes. Backend
+      (marketplace BFF + listing storage) is not in MVP scope. Removed when
+      Marketplace launches (post-Phase 10). See frontend-rebuild-contract
+      §5.1.
+
+  - key: ui_admin_panel_perm
+    category: perm
+    owner: igor
+    created_at: 2026-05-03
+    related_issues: []
+    notes: |
+      Gates /admin/* routes. Default off; internal_users segment override is
+      added by M-5 via the Flipt rule API after bootstrap (contract §5.1
+      column "Сегмент override"). Logto admin role check is layered on top
+      of the flag inside the route. Removed when Admin module ships.
+
+  - key: ui_tweaks_panel_perm
+    category: perm
+    owner: igor
+    created_at: 2026-05-03
+    related_issues: []
+    notes: |
+      Permanent dev tool — internal_users segment → true. Never removed;
+      Pro/internal-only feature per contract §5.1. Default off so end users
+      never see the design-token panel even if it accidentally mounts.
+
+  - key: ui_billing_active_perm
+    category: perm
+    owner: igor
+    created_at: 2026-05-03
+    related_issues: []
+    notes: |
+      Gates /billing route + subscription flows. Default off because Stripe
+      wiring is incomplete (GET /api/v1/billing/plan TBD per
+      INTEGRATION-MAP.md §2.10). Flipped on once Phase 8 ops workstream
+      ships full Stripe customer/plan/portal flow.

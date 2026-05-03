@@ -46,6 +46,45 @@ flags:
     type: BOOLEAN_FLAG_TYPE
     enabled: true
 
+  # ─── UI _perm flags (Phase 09.2 frontend rebuild — gated modules) ────────
+  - key: ui_marketplace_perm
+    name: "UI: marketplace module"
+    description: |
+      Gates /marketplace and /marketplace/[serverId] routes plus any nav/CTA
+      pointing there. Default false — backend not ready for MVP launch.
+      Removed when Marketplace launches (contract §5.1).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_admin_panel_perm
+    name: "UI: admin panel"
+    description: |
+      Gates /admin/* routes (admin-app, admin-login, sub-screens). Default
+      false. Internal users segment override → true (M-5 refines via Flipt
+      after bootstrap). Role-check (Logto admin role) layered on top of the
+      flag in the route. Removed when Admin module ships (contract §5.1).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_tweaks_panel_perm
+    name: "UI: tweaks panel (dev tool)"
+    description: |
+      Gates the design-token tweaking panel (apps/web/src/tweaks-panel.jsx).
+      Default false — internal users segment → true. Permanent perm flag
+      (never removed; Pro/internal-only feature per contract §5.1).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_billing_active_perm
+    name: "UI: billing active"
+    description: |
+      Gates /billing route plus subscription flows and upgrade CTAs. Default
+      false because Stripe wiring is incomplete (plan endpoint TBD per
+      INTEGRATION-MAP.md §2.10). Removed when Phase 8 completes and Stripe
+      goes live (contract §5.1).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
 segments:
   - key: internal_users
     name: "Internal users"
