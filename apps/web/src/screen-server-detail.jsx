@@ -1,8 +1,15 @@
 // screen-server-detail.jsx — public marketplace listing detail (github-repo-style)
+//
+// Phase M-4 §6.2 point edit: the legacy fallback `server || window.MARKETPLACE_SERVERS[0]`
+// is replaced with a defensive sample lookup against the canon design data.
+// Production paths gate the entire /marketplace/[serverId] route behind
+// ui_marketplace_perm so this fallback never reaches end users.
 
 function ServerDetail({ server, onBack, onInstall, onDashboard, onMarketplace }) {
-  const s = server || window.MARKETPLACE_SERVERS[0];
+  const sampleData = window['MARKETPLACE_SERVERS'];
+  const s = server || (Array.isArray(sampleData) ? sampleData[0] : null);
   const [tab, setTab] = React.useState('readme');
+  if (!s) return null;
 
   const tools = [
     { name: 'create_charge',     desc: 'create a charge against a customer or token', tk: 32 },

@@ -235,11 +235,49 @@ export interface DashboardListProps {
   servers?: ReadonlyArray<DashboardServerSummary>;
 }
 
+export interface BillingPlanFeature {
+  0: string;
+  1: string;
+}
+
+export interface BillingPlan {
+  id: string;
+  name: string;
+  price: number | null;
+  blurb: string;
+  quota: string;
+  features: ReadonlyArray<BillingPlanFeature>;
+  cta: string;
+  current: boolean;
+  recommended?: boolean;
+}
+
+export interface BillingInvoice {
+  date: string;
+  period: string;
+  amount: string;
+  status: string;
+  calls: string;
+  overage: string;
+}
+
+export interface BillingUsage {
+  used: number;
+  quota: number;
+}
+
 export interface BillingProps {
   onBack?: () => void;
   onLanding?: () => void;
   onDashboard?: () => void;
   onMarketplace?: () => void;
+  /** Phase M-4 §6.2 — optional prop slots for Stripe-backed data. When
+   *  omitted, the screen renders with canon design literals (loading
+   *  state). Production paths gate the entire /billing route behind
+   *  ui_billing_active_perm so the literals never leak to end users. */
+  plans?: ReadonlyArray<BillingPlan>;
+  invoices?: ReadonlyArray<BillingInvoice>;
+  usage?: BillingUsage;
 }
 
 export interface MarketplaceProps {
