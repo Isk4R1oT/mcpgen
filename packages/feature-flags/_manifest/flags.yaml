@@ -102,3 +102,533 @@ flags:
       wiring is incomplete (GET /api/v1/billing/plan TBD per
       INTEGRATION-MAP.md §2.10). Flipped on once Phase 8 ops workstream
       ships full Stripe customer/plan/portal flow.
+
+  # ─── Phase 4 frontend rebuild — per-action _perm flags ────────────────────
+  # Master list at .planning/phase-rebuild/PHASE-4-FLAG-MASTER.md.
+  # All default OFF; flip ON when the corresponding BFF endpoint ships.
+
+  # Phase 1 — Stream screen
+  - key: ui_stream_ai_repair_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_stream_inline_edit_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_stream_alt_auth_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_stream_skip_auth_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_stream_email_notify_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 1 — Canvas screen
+  - key: ui_canvas_chat_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_canvas_shorten_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_canvas_edit_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_canvas_quick_actions_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_canvas_share_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 1 — Quality screen
+  - key: ui_quality_rerun_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_quality_byok_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_quality_public_badge_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 1 — Preview
+  - key: ui_preview_overrides_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 1 — Playground
+  - key: ui_playground_run_tool_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_playground_history_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_playground_save_test_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_playground_run_suite_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_playground_byok_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 1 — Deploy
+  - key: ui_deploy_stored_creds_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_deploy_cf_byo_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_deploy_docker_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_deploy_src_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_deploy_autofix_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_deploy_buildlog_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_deploy_custom_url_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 1 — Deploy-success
+  - key: ui_marketplace_publish_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_teams_invite_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 2 — Auth
+  - key: ui_auth_validate_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_auth_oauth_provider_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 2 — Marketplace + ServerDetail
+  - key: ui_marketplace_install_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_marketplace_fork_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_marketplace_star_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_security_soc2_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 2 — Dashboard drawers / drift
+  - key: ui_dashboard_drift_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_dashboard_auto_regen_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_dashboard_pin_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_dashboard_drift_snooze_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_dashboard_credentials_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_dashboard_activity_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_dashboard_settings_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_dashboard_versions_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_notifications_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 2 — Billing per-action
+  - key: ui_billing_invoices_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_billing_usage_breakdown_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_billing_caps_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_billing_plan_switch_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_billing_enterprise_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_billing_proration_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+  - key: ui_billing_tax_perm
+    category: perm
+    owner: platform
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Overview
+  - key: ui_admin_broadcast_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_overview_data_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Broadcast composer
+  - key: ui_admin_broadcast_save_draft_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_broadcast_history_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_broadcast_send_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_broadcast_segment_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_broadcast_spam_check_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_broadcast_test_send_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Data
+  - key: ui_admin_data_refresh_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_data_export_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_data_view_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_data_schema_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin LLM Ops
+  - key: ui_admin_llm_run_eval_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_llm_propose_route_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_llm_approve_route_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Login
+  - key: ui_admin_login_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Flags
+  - key: ui_admin_flag_edit_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Servers
+  - key: ui_admin_server_republish_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_server_rollback_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_server_takedown_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_server_drift_regenerate_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_server_drift_pin_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_server_notify_owner_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Observability
+  - key: ui_admin_obs_silence_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_obs_oncall_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_obs_replay_traces_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_obs_external_links_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Support
+  - key: ui_admin_support_assign_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_support_snooze_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_support_resolve_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_support_reply_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_support_internal_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_support_attach_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Users & Orgs
+  - key: ui_admin_impersonate_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_suspend_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_refund_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_password_reset_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_revoke_sessions_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_rotate_keys_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_gdpr_export_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_account_delete_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Billing & Plans
+  - key: ui_admin_billing_refund_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_billing_retry_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_billing_credit_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_billing_dunning_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Deploys & Infra
+  - key: ui_admin_deploy_rollback_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_region_resync_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_killswitch_global_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_killswitch_flag_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_deploys_view_all_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_deploys_drain_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_deploys_force_restart_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Integrations
+  - key: ui_admin_oauth_rotate_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_oauth_add_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_webhook_edit_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_webhook_add_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_secret_reveal_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_secret_rotate_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Marketplace Moderation
+  - key: ui_admin_marketplace_bulk_approve_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_marketplace_approve_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_marketplace_request_changes_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_marketplace_takedown_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Audit
+  - key: ui_admin_audit_export_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+
+  # Phase 3 — Admin Content
+  - key: ui_admin_content_new_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_content_edit_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_content_publish_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_content_history_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03
+  - key: ui_admin_content_email_test_perm
+    category: perm
+    owner: admin
+    created_at: 2026-05-03

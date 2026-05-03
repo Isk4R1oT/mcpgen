@@ -85,6 +85,897 @@ flags:
     type: BOOLEAN_FLAG_TYPE
     enabled: false
 
+  # ─── Phase 4 frontend rebuild — per-action _perm flags (default OFF) ──────
+  # Master list at .planning/phase-rebuild/PHASE-4-FLAG-MASTER.md.
+
+  # Phase 1 — Stream screen (auth/spec recovery CTAs)
+  - key: ui_stream_ai_repair_perm
+    name: "UI: stream — ai-repair recovery"
+    description: |
+      Spec-fail recovery CTA "try repair with ai". OFF → toast('coming soon').
+      Flip ON when AI re-parse pipeline lands.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_stream_inline_edit_perm
+    name: "UI: stream — inline-edit recovery"
+    description: |
+      Spec-fail recovery CTA "edit spec inline". OFF → toast.
+      Flip ON when inline editor + spec re-submit endpoint ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_stream_alt_auth_perm
+    name: "UI: stream — alt-auth recovery"
+    description: |
+      Auth-fail recovery "use a different scheme". OFF → toast.
+      Flip ON when OAuth2 client_credentials path is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_stream_skip_auth_perm
+    name: "UI: stream — skip-auth recovery"
+    description: |
+      Auth-fail recovery "skip auth (read-only)". OFF → toast.
+      Flip ON when read-only generation mode lands.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_stream_email_notify_perm
+    name: "UI: stream — email-notify"
+    description: |
+      "Notify me when done" CTA. OFF → toast.
+      Flip ON when transactional email (Resend) is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 1 — Canvas screen
+  - key: ui_canvas_chat_perm
+    name: "UI: canvas — refinement chat"
+    description: |
+      Right-pane refinement chat. OFF → static seeded messages, no input.
+      Flip ON when refinement-chat engine endpoint is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_canvas_shorten_perm
+    name: "UI: canvas — auto-shorten"
+    description: |
+      "Auto-shorten" button. OFF → static fake diff (canon seed).
+      Flip ON when Pass 2 description shortener is exposed via BFF.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_canvas_edit_perm
+    name: "UI: canvas — inline description edits"
+    description: |
+      Inline description edit persist. OFF → client-only, dropped on nav.
+      Flip ON when edit-description endpoint is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_canvas_quick_actions_perm
+    name: "UI: canvas — quick-action chips"
+    description: |
+      Quick-action chips (shorten/example/combine/tone). OFF → toast per chip.
+      Flip ON when corresponding mini-pass endpoints ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_canvas_share_perm
+    name: "UI: canvas — share link"
+    description: |
+      Share header CTA. OFF → toast canon copy. Flip ON when share-link
+      generator endpoint is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 1 — Quality screen
+  - key: ui_quality_rerun_perm
+    name: "UI: quality — re-run eval"
+    description: |
+      "Re-run eval" CTA. OFF → toast stub. Flip ON when F3 eval re-trigger
+      endpoint is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_quality_byok_perm
+    name: "UI: quality — BYOK eval rerun"
+    description: |
+      "Use your own anthropic key" rate-limit recovery. OFF → toast stub.
+      Flip ON when BYOK key vault + eval re-trigger ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_quality_public_badge_perm
+    name: "UI: quality — public badge"
+    description: |
+      "Show public quality badge" checkbox. OFF → non-persistent.
+      Flip ON when public-badge persist endpoint is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 1 — Preview screen
+  - key: ui_preview_overrides_perm
+    name: "UI: preview — explicit-includes/excludes regenerate"
+    description: |
+      Re-generate with explicit_includes/excludes overrides. OFF → toast.
+      Flip ON when override-aware regenerate endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 1 — Playground screen
+  - key: ui_playground_run_tool_perm
+    name: "UI: playground — run tool"
+    description: |
+      "Run tool" CTA. OFF → renders trace-failed state (canon).
+      Flip ON when POST /api/v1/playground/invoke is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_playground_history_perm
+    name: "UI: playground — history panel"
+    description: |
+      Persistent history panel. OFF → empty / non-persistent.
+      Flip ON when playground-history endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_playground_save_test_perm
+    name: "UI: playground — save run as test"
+    description: |
+      "Save run as test" CTA. OFF → toast stub.
+      Flip ON when save-test endpoint is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_playground_run_suite_perm
+    name: "UI: playground — run regression suite"
+    description: |
+      "Run suite" CTA. OFF → toast stub.
+      Flip ON when regression-suite runner ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_playground_byok_perm
+    name: "UI: playground — BYOK key swap"
+    description: |
+      Model dropdown BYOK key swap. OFF → dropdown shown but submission ignored.
+      Flip ON when BYOK vault + key-injection ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 1 — Deploy screen
+  - key: ui_deploy_stored_creds_perm
+    name: "UI: deploy — stored credentials target"
+    description: |
+      "Static, stored in vault" deploy target (Pro). OFF → disabled w/ Pro badge.
+      Flip ON when encrypted-credentials vault (CF KV) is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_deploy_cf_byo_perm
+    name: "UI: deploy — Cloudflare BYO account"
+    description: |
+      "Your cloudflare workers" target. OFF → disabled.
+      Flip ON when CF BYO-account integration is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_deploy_docker_perm
+    name: "UI: deploy — Docker image target"
+    description: |
+      Docker image target (Pro). OFF → disabled w/ Pro badge.
+      Flip ON when Docker build pipeline ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_deploy_src_perm
+    name: "UI: deploy — source + Dockerfile target"
+    description: |
+      Source + Dockerfile bundle target (Pro). OFF → disabled w/ Pro badge.
+      Flip ON when source-export pipeline ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_deploy_autofix_perm
+    name: "UI: deploy — autofix & retry"
+    description: |
+      "Auto-fix & retry"/"use mcp-sdk@2.0.4" CTA. OFF → toast.
+      Flip ON when engine retry endpoint w/ SDK pin ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_deploy_buildlog_perm
+    name: "UI: deploy — build-log drawer"
+    description: |
+      "View full log" drawer. OFF → static placeholder text.
+      Flip ON when CF tail / log-streaming endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_deploy_custom_url_perm
+    name: "UI: deploy — custom URL"
+    description: |
+      "Customize" URL CTA. OFF → toast.
+      Flip ON when custom-domain wizard ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 1 — Deploy-success screen
+  - key: ui_marketplace_publish_perm
+    name: "UI: marketplace — publish to listing"
+    description: |
+      "Publish to marketplace" toggle on deploy-success. OFF → client-only.
+      Flip ON when POST /api/v1/marketplace/listings ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_teams_invite_perm
+    name: "UI: teams — invite teammates"
+    description: |
+      "Invite teammates" CTA. OFF → toast stub.
+      Flip ON when teams BFF + Resend integration ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 2 — Auth screen
+  - key: ui_auth_validate_perm
+    name: "UI: auth — credential validation probe"
+    description: |
+      "Test" credential probe. OFF → optimistic local "verified" + canon disclaimer.
+      Flip ON when POST /api/v1/preview/:id/auth-probe ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_auth_oauth_provider_perm
+    name: "UI: auth — OAuth provider connect"
+    description: |
+      "Connect with {provider}" OAuth panel. OFF → canon-parity toast.
+      Flip ON when provider OAuth dance + KMS-encrypted vault ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 2 — Marketplace + ServerDetail
+  - key: ui_marketplace_install_perm
+    name: "UI: marketplace — install CTA"
+    description: |
+      Install CTA on ServerDetail. OFF → "Coming soon" toast (config copy
+      already works client-only).
+      Flip ON when dispatch-worker install flow + POST /api/v1/marketplace/servers/:id/install ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_marketplace_fork_perm
+    name: "UI: marketplace — fork"
+    description: |
+      "Fork" CTA. OFF → toast stub. Flip ON when fork endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_marketplace_star_perm
+    name: "UI: marketplace — star"
+    description: |
+      "Star" CTA. OFF → toast stub. Flip ON when star endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_security_soc2_perm
+    name: "UI: security — SOC2 report request"
+    description: |
+      "Request soc2 report" CTA on ServerDetail. OFF → toast.
+      Flip ON when SOC2 report request flow ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 2 — Dashboard drawers / drift
+  - key: ui_dashboard_drift_perm
+    name: "UI: dashboard — drift detection"
+    description: |
+      Drift banner + review modal. OFF → banner rendered, "review" disabled
+      with "drift detection — coming soon" pill. Flip ON when drift cron +
+      /api/v1/drift endpoint ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_dashboard_auto_regen_perm
+    name: "UI: dashboard — auto-regen on drift"
+    description: |
+      Auto-regenerate-on-drift toggle. OFF → client-only checkbox.
+      Flip ON when drift-regen scheduler ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_dashboard_pin_perm
+    name: "UI: dashboard — pin to old version"
+    description: |
+      "Pin to old version" CTA. OFF → disabled.
+      Flip ON when drift-pin endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_dashboard_drift_snooze_perm
+    name: "UI: dashboard — drift snooze"
+    description: |
+      "Snooze 7 days" CTA. OFF → toast only.
+      Flip ON when drift-snooze endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_dashboard_credentials_perm
+    name: "UI: dashboard — credentials section"
+    description: |
+      Credentials section + per-credential access log + rotate.
+      OFF → seeded AccessLogBody data; rotate disabled.
+      Flip ON when credentials BFF + rotate endpoint ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_dashboard_activity_perm
+    name: "UI: dashboard — activity log drawer"
+    description: |
+      Full activity-log drawer. OFF → seeded FullLogBody rows.
+      Flip ON when GET /api/v1/deployments/:id/activity ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_dashboard_settings_perm
+    name: "UI: dashboard — settings drawer save"
+    description: |
+      Settings drawer save action. OFF → save toast, no persist.
+      Flip ON when PUT /api/v1/deployments/:id/settings ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_dashboard_versions_perm
+    name: "UI: dashboard — versions drawer + rollback"
+    description: |
+      Versions drawer + rollback. OFF → seeded VersionsBody data, rollback disabled.
+      Flip ON when versions BFF + rollback endpoint ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_notifications_perm
+    name: "UI: notifications drawer"
+    description: |
+      Top-bar notifications drawer. OFF → seeded items.
+      Flip ON when notifications BFF ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 2 — Billing screen (per-action)
+  - key: ui_billing_invoices_perm
+    name: "UI: billing — invoices list"
+    description: |
+      Invoices list. OFF → seeded INVOICES data.
+      Flip ON when GET /api/v1/billing/invoices ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_billing_usage_breakdown_perm
+    name: "UI: billing — usage breakdown"
+    description: |
+      Usage breakdown widget. OFF → seeded data.
+      Flip ON when GET /api/v1/billing/usage ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_billing_caps_perm
+    name: "UI: billing — spending caps editor"
+    description: |
+      Spending-caps editor. OFF → drawer preview only.
+      Flip ON when spending-caps BFF ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_billing_plan_switch_perm
+    name: "UI: billing — plan upgrade/downgrade"
+    description: |
+      Plan upgrade/downgrade flow. OFF → toast.
+      Flip ON when Stripe checkout integration ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_billing_enterprise_perm
+    name: "UI: billing — talk-to-sales"
+    description: |
+      "Talk to sales" CTA on Team-upgrade drawer. OFF → toast.
+      Flip ON when enterprise lead-capture endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_billing_proration_perm
+    name: "UI: billing — proration preview"
+    description: |
+      Proration preview drawer. OFF → static text.
+      Flip ON when Stripe proration preview API integration ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_billing_tax_perm
+    name: "UI: billing — tax info"
+    description: |
+      Tax info section (VAT / tax IDs). OFF → placeholder.
+      Flip ON when tax-info BFF ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Overview
+  - key: ui_admin_broadcast_perm
+    name: "UI: admin — broadcast nav CTA"
+    description: |
+      "Broadcast" CTA on admin overview header. OFF → toast, no nav.
+      Flip ON when broadcast composer + endpoint ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_overview_data_perm
+    name: "UI: admin/overview — live KPI data"
+    description: |
+      Controls the four overview BFF GETs (/api/admin/v1/overview, /audit?limit=6,
+      /moderation, /regions). OFF → useAdminMetrics() returns
+      flag_off_or_not_implemented; KPIs render '…', list cards render <EmptyState>.
+      Flip ON when admin overview BFF endpoints ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Broadcast composer
+  - key: ui_admin_broadcast_save_draft_perm
+    name: "UI: admin/broadcast — save draft"
+    description: |
+      "Save draft" header CTA. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/broadcast/drafts ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_broadcast_history_perm
+    name: "UI: admin/broadcast — history drawer"
+    description: |
+      "History" header CTA. OFF → drawer shows canon seed.
+      Flip ON when GET /api/admin/v1/broadcast/history ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_broadcast_send_perm
+    name: "UI: admin/broadcast — request approval"
+    description: |
+      "Request approval" CTA + modal submit. OFF → opens modal + toast.
+      Flip ON when 2-approver flow + POST /api/admin/v1/broadcast/send ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_broadcast_segment_perm
+    name: "UI: admin/broadcast — audience dry-run"
+    description: |
+      Custom-audience SQL "dry-run · count" CTA. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/broadcast/audiences/dry-run ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_broadcast_spam_check_perm
+    name: "UI: admin/broadcast — spam-check"
+    description: |
+      "Spam-score" CTA. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/broadcast/spam-check ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_broadcast_test_send_perm
+    name: "UI: admin/broadcast — test send"
+    description: |
+      "Send test to me" CTA. OFF → toast stub.
+      Flip ON when transactional-email path is wired.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Data catalog
+  - key: ui_admin_data_refresh_perm
+    name: "UI: admin/data — refresh"
+    description: |
+      "Refresh" CTA on /admin/data. OFF → toast stub.
+      Flip ON when POST /api/v1/admin/metrics/refresh ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_data_export_perm
+    name: "UI: admin/data — export"
+    description: |
+      "Export catalog" + per-row "export" CTAs. OFF → toast stub.
+      Flip ON when POST /api/v1/admin/data/export ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_data_view_perm
+    name: "UI: admin/data — per-collection view"
+    description: |
+      Per-row "view" action (15 collections). OFF → toast stub.
+      Flip ON when GET /api/v1/admin/data/:collection ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_data_schema_perm
+    name: "UI: admin/data — schema inspector"
+    description: |
+      "Schema →" section link. OFF → toast stub.
+      Flip ON when schema inspector route + endpoint ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin LLM Ops
+  - key: ui_admin_llm_run_eval_perm
+    name: "UI: admin/llm — run eval"
+    description: |
+      "Run eval" CTA. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/llm/evals/run ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_llm_propose_route_perm
+    name: "UI: admin/llm — propose route change"
+    description: |
+      "Propose route change" CTA + drawer submit. OFF → toast, no drawer.
+      Flip ON when POST /api/admin/v1/llm/routes/proposals ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_llm_approve_route_perm
+    name: "UI: admin/llm — approve / reject route"
+    description: |
+      Approve / request-changes / reject buttons (4-eyes). OFF → toast stub.
+      Flip ON when proposal approval endpoints ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Login
+  - key: ui_admin_login_perm
+    name: "UI: admin/login — live SSO+MFA chain"
+    description: |
+      Sign-in BFF chain (Logto Okta SSO, MFA verify, session start). OFF →
+      UI mock (canon timeout + dev code 123456 accepted).
+      Flip ON when /api/auth/logto/sign-in, /api/admin/v1/auth/mfa,
+      /api/admin/v1/auth/session ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Flags
+  - key: ui_admin_flag_edit_perm
+    name: "UI: admin/flags — write actions"
+    description: |
+      All write actions on admin flags screen (edit/save/promote/freeze/kill/
+      create). OFF → toast stub (warn-tone for "kill").
+      Flip ON when admin flags BFF ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Servers
+  - key: ui_admin_server_republish_perm
+    name: "UI: admin/servers — force republish"
+    description: |
+      "Force re-publish" header CTA. OFF → toast canon copy.
+      Flip ON when POST /api/admin/v1/servers/:id/redeploy ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_server_rollback_perm
+    name: "UI: admin/servers — rollback"
+    description: |
+      "Rollback" + version-pick modal. OFF → toast canon copy.
+      Flip ON when POST /api/admin/v1/servers/:id/rollback ships (4-eyes).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_server_takedown_perm
+    name: "UI: admin/servers — takedown"
+    description: |
+      "Takedown" header CTA. OFF → toast canon copy.
+      Flip ON when POST /api/admin/v1/servers/:id/takedown ships (4-eyes).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_server_drift_regenerate_perm
+    name: "UI: admin/servers — drift regenerate"
+    description: |
+      Drift-tab "force regenerate" CTA. OFF → toast canon copy.
+      Flip ON when POST /api/admin/v1/servers/:id/drift/regenerate ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_server_drift_pin_perm
+    name: "UI: admin/servers — drift pin"
+    description: |
+      Drift-tab "pin to old spec" CTA. OFF → toast canon copy.
+      Flip ON when POST /api/admin/v1/servers/:id/pin ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_server_notify_owner_perm
+    name: "UI: admin/servers — notify owner"
+    description: |
+      Drift-tab "notify owner" CTA. OFF → toast canon copy.
+      Flip ON when Resend transactional path ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Observability
+  - key: ui_admin_obs_silence_perm
+    name: "UI: admin/obs — silence error group"
+    description: |
+      Per-row "silence" mutation on top-error-groups table. OFF → toast canon copy.
+      Flip ON when POST /api/admin/v1/obs/errors/:id/silence ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_obs_oncall_perm
+    name: "UI: admin/obs — page on-call (placeholder)"
+    description: |
+      Future "page on-call" admin action. OFF → toast stub.
+      Flip ON when on-call paging integration ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_obs_replay_traces_perm
+    name: "UI: admin/obs — replay traces (placeholder)"
+    description: |
+      Future "replay traces" admin action. OFF → toast stub.
+      Flip ON when trace-replay endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_obs_external_links_perm
+    name: "UI: admin/obs — open in datadog"
+    description: |
+      "Open in datadog" CTA. OFF → toast canon copy.
+      Flip ON when deep-link generator endpoint ships (or direct nav allowed).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Support inbox
+  - key: ui_admin_support_assign_perm
+    name: "UI: admin/support — assign ticket"
+    description: |
+      Header "assign…" CTA. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/support/tickets/:id/assign ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_support_snooze_perm
+    name: "UI: admin/support — snooze ticket"
+    description: |
+      Header "snooze" CTA. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/support/tickets/:id/snooze ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_support_resolve_perm
+    name: "UI: admin/support — resolve ticket"
+    description: |
+      Header "resolve" CTA. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/support/tickets/:id/resolve ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_support_reply_perm
+    name: "UI: admin/support — send reply"
+    description: |
+      Reply card "send reply" + "reply & snooze" CTAs. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/support/tickets/:id/replies ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_support_internal_perm
+    name: "UI: admin/support — internal note"
+    description: |
+      Reply card "internal note" toggle. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/support/tickets/:id/notes ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_support_attach_perm
+    name: "UI: admin/support — attach file"
+    description: |
+      Reply card "attach" CTA. OFF → toast stub.
+      Flip ON when R2 signed-URL upload flow ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Users & Orgs
+  - key: ui_admin_impersonate_perm
+    name: "UI: admin/users — impersonate"
+    description: |
+      "Impersonate" CTA. OFF → modal opens + "start session" toast-stubs.
+      Flip ON when POST /api/admin/v1/users/:id/impersonate ships (4-eyes).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_suspend_perm
+    name: "UI: admin/users — suspend"
+    description: |
+      "Suspend"/"unsuspend" CTA. OFF → modal opens + toast-stubs confirm.
+      Flip ON when POST /api/admin/v1/users/:id/suspend ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_refund_perm
+    name: "UI: admin/users — refund cross-link"
+    description: |
+      Refund cross-link from user → billing. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/billing/invoices/:id/refund ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_password_reset_perm
+    name: "UI: admin/users — force password reset"
+    description: |
+      Danger-zone "force password reset". OFF → toast stub.
+      Flip ON when POST /api/admin/v1/users/:id/password-reset ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_revoke_sessions_perm
+    name: "UI: admin/users — revoke sessions"
+    description: |
+      Danger-zone "revoke all sessions" + per-row "revoke". OFF → toast stub.
+      Flip ON when POST /api/admin/v1/users/:id/revoke-sessions ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_rotate_keys_perm
+    name: "UI: admin/users — rotate API keys"
+    description: |
+      Danger-zone "rotate all api keys". OFF → toast stub.
+      Flip ON when POST /api/admin/v1/users/:id/rotate-keys ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_gdpr_export_perm
+    name: "UI: admin/users — GDPR export"
+    description: |
+      "Export all data" + "view previous exports". OFF → toast stub.
+      Flip ON when POST /api/admin/v1/users/:id/gdpr-export ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_account_delete_perm
+    name: "UI: admin/users — delete account (GDPR)"
+    description: |
+      Danger-zone "delete account (gdpr)". OFF → toast stub.
+      Flip ON when 4-eyes confirm + POST /api/admin/v1/users/:id/delete ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Billing & Plans
+  - key: ui_admin_billing_refund_perm
+    name: "UI: admin/billing — refund"
+    description: |
+      Refund modal submit. OFF → modal opens, "refund $X" toast-stubs.
+      Flip ON when POST /api/admin/v1/billing/invoices/:id/refund ships
+      (4-eyes for >$500).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_billing_retry_perm
+    name: "UI: admin/billing — retry charge"
+    description: |
+      Per-row "retry" on recent-invoices. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/billing/invoices/:id/retry ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_billing_credit_perm
+    name: "UI: admin/billing — issue credit"
+    description: |
+      "Issue credit" drawer submit. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/billing/credits ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_billing_dunning_perm
+    name: "UI: admin/billing — edit dunning copy"
+    description: |
+      Per-step "edit copy" on dunning sequence. OFF → toast stub.
+      Flip ON when GET/PUT /api/admin/v1/billing/dunning ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Deploys & Infra
+  - key: ui_admin_deploy_rollback_perm
+    name: "UI: admin/deploys — per-row rollback"
+    description: |
+      Per-row "rollback" on recent-deploys table. OFF → toast canon copy.
+      Flip ON when POST /api/admin/v1/deploys/:id/rollback ships (4-eyes).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_region_resync_perm
+    name: "UI: admin/deploys — region resync"
+    description: |
+      Top-bar "resync" button. OFF → toast canon copy.
+      Flip ON when GET /api/admin/v1/regions?refresh=1 ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_killswitch_global_perm
+    name: "UI: admin/deploys — global kill switch"
+    description: |
+      "Kill switch" master modal "request approval". OFF → rendered DISABLED.
+      Flip ON when POST /api/admin/v1/killswitches/global ships (2-approver).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_killswitch_flag_perm
+    name: "UI: admin/deploys — per-flag kill switch"
+    description: |
+      Per-flag toggle in kill-switches card. OFF → opens canon approval modal,
+      "page approver" toast stub.
+      Flip ON when POST /api/admin/v1/killswitches/:key + on-call paging ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_deploys_view_all_perm
+    name: "UI: admin/deploys — view all history"
+    description: |
+      "View all" deploys link. OFF → toast.
+      Flip ON when /admin/deploys/history route + paginated GET ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_deploys_drain_perm
+    name: "UI: admin/deploys — drain region (placeholder)"
+    description: |
+      Future "drain region" admin action. OFF → toast stub.
+      Flip ON when drain-region endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_deploys_force_restart_perm
+    name: "UI: admin/deploys — force restart region (placeholder)"
+    description: |
+      Future "force restart region" admin action. OFF → toast stub.
+      Flip ON when restart-region endpoint ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Integrations
+  - key: ui_admin_oauth_rotate_perm
+    name: "UI: admin/integrations — OAuth rotate"
+    description: |
+      "Rotate" CTA on OAuth provider rows. OFF → canon-copy toast.
+      Flip ON when POST /api/admin/v1/integrations/oauth/:id/rotate ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_oauth_add_perm
+    name: "UI: admin/integrations — add OAuth provider"
+    description: |
+      "+ add provider" CTA + drawer chips. OFF → canon-copy toast.
+      Flip ON when POST /api/admin/v1/integrations/oauth ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_webhook_edit_perm
+    name: "UI: admin/integrations — edit webhook"
+    description: |
+      Per-row "edit" on webhooks table. OFF → canon-copy toast.
+      Flip ON when PUT /api/admin/v1/integrations/webhooks/:id ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_webhook_add_perm
+    name: "UI: admin/integrations — add webhook"
+    description: |
+      "+ add" on webhooks card. OFF → canon-copy toast.
+      Flip ON when POST /api/admin/v1/integrations/webhooks ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_secret_reveal_perm
+    name: "UI: admin/integrations — reveal secret"
+    description: |
+      "Reveal" CTA per secret row (KMS-decrypt + audit). OFF → warn-tone toast.
+      Flip ON when POST /api/admin/v1/integrations/secrets/:id/reveal ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_secret_rotate_perm
+    name: "UI: admin/integrations — rotate secret"
+    description: |
+      "Rotate now" CTA on stale secrets. OFF → canon-copy toast.
+      Flip ON when POST /api/admin/v1/integrations/secrets/:id/rotate ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Marketplace Moderation
+  - key: ui_admin_marketplace_bulk_approve_perm
+    name: "UI: admin/marketplace — bulk approve"
+    description: |
+      Header "bulk approve · 12" CTA. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/moderation/bulk-approve ships (4-eyes).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_marketplace_approve_perm
+    name: "UI: admin/marketplace — approve listing"
+    description: |
+      Per-item "approve & list". OFF → toast stub.
+      Flip ON when POST /api/admin/v1/moderation/:id/approve ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_marketplace_request_changes_perm
+    name: "UI: admin/marketplace — request changes"
+    description: |
+      Per-item "request changes". OFF → toast stub.
+      Flip ON when POST /api/admin/v1/moderation/:id/request-changes ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_marketplace_takedown_perm
+    name: "UI: admin/marketplace — takedown"
+    description: |
+      Takedown modal "send & request 4-eyes". OFF → modal opens, warn-tone toast.
+      Flip ON when POST /api/admin/v1/moderation/:id/reject ships (4-eyes).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Audit
+  - key: ui_admin_audit_export_perm
+    name: "UI: admin/audit — export"
+    description: |
+      Audit log "export" CTA. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/audit/export ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # Phase 3 — Admin Content
+  - key: ui_admin_content_new_perm
+    name: "UI: admin/content — new page"
+    description: |
+      "+ new" CMS page. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/content/pages ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_content_edit_perm
+    name: "UI: admin/content — edit page"
+    description: |
+      "Edit" CTA per content row. OFF → toast stub.
+      Flip ON when PUT /api/admin/v1/content/pages/:id ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_content_publish_perm
+    name: "UI: admin/content — publish"
+    description: |
+      "Publish" CTA. OFF → toast stub.
+      Flip ON when POST /api/admin/v1/content/pages/:id/publish ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_content_history_perm
+    name: "UI: admin/content — revision history"
+    description: |
+      "History" CTA. OFF → toast stub.
+      Flip ON when GET /api/admin/v1/content/pages/:id/history ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+  - key: ui_admin_content_email_test_perm
+    name: "UI: admin/content — send test email"
+    description: |
+      "Send test email" CTA on email templates. OFF → toast stub.
+      Flip ON when Resend transactional path ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
 segments:
   - key: internal_users
     name: "Internal users"
