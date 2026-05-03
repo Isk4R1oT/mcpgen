@@ -10,6 +10,7 @@
 export const PROTECTED_PATTERNS: readonly RegExp[] = [
   /^\/dashboard(\/.*)?$/,
   /^\/billing(\/.*)?$/,
+  /^\/settings(\/.*)?$/,
   /^\/generate\/[^/]+\/playground(\/.*)?$/,
   /^\/generate\/[^/]+\/download(\/.*)?$/,
   /^\/generate\/[^/]+\/deploy\/permanent(\/.*)?$/,

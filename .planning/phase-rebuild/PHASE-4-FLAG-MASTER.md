@@ -227,19 +227,20 @@ For every flag in the table:
 ## Bootstrap log
 
 After producing this master file, the corresponding YAML at
-`packages/feature-flags/default/features.yaml` was extended to include all 126
-flags with `enabled: false` defaults (except the 3 pre-existing ON-by-default
-flags: `runtime_local_compute_routing_ops`, `eval_f3_enabled_kill`,
-`engine_auth_mode_none_allowed_perm`). The manifest at
-`packages/feature-flags/_manifest/flags.yaml` was extended in parallel.
+`packages/feature-flags/default/features.yaml` was extended to include all 148
+flags. The manifest at `packages/feature-flags/_manifest/flags.yaml` was
+extended in parallel.
 
 The bootstrap script was run against local Flipt (`http://localhost:8090`),
-pushing all flags. Verification by GET resources list confirmed all 126
+pushing all flags. Verification by GET resources list confirmed all 148
 flags present:
 
-- 3 ON: `runtime_local_compute_routing_ops`, `eval_f3_enabled_kill`,
-  `engine_auth_mode_none_allowed_perm`
-- 123 OFF (every UI `_perm` and the `pass0_max_tools_override_perm` /
+- 8 ON: `runtime_local_compute_routing_ops`, `eval_f3_enabled_kill`,
+  `engine_auth_mode_none_allowed_perm`, `ui_auth_password_perm`,
+  `ui_auth_signup_perm`, `ui_settings_profile_perm`,
+  `ui_settings_security_perm`, `ui_settings_usage_perm`,
+  `ui_settings_danger_delete_perm`.
+- 140 OFF (every other UI `_perm` and the `pass0_max_tools_override_perm` /
   `ui_frontend_fixtures_mode_ops`).
 
 ```
@@ -248,8 +249,63 @@ OK — 0 warning(s), 0 errors
 
 $ node packages/feature-flags/scripts/bootstrap.mjs
 Bootstrapping default/default → http://localhost:8090
-... 126 flags, 3 segments ✓
-Done — 126 flag(s), 3 segment(s) bootstrapped.
+... 148 flags, 3 segments ✓
+Done — 148 flag(s), 3 segment(s) bootstrapped.
+```
+
+## Addendum — 2026-05-04 canon MCPGen(5) sync
+
+Added 21 new flags from canon `screen-account.jsx` and `screen-settings.jsx`:
+
+### Auth methods (8 flags — gate AccountScreen sign-in / sign-up form)
+
+| Flag | Default | Surface | Behavior when OFF |
+|---|---|---|---|
+| `ui_auth_password_perm` | ON | email + password form on /sign-in, /sign-up | form fields hide, only SSO/magic visible |
+| `ui_auth_signup_perm` | ON | "create account" tab + /sign-up route | tab hidden, route renders "Coming soon" |
+| `ui_auth_magic_link_perm` | OFF | "email me a magic link" CTA + /sign-in/magic | button hidden, route 404 |
+| `ui_auth_forgot_password_perm` | OFF | "forgot?" link + /sign-in/forgot | link hidden, route 404 |
+| `ui_auth_google_sso_perm` | OFF | "continue with Google" SSO button | button hidden |
+| `ui_auth_github_sso_perm` | OFF | "GitHub" SSO compact button | button hidden |
+| `ui_auth_microsoft_sso_perm` | OFF | "Microsoft" SSO compact button | button hidden |
+| `ui_auth_saml_sso_perm` | OFF | "SAML" SSO compact button | button hidden |
+
+When all 4 SSO flags are OFF, the entire SSO row + "or with email" divider collapse so the form stays clean.
+
+### Settings sections (13 flags — gate SettingsScreen sections + sub-rows)
+
+| Flag | Default | Surface | Behavior when OFF |
+|---|---|---|---|
+| `ui_settings_profile_perm` | ON | profile section (name/email/handle/bio/avatar) | section + sidebar entry hidden |
+| `ui_settings_security_perm` | ON | security section header (pwd/2FA/sessions) | section + sidebar entry hidden |
+| `ui_settings_recovery_codes_perm` | OFF | recovery codes row inside security | row hidden, rest of security visible |
+| `ui_settings_api_keys_perm` | OFF | API keys section + create-key drawer | section + sidebar entry hidden |
+| `ui_settings_sso_section_perm` | OFF | SSO & SAML section | section + sidebar entry hidden |
+| `ui_settings_notifications_perm` | OFF | 6×4 notification matrix section | section + sidebar entry hidden |
+| `ui_settings_integrations_perm` | OFF | 7-card integrations grid | section + sidebar entry hidden |
+| `ui_settings_usage_perm` | ON | usage & billing lite section | section + sidebar entry hidden |
+| `ui_settings_audit_perm` | OFF | audit log table | section + sidebar entry hidden |
+| `ui_settings_danger_export_perm` | OFF | "export all your data" row | row hidden inside danger |
+| `ui_settings_danger_transfer_perm` | OFF | "transfer ownership" row | row hidden inside danger |
+| `ui_settings_danger_pause_perm` | OFF | "pause account" row | row hidden inside danger |
+| `ui_settings_danger_delete_perm` | ON | "delete account" row | row hidden inside danger |
+
+If all 4 danger sub-flags are OFF → the entire danger section collapses.
+
+```
+$ pnpm --filter @mcpgen/feature-flags bootstrap
+... 148 flags, 3 segments ✓
+Done — 148 flag(s), 3 segment(s) bootstrapped.
+
+$ curl -s -X POST http://localhost:8090/evaluate/v1/boolean \
+    -H 'Content-Type: application/json' \
+    -d '{"namespaceKey":"default","flagKey":"ui_auth_password_perm","entityId":"anonymous"}'
+{"enabled":true,...}
+
+$ curl -s -X POST http://localhost:8090/evaluate/v1/boolean \
+    -H 'Content-Type: application/json' \
+    -d '{"namespaceKey":"default","flagKey":"ui_auth_google_sso_perm","entityId":"anonymous"}'
+{"enabled":false,...}
 ```
 
 Empty drift between master table and Flipt = success.

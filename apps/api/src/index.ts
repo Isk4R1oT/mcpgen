@@ -65,6 +65,7 @@ import { claimRoute } from './routes/v1/claim.js';
 import { ephemeralDeployRoute } from './routes/v1/deploy-ephemeral.js';
 import { downloadRoute } from './routes/v1/download.js';
 import { dashboardRoutes } from './routes/v1/dashboard.js';
+import { accountRoutes } from './routes/v1/account.js';
 import { inngest } from './inngest/client.js';
 import { functions } from './inngest/functions/index.js';
 
@@ -215,6 +216,7 @@ export function buildApp(env: Bindings): Hono<{ Bindings: Bindings; Variables: V
 
   // ─── Always-protected /api/v1 routes ──────────────────────────────────
   protectedApp.route('/dashboard', dashboardRoutes);
+  protectedApp.route('/account', accountRoutes);
   protectedApp.route('/billing', billingRoutes);
   protectedApp.route('/download', downloadRoute);
   protectedApp.route('/claim_generation', claimRoute);
