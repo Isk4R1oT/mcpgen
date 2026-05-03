@@ -53,7 +53,14 @@ export default function LandingClientShell(): ReactElement {
       onMakeIt={onMakeIt}
       onMarketplace={(): void => router.push('/marketplace')}
       onPricing={(): void => router.push('/pricing')}
-      onSignIn={(): void => router.push('/api/auth/logto/sign-in')}
+      // `/api/auth/logto/sign-in` is a Next.js Route Handler that issues a
+      // 307 to Logto Cloud. `router.push()` resolves it via RSC fetch which
+      // can't follow cross-origin redirects, so the user stays on the page.
+      // Use a full-page navigation so the browser follows the redirect chain
+      // through to the Logto sign-in form.
+      onSignIn={(): void => {
+        window.location.assign('/api/auth/logto/sign-in');
+      }}
       // Wave-2 swaps to a real list from the BFF. Empty array hides the
       // sample chip row gracefully (canon falls back when `samples` is empty).
       samples={[]}
