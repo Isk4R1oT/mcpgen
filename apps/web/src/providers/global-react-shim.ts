@@ -32,21 +32,17 @@ if (g.ReactDOM === undefined) g.ReactDOM = ReactDOM;
 // Also stub the most-referenced `window.location` shape so destructuring
 // like `const { protocol, host } = window.location` doesn't throw on
 // initial SSR render. Real values arrive on hydration.
-type WindowShim = typeof globalThis & {
-  location?: {
-    protocol: string;
-    host: string;
-    hostname: string;
-    href: string;
-    origin: string;
-    pathname: string;
-    search: string;
-    hash: string;
-  };
-  localStorage?: { getItem: (k: string) => null; setItem: () => void; removeItem: () => void };
-};
-const gAny = globalThis as { window?: WindowShim };
-if (gAny.window === undefined) gAny.window = globalThis as WindowShim;
+// We narrow `globalThis` through `unknown` to a permissive shape so the
+// stub assignments below type-check under `exactOptionalPropertyTypes:true`
+// + lib.dom (which types `window.location` as `Location` and
+// `window.localStorage` as `Storage` — full interfaces we don't need to
+// reproduce in detail for SSR identity stubs).
+interface WindowShim {
+  location?: unknown;
+  localStorage?: unknown;
+}
+const gAny = globalThis as unknown as { window?: WindowShim };
+if (gAny.window === undefined) gAny.window = globalThis as unknown as WindowShim;
 if (gAny.window.location === undefined) {
   gAny.window.location = {
     protocol: 'http:',
@@ -61,8 +57,11 @@ if (gAny.window.location === undefined) {
 }
 if (gAny.window.localStorage === undefined) {
   gAny.window.localStorage = {
-    getItem: (): null => null,
-    setItem: (): void => {},
-    removeItem: (): void => {},
+    getItem: (_key: string): string | null => null,
+    setItem: (_key: string, _value: string): void => {},
+    removeItem: (_key: string): void => {},
+    clear: (): void => {},
+    key: (_index: number): string | null => null,
+    length: 0,
   };
 }

@@ -15,23 +15,16 @@
 
 'use client';
 
-import * as React from 'react';
-import * as ReactDOM from 'react-dom/client';
-
-// Expose React + ReactDOM on globalThis BEFORE any locked JSX evaluates.
-// Locked JSX uses `React.useState(...)` and `ReactDOM.createRoot(...)` as
-// globals, inherited from the prototype's UMD harness in MCPGen.html.
-if (typeof window !== 'undefined') {
-  // Expose UMD-style globals to the locked JSX. Conceptually this is
-  //   globalThis.React = React;
-  //   globalThis.ReactDOM = ReactDOM;
-  // We narrow `globalThis` to a mutable shape so the assignment type-checks
-  // under strict mode without relying on @ts-expect-error (which TS 6 reports
-  // as unused once the cast matches the global lib types).
-  const g = globalThis as unknown as { React: typeof React; ReactDOM: typeof ReactDOM };
-  g.React = React;
-  g.ReactDOM = ReactDOM;
-}
+// CRITICAL ORDERING: side-effect-import the React global shim BEFORE any
+// canon JSX hoists. Per ESM spec, all `import` statements in this module
+// evaluate in source order BEFORE any top-level statement runs. So a top-
+// level `globalThis.React = React` block here would race the canon `import
+// '@/i18n'` below — i18n.jsx's body executes `React.createContext(...)` at
+// load time, throwing `ReferenceError: React is not defined` because the
+// assignment hasn't run yet. Fix: extract the assignment to a separate module
+// (`@/providers/global-react-shim`) and import it FIRST. ESM guarantees the
+// shim's body is fully evaluated before subsequent imports resolve.
+import '@/providers/global-react-shim';
 
 // Import order matches MCPGen.html <script> sequence:
 //   tokens.jsx → ui.jsx → i18n.jsx → screen-*.jsx
