@@ -1,8 +1,38 @@
 // Vitest unit test for lib/jsx-bridge/loader. Runs in jsdom env (Task 6
 // vitest.config.ts). Two tests: TWEAK_DEFAULTS literal shape + applyTokens
 // behavior with mocked window.MCPTokens.
+//
+// Updated in Phase M-4-INFRA — loader.ts now imports the new 13-screen
+// canon set (landing/auth/canvas/stream/preview/quality/playground/
+// deploy/dashboard/dashboard-list/billing/marketplace/server-detail)
+// plus i18n.jsx. Each is doMock'd as a no-op.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const STUB_MODULES = [
+  '@/tokens',
+  '@/ui',
+  '@/i18n',
+  '@/screen-landing',
+  '@/screen-auth',
+  '@/screen-canvas',
+  '@/screen-stream',
+  '@/screen-preview',
+  '@/screen-quality',
+  '@/screen-playground',
+  '@/screen-deploy',
+  '@/screen-dashboard',
+  '@/screen-dashboard-list',
+  '@/screen-billing',
+  '@/screen-marketplace',
+  '@/screen-server-detail',
+] as const;
+
+function stubAllSideEffectImports(): void {
+  for (const mod of STUB_MODULES) {
+    vi.doMock(mod, () => ({}));
+  }
+}
 
 describe('lib/jsx-bridge/loader', () => {
   beforeEach(() => {
@@ -13,23 +43,12 @@ describe('lib/jsx-bridge/loader', () => {
 
   it('TWEAK_DEFAULTS object matches app.jsx EDITMODE-BEGIN literal', async () => {
     // Stub MCPTokens BEFORE importing the loader so its side-effect imports
-    // (tokens.jsx, ui.jsx, screen-*.jsx) don't blow up under jsdom.
+    // (tokens.jsx, ui.jsx, i18n.jsx, screen-*.jsx) don't blow up under jsdom.
     (globalThis as { MCPTokens?: unknown }).MCPTokens = {
       makeCssVars: vi.fn().mockReturnValue({}),
     };
 
-    // Stub the chain of locked-JSX side-effect imports as no-ops via Vite alias.
-    vi.doMock('@/tokens', () => ({}));
-    vi.doMock('@/ui', () => ({}));
-    vi.doMock('@/screen-landing', () => ({}));
-    vi.doMock('@/screen-auth', () => ({}));
-    vi.doMock('@/screen-canvas', () => ({}));
-    vi.doMock('@/screen-stream', () => ({}));
-    vi.doMock('@/screen-playground', () => ({}));
-    vi.doMock('@/screen-preview', () => ({}));
-    vi.doMock('@/screen-quality', () => ({}));
-    vi.doMock('@/screen-deploy', () => ({}));
-    vi.doMock('@/screen-dashboard', () => ({}));
+    stubAllSideEffectImports();
 
     const { TWEAK_DEFAULTS } = await import('@/lib/jsx-bridge/loader');
 
@@ -55,17 +74,7 @@ describe('lib/jsx-bridge/loader', () => {
       makeCssVars: makeCssVarsSpy,
     };
 
-    vi.doMock('@/tokens', () => ({}));
-    vi.doMock('@/ui', () => ({}));
-    vi.doMock('@/screen-landing', () => ({}));
-    vi.doMock('@/screen-auth', () => ({}));
-    vi.doMock('@/screen-canvas', () => ({}));
-    vi.doMock('@/screen-stream', () => ({}));
-    vi.doMock('@/screen-playground', () => ({}));
-    vi.doMock('@/screen-preview', () => ({}));
-    vi.doMock('@/screen-quality', () => ({}));
-    vi.doMock('@/screen-deploy', () => ({}));
-    vi.doMock('@/screen-dashboard', () => ({}));
+    stubAllSideEffectImports();
 
     const { applyTokens, TWEAK_DEFAULTS } = await import('@/lib/jsx-bridge/loader');
 

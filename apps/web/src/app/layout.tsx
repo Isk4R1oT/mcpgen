@@ -1,14 +1,28 @@
 // apps/web/src/app/layout.tsx
 //
-// Plan 07-02 — Root shell. Server Component (no 'use client'). Imports the
-// locked global.css ONCE per CONTEXT D-07; loads the design fonts via
-// next/font/google (Instrument Serif, Inter, JetBrains Mono, Fraunces) so
-// the prototype's PP/Berkeley fall-through chain still resolves; wraps
-// children in LogtoSessionProvider → QueryProvider; mounts a Client island
-// that calls applyTokens() once to populate CSS vars on <html>.
+// Plan 07-02 + Phase M-4-INFRA — Root shell.
 //
-// The layout itself uses ONLY locked primitives (no new visual additions
-// per CLAUDE.md §12 rule 15 + CONTEXT D-01/D-07).
+// Server Component (no 'use client'). Imports the locked global.css
+// once per CONTEXT D-07; loads the design fonts via next/font/google
+// (Instrument Serif, Inter, JetBrains Mono, Fraunces) so the
+// prototype's PP/Berkeley fall-through chain still resolves; wraps
+// children in:
+//
+//     LogtoSessionProvider  (Server Component → context)
+//       QueryProvider       (TanStack Query)
+//         I18nProvider      (M-4-INFRA: wraps locked window.I18nProvider)
+//           NavShim         (M-4-INFRA: window.app.navigate + safe
+//                            window.mcpToast / window.mcpDrawer
+//                            console fallbacks)
+//             ApplyTokens   (CSS-vars from window.MCPTokens)
+//             {children}
+//
+// The layout itself uses ONLY locked primitives (no new visual
+// additions per CLAUDE.md §12 rule 15 + CONTEXT D-01/D-07).
+//
+// Sentry: client/server/edge configs live at apps/web/sentry.*.config.ts
+// and are picked up by @sentry/nextjs's next.config.ts withSentryConfig.
+// No SentryProvider is needed in the React tree.
 
 import { Fraunces, Instrument_Serif, Inter, JetBrains_Mono } from 'next/font/google';
 import type { Metadata } from 'next';
@@ -16,7 +30,9 @@ import type { ReactElement, ReactNode } from 'react';
 
 import '@/global.css';
 
+import I18nProvider from '@/providers/i18n-provider';
 import { LogtoSessionProvider } from '@/providers/logto-session';
+import NavShim from '@/providers/nav-shim';
 import QueryProvider from '@/providers/query-client';
 
 import ApplyTokens from './_apply-tokens';
@@ -60,8 +76,12 @@ export default function RootLayout({ children }: Props): ReactElement {
       <body>
         <LogtoSessionProvider>
           <QueryProvider>
-            <ApplyTokens />
-            {children}
+            <I18nProvider>
+              <NavShim>
+                <ApplyTokens />
+                {children}
+              </NavShim>
+            </I18nProvider>
           </QueryProvider>
         </LogtoSessionProvider>
       </body>

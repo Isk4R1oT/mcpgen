@@ -1,13 +1,16 @@
 // CLIENT-ONLY. Only imported via `next/dynamic({ ssr: false })`. Exposes
 // globalThis.React + ReactDOM, then side-effect-imports tokens.jsx → ui.jsx
-// → all 9 screen-*.jsx files in dependency order.
+// → i18n.jsx → all 13 new canon screens in dependency order.
 //
 // Pitfall 5: DO NOT side-effect-import `@/app` — its top level calls
 // `ReactDOM.createRoot()` which would fight Next's hydration root.
-// Open Q #1 (RESOLVED): DO NOT side-effect-import `@/tweaks-panel` — it's a
-// dev harness only; production paths never post `__edit_mode_*` messages.
-// Open Q #2 (RESOLVED): we re-export TWEAK_DEFAULTS + applyTokens() so the
-// App layout (Plan 07-02) can call window.MCPTokens.makeCssVars(TWEAK_DEFAULTS)
+// Pitfall 7 (M-4): DO NOT side-effect-import `@/ux-glue` — per the
+// rebuild contract §4.5 (and CLAUDE.md M-4 brief item 4) ux-glue.jsx is
+// canon but NOT wired in production. Wave-2 agents pass real toast /
+// drawer hosts via providers; nav-shim.tsx provides safe console
+// fallbacks for any canon code that still calls window.mcpToast etc.
+// Open Q #2 (RESOLVED): we re-export TWEAK_DEFAULTS + applyTokens() so
+// the App layout can call window.MCPTokens.makeCssVars(TWEAK_DEFAULTS)
 // once and apply CSS vars to <html>.
 
 'use client';
@@ -31,25 +34,34 @@ if (typeof window !== 'undefined') {
 }
 
 // Import order matches MCPGen.html <script> sequence:
-//   tokens.jsx → ui.jsx → screen-*.jsx
+//   tokens.jsx → ui.jsx → i18n.jsx → screen-*.jsx
 // Each side-effect import runs `window.<Symbol> = <Symbol>` assignments at
-// file end (verified for all 9 screens + ui.jsx + tokens.jsx in Plan 07-01).
+// file end. Verified for all 13 new canon screens + ui.jsx + tokens.jsx +
+// i18n.jsx in M-3 quarantine report.
 import '@/tokens';                    // sets window.MCPTokens
 import '@/ui';                        // defines Btn, TopBar, Icon, Badge, etc. (globals)
+import '@/i18n';                      // sets window.I18nProvider, window.useI18n, window.LangSwitcher
+
+// New canon — 13 public screens. Order follows hero-flow then admin/extras.
 import '@/screen-landing';            // sets window.Landing + window.SAMPLE_APIS
 import '@/screen-auth';               // sets window.AuthScreen
 import '@/screen-canvas';             // sets window.Canvas
 import '@/screen-stream';             // sets window.StreamLog
-import '@/screen-playground';         // sets window.Playground
 import '@/screen-preview';            // sets window.Preview
 import '@/screen-quality';            // sets window.QualityReport
+import '@/screen-playground';         // sets window.Playground
 import '@/screen-deploy';             // sets window.Deploy + window.DeploySuccess
 import '@/screen-dashboard';          // sets window.Dashboard
+import '@/screen-dashboard-list';     // sets window.DashboardList + window.USER_SERVERS
+import '@/screen-billing';            // sets window.Billing
+import '@/screen-marketplace';        // sets window.Marketplace + window.MARKETPLACE_SERVERS
+import '@/screen-server-detail';      // sets window.ServerDetail
 
-// TWEAK_DEFAULTS — copied verbatim from apps/web/src/app.jsx line 3 EDITMODE
+// TWEAK_DEFAULTS — copied verbatim from apps/web/src/app.jsx EDITMODE
 // block. The locked global.css references CSS vars (--paper, --ink, --text,
 // --font-sans, --scale, etc.) populated by window.MCPTokens.makeCssVars(t).
-// The App layout (Plan 07-02) calls applyTokens() once on mount.
+// The App layout (apps/web/src/app/_apply-tokens.tsx) calls applyTokens()
+// once on mount.
 export const TWEAK_DEFAULTS = {
   palette: 'A',
   fonts: 'pp',
@@ -64,7 +76,7 @@ export type TweakDefaults = typeof TWEAK_DEFAULTS;
 
 // applyTokens — calls window.MCPTokens.makeCssVars(TWEAK_DEFAULTS) and returns
 // the resulting `Record<string, string>` of CSS-var name → value. Caller (the
-// app/layout.tsx in Plan 07-02) spreads the map onto <html style={{...}}>.
+// app/layout.tsx) spreads the map onto <html style={{...}}>.
 export function applyTokens(): Record<string, string> {
   // Type-guarded access to the window global set by side-effect import of @/tokens.
   const mcpTokens = (
