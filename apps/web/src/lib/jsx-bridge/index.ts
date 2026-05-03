@@ -83,10 +83,53 @@ export interface StreamLogProps {
   onCancel?: () => void;
 }
 
+export interface PlaygroundToolHint {
+  /** Tool name (e.g. `charges_create`) — surfaced in the agent dropdown
+   *  and the trace panel. Mirrors `FinalTool.name` from @mcpgen/ir. */
+  readonly name: string;
+}
+
+export interface PlaygroundHistoryRow {
+  readonly id: string;
+  readonly label: string;
+  readonly prompt: string;
+  readonly tools: ReadonlyArray<string>;
+  readonly tk: number;
+  readonly ms: number;
+  readonly when: string;
+  readonly savedAsTest: boolean;
+}
+
+export interface PlaygroundRunResult {
+  /** Free-text result rendered in the agent message body. */
+  readonly text?: string;
+  /** Full structured result (JSON-stringified into the message body when
+   *  `text` is absent). */
+  readonly result?: unknown;
+  /** Token count for the trace panel. */
+  readonly tokens?: number;
+  /** Wall-clock duration of the upstream call in ms. */
+  readonly latency_ms?: number;
+}
+
+export interface PlaygroundRunArgs {
+  readonly tool_name: string;
+  readonly args: Record<string, unknown>;
+  readonly prompt: string;
+}
+
 export interface PlaygroundProps {
   sample?: LockedSample;
   onBack?: () => void;
   onDeploy?: () => void;
+  /** Tool catalog from the live job artifacts (Pass 5 final tools). */
+  tools?: ReadonlyArray<PlaygroundToolHint>;
+  /** Prior runs from the BFF history endpoint (currently empty until the
+   *  endpoint exists — see SHARED-FILE-REQUESTS.md). */
+  history?: ReadonlyArray<PlaygroundHistoryRow>;
+  /** Wired tool-execution callback. When undefined the locked screen
+   *  renders its visual-only fake-trace path. */
+  onRunTool?: (args: PlaygroundRunArgs) => Promise<PlaygroundRunResult>;
 }
 
 export interface PreviewProps {
@@ -101,15 +144,37 @@ export interface QualityReportProps {
   onBack?: () => void;
 }
 
+export interface DeploySubmitArgs {
+  /** Deploy target id from DEPLOY_OPTIONS (cloud / cf / docker / src). */
+  readonly target: string;
+  /** Auth forwarding mode (passthrough / static). */
+  readonly auth: string;
+}
+
 export interface DeployProps {
   sample?: LockedSample;
   onDeployed?: () => void;
   onBack?: () => void;
+  /** Wired deploy callback. Resolves on success → wrapper navigates to
+   *  DeploySuccess; rejects on failure → locked recoverable failed state. */
+  onSubmit?: (args: DeploySubmitArgs) => Promise<void>;
 }
 
 export interface DeploySuccessProps {
   sample?: LockedSample;
   onDashboard?: () => void;
+  /** Full https endpoint of the deployed MCP server (replaces locked
+   *  `${id}-mcp-abc123.mcpgen.app/mcp` placeholder). */
+  mcpUrl?: string;
+  /** Pre-formatted JSON string from
+   *  `formatConfigJson(buildConfig({serverName, serverUrl}))`. */
+  claudeDesktopConfig?: string;
+  /** Snake-case server name used in install command + share slug. */
+  serverName?: string;
+  /** Override the clipboard write (defaults to navigator.clipboard.writeText). */
+  onCopy?: (text: string, key: string) => void;
+  /** Trigger a config-file download (wrapper supplies an HTMLAnchor blob link). */
+  onDownload?: () => void;
 }
 
 export interface DashboardProps {

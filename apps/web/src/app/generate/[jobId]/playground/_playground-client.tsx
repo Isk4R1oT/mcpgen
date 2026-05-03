@@ -1,9 +1,37 @@
 // apps/web/src/app/generate/[jobId]/playground/_playground-client.tsx
+//
+// M-4 Agent 3 (Playground) — wires the locked Playground screen to the
+// real BFF run-tool endpoint and live tool catalog.
+//
+// Tool catalog source:
+//   - Server-side prefetch (`page.tsx`) reads `partial_result.final_tools`
+//     from `/api/v1/jobs/:jobId` and forwards `toolCount` already; this
+//     client also fetches the full final_tools array on mount so the agent
+//     dropdown + first-tool fallback have real names (not the canon
+//     `list_charges` placeholder).
+//
+// Tool execution:
+//   - Wrapper passes `onRunTool({tool_name, args, prompt})` →
+//     POST /api/v1/jobs/:id/run-tool body `{tool_name, args}`. The
+//     endpoint does NOT yet exist in apps/api (see SHARED-FILE-REQUESTS.md).
+//     Until then we surface a friendly "endpoint pending" rejection so
+//     the locked screen renders the failed-trace branch deterministically
+//     instead of crashing.
+//
+// History:
+//   - History endpoint not yet defined. We pass `history={[]}` so the
+//     history rail starts in its empty state per the locked design.
 
 'use client';
 
 import dynamic from 'next/dynamic';
-import type { ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
+
+import type {
+  PlaygroundRunArgs,
+  PlaygroundRunResult,
+  PlaygroundToolHint,
+} from '@/lib/jsx-bridge';
 
 // See _stream-client.tsx for explanation: do NOT import SAMPLE_APIS at
 // module scope — triggers SSR `window is not defined` crash.
@@ -22,11 +50,11 @@ const PlaygroundClient = dynamic(
 );
 
 const FALLBACK_SAMPLE: LocalLockedSample = {
-  id: 'lumen',
-  name: 'lumen payments',
-  endpoints: 348,
-  tools: 47,
-  save: 76,
+  id: 'live',
+  name: 'generated MCP',
+  endpoints: 0,
+  tools: 0,
+  save: 0,
 };
 
 interface Props {
@@ -37,10 +65,9 @@ interface Props {
 }
 
 /**
- * Mirror of preview's `deriveSample` (POST-09.1) — builds the
- * locked-screen `sample = {id, name, endpoints, tools, save}` from real
- * engine artefacts when present. FALLBACK_SAMPLE only fires when the
- * page renders before the engine writes artefacts to L1 (rare race).
+ * Build the locked-screen `sample = {id, name, endpoints, tools, save}`
+ * from real engine artefacts. FALLBACK_SAMPLE only fires when the page
+ * renders before the engine writes artefacts to L1 (rare race).
  */
 const deriveSample = (
   endpointCount: number | undefined,
@@ -62,6 +89,47 @@ const deriveSample = (
   return { id: 'live', name, endpoints, tools, save };
 };
 
+interface JobArtifactShape {
+  partial_result?: {
+    final_tools?: ReadonlyArray<{ name?: unknown }>;
+  };
+}
+
+const fetchToolCatalog = async (jobId: string): Promise<ReadonlyArray<PlaygroundToolHint>> => {
+  const res = await fetch(`/api/v1/jobs/${encodeURIComponent(jobId)}`, { cache: 'no-store' });
+  if (!res.ok) return [];
+  const json = (await res.json()) as JobArtifactShape;
+  const tools = json.partial_result?.final_tools ?? [];
+  const hints: PlaygroundToolHint[] = [];
+  for (const t of tools) {
+    if (typeof t?.name === 'string' && t.name.length > 0) hints.push({ name: t.name });
+  }
+  return hints;
+};
+
+const runToolViaBff = async (
+  jobId: string,
+  args: PlaygroundRunArgs,
+): Promise<PlaygroundRunResult> => {
+  const res = await fetch(`/api/v1/jobs/${encodeURIComponent(jobId)}/run-tool`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tool_name: args.tool_name, args: args.args }),
+  });
+  if (!res.ok) {
+    if (res.status === 404) {
+      // run-tool endpoint not yet implemented in apps/api — surface a
+      // user-readable message (locked screen renders it in the agent
+      // message body) instead of a generic 404.
+      throw new Error('run-tool endpoint not yet available (Phase M-5)');
+    }
+    const body = await res.text().catch(() => '');
+    throw new Error(`run-tool failed (${res.status}): ${body}`);
+  }
+  const json = (await res.json()) as PlaygroundRunResult;
+  return json;
+};
+
 export default function PlaygroundClientShell({
   jobId,
   endpointCount,
@@ -69,5 +137,38 @@ export default function PlaygroundClientShell({
   toolCount,
 }: Props): ReactElement {
   const sample = deriveSample(endpointCount, specName, toolCount);
-  return <PlaygroundClient jobId={jobId} sample={sample} />;
+  const [tools, setTools] = useState<ReadonlyArray<PlaygroundToolHint>>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async (): Promise<void> => {
+      try {
+        const catalog = await fetchToolCatalog(jobId);
+        if (!cancelled) setTools(catalog);
+      } catch {
+        // Tool catalog is best-effort — the locked screen falls back to
+        // a generic agent dropdown without it. Do not surface as an
+        // error; SSE / generation flow is not blocked by this.
+      }
+    })();
+    return (): void => {
+      cancelled = true;
+    };
+  }, [jobId]);
+
+  const onRunTool = useMemo(
+    () => async (args: PlaygroundRunArgs): Promise<PlaygroundRunResult> =>
+      runToolViaBff(jobId, args),
+    [jobId],
+  );
+
+  return (
+    <PlaygroundClient
+      jobId={jobId}
+      sample={sample}
+      tools={tools}
+      history={[]}
+      onRunTool={onRunTool}
+    />
+  );
 }
