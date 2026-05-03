@@ -1,25 +1,21 @@
 // apps/api/src/lib/flags.ts
 //
-// BFF-side Flipt client. Uses the slim WASM build of @flipt-io/flipt-client-js
-// because apps/api runs on Cloudflare Workers / Vercel Edge runtimes which
-// restrict how WASM is loaded. The consumer (this module) is responsible for
-// providing the WASM binary explicitly via the `wasm` option.
+// BFF flag evaluation — uses Flipt's REST evaluation API directly via fetch
+// instead of the @flipt-io/flipt-client-js slim WASM build, because wrangler
+// doesn't bundle the slim build's `engine.wasm` import correctly under CF
+// Workers (Uncaught CompileError: WasmModuleObject::Compile expected magic
+// word 00 61 73 6d, found 69 6d 70 6f).
 //
-// Module-level Promise<FliptClient> caching: in CF Workers each isolate
-// reuses this Promise across requests for ~30min, amortising the WASM init
-// cost. ETag-based refresh keeps state fresh without setInterval (which CF
-// Workers do not support).
+// The REST API path is the same evaluation that the WASM client would do
+// in-process, just with a network round-trip per call. For BFF use this is
+// acceptable — flag eval happens once per request handler, latency budget
+// remains <50ms over upstream (per RULES.md runtime budget).
 //
-// Per docs/mcpgen-feature-flags-contract.md §3.2.
-
-import { FliptClient, ErrorStrategy } from '@flipt-io/flipt-client-js/slim';
-// @ts-expect-error — wrangler / vite both support importing .wasm modules,
-// but @types resolution does not provide a Module type for them. Runtime
-// surfaces a WebAssembly.Module instance which the slim Flipt client accepts.
-import wasmModule from '@flipt-io/flipt-client-js/engine.wasm';
+// Per docs/mcpgen-feature-flags-contract.md §3.2 — when WASM bundling is
+// resolved (next major @flipt-io/flipt-client-js release with proper CF
+// Workers wasm helper), revert to slim+WASM in-process for ~100µs eval.
 
 import {
-  evaluateBooleanWithDefault,
   serviceEntityId,
   type FlagContext,
 } from '@mcpgen/runtime/flags';
@@ -30,39 +26,20 @@ interface FliptEnv {
   FLIPT_CLIENT_TOKEN?: string;
 }
 
-let _clientPromise: Promise<FliptClient> | null = null;
-
-function getClient(env: FliptEnv): Promise<FliptClient> {
-  if (_clientPromise !== null) return _clientPromise;
-  const url = env.FLIPT_URL ?? 'http://localhost:8090';
-  const environment = env.FLIPT_ENVIRONMENT ?? 'default';
-  const baseOpts = {
-    namespace: 'default',
-    environment,
-    url,
-    errorStrategy: ErrorStrategy.Fallback,
-  };
-  const initOptions =
-    env.FLIPT_CLIENT_TOKEN !== undefined
-      ? { ...baseOpts, authentication: { clientToken: env.FLIPT_CLIENT_TOKEN } }
-      : baseOpts;
-  _clientPromise = FliptClient.init(initOptions, { wasm: wasmModule }).catch((err) => {
-    _clientPromise = null;
-    throw err;
-  });
-  return _clientPromise;
+interface BooleanEvalResponse {
+  enabled?: boolean;
 }
 
-/** Reset the singleton — only used in tests. */
+/** Reset the singleton — only used in tests (no-op in REST-mode). */
 export function _resetFliptForTests(): void {
-  _clientPromise = null;
+  /* nothing to reset — REST mode is stateless */
 }
 
 /**
  * Safely evaluate a boolean flag. Always returns a Promise<boolean>; on any
- * failure (Flipt unreachable, init error, eval error) returns the supplied
- * `defaultValue` rather than throwing. Caller is responsible for providing
- * a category-appropriate default per contract §7.3.
+ * failure (Flipt unreachable, eval error, non-200) returns the supplied
+ * `defaultValue` rather than throwing. Caller provides category-appropriate
+ * default per contract §7.3.
  */
 export async function evaluateBoolean(
   env: FliptEnv,
@@ -71,9 +48,37 @@ export async function evaluateBoolean(
   context: FlagContext,
   defaultValue: boolean,
 ): Promise<boolean> {
+  const url = env.FLIPT_URL ?? 'http://localhost:8090';
+  const namespace = 'default';
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (env.FLIPT_CLIENT_TOKEN !== undefined) {
+    headers.Authorization = `Bearer ${env.FLIPT_CLIENT_TOKEN}`;
+  }
+
+  // Strip undefined context values to keep payload minimal.
+  const ctx: Record<string, string> = {};
+  for (const [k, v] of Object.entries(context)) {
+    if (v !== undefined) ctx[k] = v;
+  }
+
   try {
-    const client = await getClient(env);
-    return evaluateBooleanWithDefault(client, flagKey, entityId, context, defaultValue);
+    const res = await fetch(`${url}/evaluate/v1/boolean`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        namespaceKey: namespace,
+        flagKey,
+        entityId,
+        context: ctx,
+      }),
+      signal: AbortSignal.timeout(2000), // 2s cap — flag eval must not block requests
+    });
+    if (!res.ok) return defaultValue;
+    const data = (await res.json()) as BooleanEvalResponse;
+    return typeof data.enabled === 'boolean' ? data.enabled : defaultValue;
   } catch {
     return defaultValue;
   }

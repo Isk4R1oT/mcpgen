@@ -33,6 +33,12 @@
 import { createElement, useEffect, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 
+// MUST come BEFORE '@/i18n' import — installs globalThis.React so the
+// canon i18n.jsx (which uses unresolved `React.createContext`, designed
+// for the HTML-preview global-script load model) can evaluate under
+// Next.js SSR. ESM evaluation order is top-down per source.
+import './global-react-shim';
+
 // Trigger the locked i18n.jsx module to evaluate. Its module-bottom
 // `Object.assign(window, { I18nProvider, useI18n, ... })` populates the
 // globals we rely on. The TS ambient `*.jsx` declaration in
