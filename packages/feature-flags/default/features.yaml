@@ -976,6 +976,183 @@ flags:
     type: BOOLEAN_FLAG_TYPE
     enabled: false
 
+  # ─── Account / Auth method flags (canon MCPGen(5) — screen-account.jsx) ──
+  - key: ui_auth_password_perm
+    name: "UI: account — email + password"
+    description: |
+      Primary email/password sign-in & sign-up form. ON by default — Logto
+      Cloud handles email/password natively. Flip OFF to force passwordless
+      (magic link) only.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: true
+
+  - key: ui_auth_signup_perm
+    name: "UI: account — public sign-up"
+    description: |
+      "Create account" tab. ON by default. Flip OFF for invite-only mode
+      (closed beta) — sign-in still works, sign-up tab hides.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: true
+
+  - key: ui_auth_magic_link_perm
+    name: "UI: account — magic-link sign-in"
+    description: |
+      Passwordless email-link mode (canon: "email me a magic link instead"
+      CTA + dedicated form). OFF until Logto magic-link connector + Resend
+      transactional template wired. Flip ON when /api/auth/magic-link ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_auth_forgot_password_perm
+    name: "UI: account — forgot-password flow"
+    description: |
+      "forgot?" link + reset-link form. OFF until Logto password-reset
+      connector + Resend template wired. Flip ON when /api/auth/forgot ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_auth_google_sso_perm
+    name: "UI: account — Google SSO"
+    description: |
+      "Continue with Google" SSO button (canon: prominent full-width).
+      OFF until Google OIDC connector configured in Logto Cloud. When OFF
+      the button is hidden entirely (not disabled stub).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_auth_github_sso_perm
+    name: "UI: account — GitHub SSO"
+    description: |
+      "GitHub" SSO compact button. OFF until GitHub OIDC connector
+      configured in Logto Cloud. Hidden when OFF.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_auth_microsoft_sso_perm
+    name: "UI: account — Microsoft SSO"
+    description: |
+      "Microsoft" SSO compact button. OFF until Microsoft Entra OIDC
+      connector configured in Logto Cloud. Hidden when OFF.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_auth_saml_sso_perm
+    name: "UI: account — SAML enterprise SSO"
+    description: |
+      "SAML" SSO compact button. OFF until enterprise SAML IdP wiring
+      ships (Okta/Entra/JumpCloud per-tenant). Hidden when OFF.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  # ─── Settings screen section flags (canon MCPGen(5) — screen-settings.jsx) ─
+  - key: ui_settings_profile_perm
+    name: "UI: settings — profile section"
+    description: |
+      Name/handle/email/timezone/language/bio/avatar form. ON by default —
+      reads/writes Logto user metadata + Neon profile row.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: true
+
+  - key: ui_settings_security_perm
+    name: "UI: settings — security section"
+    description: |
+      Password change, 2FA (TOTP/passkey), recovery codes, active sessions.
+      ON by default — Logto natively supports password change + TOTP +
+      WebAuthn. Recovery-codes UI flag-wrapped separately.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: true
+
+  - key: ui_settings_recovery_codes_perm
+    name: "UI: settings — recovery codes"
+    description: |
+      Download / regenerate one-time recovery codes. OFF until Logto
+      recovery-code endpoint or self-managed flow ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_settings_api_keys_perm
+    name: "UI: settings — API keys section"
+    description: |
+      Programmatic-access PAT keys (mcp_live_… prefix). OFF until BFF
+      /api/v1/account/keys CRUD endpoints + Neon `api_keys` table ship.
+      When OFF the entire section is hidden (not a disabled stub).
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_settings_sso_section_perm
+    name: "UI: settings — SSO & SAML section"
+    description: |
+      Enterprise IdP / SCIM 2.0 / domain capture. OFF until enterprise
+      plan wiring ships. Section hidden when OFF.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_settings_notifications_perm
+    name: "UI: settings — notifications section"
+    description: |
+      6×4 channel matrix (drift/errors/deploys/digest/quotas/security ×
+      email/slack/in-app/pager). OFF until BFF notif preferences endpoint
+      + Resend/Slack/PagerDuty connectors ship. Section hidden when OFF.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_settings_integrations_perm
+    name: "UI: settings — integrations section"
+    description: |
+      Slack/GitHub/PagerDuty/Sentry/Datadog/Linear/webhook integrations.
+      OFF until per-integration OAuth/webhook flows ship. Section hidden
+      when OFF.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_settings_usage_perm
+    name: "UI: settings — usage & billing lite"
+    description: |
+      Tool-call meter + cost split + plan badge. ON by default — reuses
+      same BFF endpoints as /billing screen.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: true
+
+  - key: ui_settings_audit_perm
+    name: "UI: settings — audit log section"
+    description: |
+      Privileged-action timeline. OFF until BFF /api/v1/account/audit
+      endpoint + audit table in Neon ship. Section hidden when OFF.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_settings_danger_export_perm
+    name: "UI: settings — GDPR data export"
+    description: |
+      "Request data export" action (signed-URL email delivery, 24h TTL).
+      OFF until BFF export job runner ships.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_settings_danger_transfer_perm
+    name: "UI: settings — transfer ownership"
+    description: |
+      Hand workspace to another user (downgrade self to admin). OFF until
+      BFF transfer flow + email confirmation ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_settings_danger_pause_perm
+    name: "UI: settings — pause account"
+    description: |
+      30-day reversible pause. OFF until BFF pause job + Stripe pause
+      coupon flow ship.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: false
+
+  - key: ui_settings_danger_delete_perm
+    name: "UI: settings — delete account"
+    description: |
+      Permanent account deletion with confirmation phrase. ON by default —
+      Logto user deletion + Neon cascade are wired. Visible only when ON.
+    type: BOOLEAN_FLAG_TYPE
+    enabled: true
+
 segments:
   - key: internal_users
     name: "Internal users"
