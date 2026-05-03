@@ -1,14 +1,12 @@
 // landing.jsx — Screen 0: Landing
+// M-4-ENTRY: SAMPLE_APIS literal removed per contract §6.2 (point-edit:
+// FALLBACK_*/SAMPLE_*/etc. → prop). Samples now come from the `samples`
+// prop (Server Component → wrapper → screen). Empty default = chip row
+// simply hides when no samples are wired. Counter falls back to its
+// initial state when no sample selected.
 
-const SAMPLE_APIS = [
-  { id: 'lumen',    name: 'lumen payments', endpoints: 348, tools: 47, save: 76 },
-  { id: 'helio',    name: 'helio commerce', endpoints: 412, tools: 52, save: 78 },
-  { id: 'nimbus',   name: 'nimbus storage', endpoints: 167, tools: 28, save: 71 },
-  { id: 'rookery',  name: 'rookery issues', endpoints: 234, tools: 31, save: 73 },
-  { id: 'parley',   name: 'parley chat',    endpoints: 198, tools: 24, save: 75 },
-];
-
-function Landing({ onMakeIt, onSelectSample, sample, urlText, setUrlText, onPricing, onMarketplace, onSignIn }) {
+function Landing({ onMakeIt, onSelectSample, sample, urlText, setUrlText, onPricing, onMarketplace, onSignIn, samples }) {
+  const sampleApis = Array.isArray(samples) ? samples : [];
   const { t } = window.useI18n();
   const [counter, setCounter] = React.useState({ endpoints: 348, tools: 47, save: 76 });
 
@@ -78,11 +76,11 @@ function Landing({ onMakeIt, onSelectSample, sample, urlText, setUrlText, onPric
         <div style={{ marginBottom: 56 }}>
           <div className="mc-caption-up" style={{ marginBottom: 10 }}>{t('tryWith')}</div>
           <div className="mc-chiprow">
-            {SAMPLE_APIS.map(s => (
+            {sampleApis.map(s => (
               <button
                 key={s.id}
                 className={`mc-chip ${sample?.id === s.id ? 'active' : ''}`}
-                onClick={() => onSelectSample(s)}
+                onClick={() => onSelectSample && onSelectSample(s)}
               >
                 {s.name}
               </button>
@@ -263,4 +261,10 @@ function FooterCol({ title, items }) {
 }
 
 window.Landing = Landing;
-window.SAMPLE_APIS = SAMPLE_APIS;
+// M-4-ENTRY: window.SAMPLE_APIS preserved as an empty array for the
+// remaining call sites in the canon (screen-dashboard-list EmptyDashboard +
+// screen-dashboard-list mock branch read it via `window.SAMPLE_APIS || []`).
+// In the Next.js production path samples flow via wrapper props; this
+// constant exists only to keep stand-alone HTML preview (MCPGen.html) and
+// jsx-bridge type re-exports compiling.
+window.SAMPLE_APIS = [];

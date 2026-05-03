@@ -1,56 +1,23 @@
 // screen-dashboard-list.jsx — multi-server dashboard (list view)
 // Shows all of a user's MCP servers with health, usage, visibility (public/private)
+// M-4-ENTRY: USER_SERVERS literal removed per contract §6.2 (FALLBACK_*/
+// SAMPLE_*/USER_SERVERS_* point-edit). The `servers` prop is the single
+// source of truth (Server Component fetches GET /api/v1/deployments and
+// adapts shape via DashboardListWrapper). When `servers` is undefined
+// (loading state) or empty, the screen renders the EmptyDashboard onboarding
+// branch.
 
-const USER_SERVERS = [
-  {
-    id: 'lumen',  name: 'lumen-payments-mcp', api: 'lumen payments', tools: 47,
-    status: 'live',  visibility: 'private', uptime: '99.98%', calls7: 12840, p95: 240,
-    deltaPct: 18, version: 'v1.2.0', updated: '2 days ago',
-    drift: { kind: 'spec',  count: 8, severity: 'warn' },
-    region: ['cdg','sfo','sin'], owner: 'me',
-  },
-  {
-    id: 'helio',  name: 'helio-commerce-mcp', api: 'helio commerce', tools: 52,
-    status: 'live',  visibility: 'public',  uptime: '99.92%', calls7: 8420,  p95: 312,
-    deltaPct: 6,  version: 'v0.9.4', updated: '5 days ago', stars: 142, installs: 2840,
-    drift: null, region: ['cdg','sfo'], owner: 'me',
-  },
-  {
-    id: 'nimbus', name: 'nimbus-storage-mcp', api: 'nimbus storage', tools: 28,
-    status: 'live',  visibility: 'public',  uptime: '99.99%', calls7: 4180,  p95: 168,
-    deltaPct: 32, version: 'v2.0.1', updated: '1 day ago', stars: 89, installs: 1212,
-    drift: null, region: ['cdg','sfo','sin','iad'], owner: 'me',
-  },
-  {
-    id: 'rookery', name: 'rookery-issues-mcp', api: 'rookery issues', tools: 31,
-    status: 'paused', visibility: 'private', uptime: '—', calls7: 0, p95: 0,
-    deltaPct: 0,  version: 'v0.3.0', updated: '3 weeks ago',
-    drift: null, region: ['cdg'], owner: 'me',
-  },
-  {
-    id: 'parley', name: 'parley-chat-mcp',     api: 'parley chat', tools: 24,
-    status: 'draft', visibility: 'private', uptime: '—', calls7: 0, p95: 0,
-    deltaPct: 0,  version: 'v0.0.1', updated: '4 hours ago',
-    drift: null, region: [], owner: 'me',
-  },
-  {
-    id: 'anvil', name: 'anvil-forms-mcp', api: 'anvil forms', tools: 18,
-    status: 'error', visibility: 'private', uptime: '94.10%', calls7: 412, p95: 980,
-    deltaPct: -42, version: 'v1.0.3', updated: '6 hours ago',
-    drift: { kind: 'auth', count: 1, severity: 'error' },
-    region: ['cdg'], owner: 'me',
-  },
-];
-
-function DashboardList({ onBack, onOpen, onMarketplace, onBilling, onLanding }) {
+function DashboardList({ onBack, onOpen, onMarketplace, onBilling, onLanding, servers: serversProp }) {
   const { t } = window.useI18n();
   const [filter, setFilter] = React.useState('all'); // all|live|public|drift
   const [view, setView] = React.useState('grid');    // grid|table
   const [search, setSearch] = React.useState('');
   const [sort, setSort] = React.useState('updated'); // updated|calls|name
-  // empty/first-run mode toggle. flip via the "empty" pill in the header.
-  const [firstRun, setFirstRun] = React.useState(false);
-  const servers = firstRun ? [] : USER_SERVERS;
+  const servers = Array.isArray(serversProp) ? serversProp : [];
+  // First-run / empty state — auto-detect from server list (no demo toggle in
+  // production). The locked canon used a state toggle for design preview;
+  // we drive the same branch off real data.
+  const firstRun = servers.length === 0;
 
   const filtered = servers.filter(s => {
     if (filter === 'live'    && s.status !== 'live') return false;
@@ -104,11 +71,9 @@ function DashboardList({ onBack, onOpen, onMarketplace, onBilling, onLanding }) 
       />
 
       <main style={{ maxWidth: 1240, margin: '0 auto', padding: '32px 28px 64px', position: 'relative', zIndex: 2 }}>
-        {/* Demo toggle — only visible in this prototype to switch between full and empty state */}
-        <div style={{ position: 'absolute', top: 8, right: 28, display: 'flex', gap: 4, zIndex: 5 }}>
-          <button className={`mc-chip ${!firstRun ? 'active' : ''}`} onClick={() => setFirstRun(false)} style={{ height: 24, fontSize: 10.5 }}>populated</button>
-          <button className={`mc-chip ${firstRun ? 'active' : ''}`} onClick={() => setFirstRun(true)} style={{ height: 24, fontSize: 10.5 }}>empty · day 1</button>
-        </div>
+        {/* M-4-ENTRY: Demo populated/empty toggle removed — firstRun is now
+            data-driven (true iff servers.length === 0). The toggle was a
+            design-time prototype affordance per the canon comment. */}
 
         {firstRun ? (
           <EmptyDashboard t={t} onLanding={onLanding} onMarketplace={onMarketplace} onSample={(s) => { onOpen(s); }} />
@@ -508,4 +473,6 @@ function ServerTable({ servers, onOpen }) {
 }
 
 window.DashboardList = DashboardList;
-window.USER_SERVERS = USER_SERVERS;
+// M-4-ENTRY: window.USER_SERVERS removed — it was the inline mock literal
+// referenced only by this file (now removed) and the standalone HTML demo.
+// Production callers pass `servers` as a prop via DashboardListWrapper.
