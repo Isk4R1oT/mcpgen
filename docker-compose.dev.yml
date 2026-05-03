@@ -1,0 +1,178 @@
+# MCPGen — full local development stack.
+#
+# Single command for the whole local environment:
+#
+#     pnpm dev:docker          # bring up flipt + engine + api + web (hot-reload)
+#     pnpm dev:docker:down     # stop everything (preserves volumes / Flipt flags)
+#     pnpm dev:docker:nuke     # stop AND wipe volumes (drops Flipt history,
+#                                forces fresh `pnpm install` on next up)
+#     pnpm dev:docker:logs     # tail all services
+#
+# Endpoints once up:
+#     http://localhost:3000        — web (Next.js 15)
+#     http://localhost:8787        — api  (Hono BFF on wrangler dev)
+#     http://localhost:8000        — engine (FastAPI / uvicorn)
+#     http://localhost:8090        — Flipt UI + REST API
+#     http://localhost:9001        — Flipt gRPC
+#
+# Hot-reload model:
+#   - The repo is bind-mounted into web + api containers at /app, so source
+#     edits propagate live (Next.js fast-refresh, wrangler watcher).
+#   - node_modules lives in a NAMED VOLUME per app (`web_node_modules`,
+#     `api_node_modules`) so host (macOS / glibc-Linux) native binaries never
+#     collide with container (alpine / musl) ones. First `up` runs
+#     `pnpm install` inside each container against the lockfile; subsequent
+#     ups reuse the cached node_modules unless you ran :nuke.
+#   - The engine service uses a real multi-stage Dockerfile (not bind-mounted)
+#     because uv + Python wheels don't tolerate cross-platform mounts well.
+#     Edit-rebuild loop for the engine: `docker compose -f docker-compose.dev.yml
+#     up --build engine`. For tight Python iteration prefer the host workflow:
+#     `cd apps/generation-engine && uv run uvicorn ... --reload`.
+#
+# Cross-service URLs (inside the compose network):
+#   - web    → api    via http://api:8787/api/v1
+#   - web    → flipt  via http://flipt:8080
+#   - api    → engine via http://engine:8000
+#   - api    → flipt  via http://flipt:8080
+# These are injected via the `environment:` blocks below; the .dev.vars /
+# .env.local files supply secrets and Logto/Stripe/etc. config but the
+# *cross-service URLs* are always overridden here so localhost references
+# in those files don't leak into the docker network.
+#
+# Source-of-truth env files (committed templates: apps/web/.env.example;
+# real values in .env.local / .dev.vars are .gitignore'd):
+#   - apps/web/.env.local                  — web build/runtime
+#   - apps/api/.dev.vars                   — api runtime (wrangler convention)
+#   - apps/generation-engine/.env          — engine runtime (created on first up
+#                                            by infrastructure/docker/seed-engine-env.sh
+#                                            from .env.local; see Makefile/scripts)
+#
+# This stack is for the LOCAL dev loop only. Production targets are
+# Vercel (web), CF Workers (api/dispatch), Fly Machines (engine) — see
+# docs/mcpgen-architecture.md §4 + .planning/phases/10-launch/.
+
+services:
+  flipt:
+    image: docker.flipt.io/flipt/flipt:v2
+    container_name: mcpgen-flipt
+    restart: unless-stopped
+    ports:
+      - "8090:8080"
+      - "9001:9000"
+    volumes:
+      - flipt_data:/var/lib/flipt
+    environment:
+      FLIPT_LOG_LEVEL: info
+      FLIPT_AUTHENTICATION_REQUIRED: "false"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  engine:
+    build:
+      context: .
+      dockerfile: apps/generation-engine/Dockerfile
+    container_name: mcpgen-engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - apps/web/.env.local
+    environment:
+      ENVIRONMENT: development
+      PYTHONUNBUFFERED: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.node-dev
+    container_name: mcpgen-api
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    volumes:
+      - .:/app:cached
+      - api_node_modules:/app/node_modules
+      - api_pnpm_store:/root/.local/share/pnpm/store
+    working_dir: /app/apps/api
+    env_file:
+      - apps/api/.dev.vars
+    environment:
+      # Cross-service URLs — override any localhost values from .dev.vars so
+      # the docker network names resolve correctly.
+      ENGINE_ENDPOINT: http://engine:8000
+      FLIPT_URL: http://flipt:8080
+      FLIPT_ENVIRONMENT: default
+      # wrangler dev needs --ip 0.0.0.0 to bind outside the container.
+      # Keep --port explicit so it doesn't drift if wrangler defaults change.
+    command: >
+      sh -c "
+        pnpm install --frozen-lockfile --prefer-offline
+        && pnpm --filter @mcpgen/api exec wrangler dev --ip 0.0.0.0 --port 8787
+      "
+    depends_on:
+      flipt:
+        condition: service_healthy
+      engine:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.node-dev
+    container_name: mcpgen-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app:cached
+      - web_node_modules:/app/node_modules
+      - web_next_cache:/app/apps/web/.next
+      - web_pnpm_store:/root/.local/share/pnpm/store
+    working_dir: /app/apps/web
+    env_file:
+      - apps/web/.env.local
+    environment:
+      # Cross-service URLs — must override any localhost in .env.local.
+      MCPGEN_BFF_URL: http://api:8787/api/v1
+      FLIPT_URL: http://flipt:8080
+      FLIPT_ENVIRONMENT: default
+      # Next.js dev binds to 127.0.0.1 by default; expose it on the docker
+      # network bridge so port 3000 forwards correctly.
+      HOSTNAME: 0.0.0.0
+      # `next dev` reads NODE_ENV from this; explicit so production paths
+      # are never accidentally enabled.
+      NODE_ENV: development
+    command: >
+      sh -c "
+        pnpm install --frozen-lockfile --prefer-offline
+        && pnpm --filter @mcpgen/web exec next dev -H 0.0.0.0 -p 3000
+      "
+    depends_on:
+      flipt:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+volumes:
+  flipt_data:
+    name: mcpgen_flipt_data
+  api_node_modules:
+    name: mcpgen_api_node_modules
+  web_node_modules:
+    name: mcpgen_web_node_modules
+  web_next_cache:
+    name: mcpgen_web_next_cache
+  api_pnpm_store:
+    name: mcpgen_api_pnpm_store
+  web_pnpm_store:
+    name: mcpgen_web_pnpm_store

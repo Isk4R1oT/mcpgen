@@ -1,0 +1,72 @@
+# Keep the Docker build context small — Compose v2 sends the entire repo to
+# the daemon by default, which on this monorepo is hundreds of MB of
+# artifacts that no Dockerfile actually needs.
+
+# VCS + IDE
+.git
+.gitignore
+.github
+.vscode
+.idea
+.cursor
+.claude
+
+# Node
+node_modules
+**/node_modules
+.pnpm-store
+**/.pnpm-store
+
+# Build output / caches (web)
+.next
+**/.next
+.turbo
+**/.turbo
+dist
+**/dist
+.cache
+**/.cache
+.tmp
+**/.tmp
+**/.tmp-e2e
+
+# Test / Playwright artifacts
+playwright-report
+**/playwright-report
+test-results
+**/test-results
+.playwright-mcp
+
+# Python (engine)
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+**/.pytest_cache
+.ruff_cache
+**/.ruff_cache
+.venv
+**/.venv
+*.egg-info
+**/*.egg-info
+
+# Logs
+*.log
+**/*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local secrets — NEVER ship to the build context, even by accident.
+# (the dev compose mounts source as a volume so containers still read
+#  the live files at runtime; this rule only filters image builds.)
+**/.env
+**/.env.local
+**/.env.*.local
+**/.dev.vars
+
+# Big committed assets we don't want in any image
+claude-design-reference/visual-baseline
+**/snapshot-*.png
+**/*.snap

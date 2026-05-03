@@ -1,0 +1,32 @@
+# Lightweight node:22 image used by docker-compose.dev.yml for the web + api
+# services. Installs pnpm via corepack so the workspace install matches the
+# packageManager pin in the root package.json (pnpm@10.30.2 at time of
+# writing). The image stays small — actual sources are bind-mounted at
+# runtime so edits hot-reload without a rebuild.
+#
+# Why a separate image instead of `image: node:22-alpine` directly:
+#   - corepack prepare on first run incurs an ~8s delay every container
+#     start; baking it into the image cuts that to a one-time build cost.
+#   - We need git for postinstall scripts that read git rev-parse.
+#   - python3 + make + g++ are required when an optional native dep
+#     (better-sqlite3 etc.) decides to compile against the container's libc
+#     — slim alpine ships musl, native binaries from host (glibc) collide,
+#     so we always rebuild deps inside.
+#
+# This image is used for BOTH the `web` (Next.js dev server) and `api`
+# (wrangler dev) services. Different command per service → see
+# docker-compose.dev.yml.
+
+FROM node:22-alpine
+
+RUN apk add --no-cache git python3 make g++ libc6-compat \
+    && corepack enable \
+    && corepack prepare pnpm@10.30.2 --activate
+
+WORKDIR /app
+
+# pnpm fetch warms the global content-addressed store. The actual workspace
+# install happens at runtime against the bind-mounted source so changes to
+# package.json files don't require an image rebuild.
+
+CMD ["pnpm", "install", "--frozen-lockfile"]
