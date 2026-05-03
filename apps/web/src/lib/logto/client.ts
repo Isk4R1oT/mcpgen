@@ -72,6 +72,20 @@ function buildConfig(): LogtoNextConfig {
 export const logtoConfig: LogtoNextConfig = buildConfig();
 
 /**
+ * Explicit redirect URI passed to `signIn()` / sign-up flows.
+ *
+ * The `@logto/next` SDK (4.x) defaults to `${baseUrl}/callback` when no
+ * `redirectUri` is provided to `signIn()`. Our callback handler is mounted
+ * at `/api/auth/logto/callback`, NOT `/callback` — so without this override
+ * Logto Cloud rejects the auth request with `oidc.invalid_redirect_uri` 400
+ * (the SDK default is not in the allowlist). This constant must match the
+ * value registered in Logto Cloud → Applications → MCPGen Web → Redirect URIs.
+ *
+ * Reported by `.planning/ui-rebuild-sandbox/AUTH-DIAGNOSIS.md` (root cause).
+ */
+export const LOGTO_REDIRECT_URI: string = `${readEnv('LOGTO_BASE_URL') || 'http://localhost:3000'}/api/auth/logto/callback`;
+
+/**
  * Optional opt-in fail-fast guard for production request-time assertions.
  * Plan 07-02 does not invoke this (Vercel sets the env vars before serving);
  * Phase 9 may wire it inside the auth route handlers if desired.

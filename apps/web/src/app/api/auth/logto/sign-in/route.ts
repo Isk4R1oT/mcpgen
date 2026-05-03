@@ -7,10 +7,12 @@
 
 import { signIn } from '@logto/next/server-actions';
 
-import { logtoConfig } from '@/lib/logto/client';
+import { LOGTO_REDIRECT_URI, logtoConfig } from '@/lib/logto/client';
 
 export async function GET(): Promise<Response> {
-  await signIn(logtoConfig);
+  // Pass an explicit redirectUri — the SDK default is `${baseUrl}/callback`
+  // which our Logto Cloud allowlist does NOT contain. See AUTH-DIAGNOSIS.md.
+  await signIn(logtoConfig, LOGTO_REDIRECT_URI);
   // signIn always redirects; this is unreachable but keeps the handler
   // signature explicit for the Next.js Route Handler contract.
   return new Response(null, { status: 307 });

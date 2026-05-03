@@ -7,15 +7,19 @@
 
 import { signIn } from '@logto/next/server-actions';
 
-import { logtoConfig } from '@/lib/logto/client';
+import { LOGTO_REDIRECT_URI, logtoConfig } from '@/lib/logto/client';
 
 export async function GET(): Promise<Response> {
-  // @logto/next 4.x signIn signature: (config, options?). The `firstScreen`
-  // option (when present) renders the register screen first. We pass it via
-  // a typed cast since older SDK builds may not declare it.
-  await (signIn as (cfg: typeof logtoConfig, opts?: { firstScreen?: string }) => Promise<void>)(
-    logtoConfig,
-    { firstScreen: 'register' },
-  );
+  // @logto/next 4.x signIn signature: (config, options?). When `options` is
+  // an object the SDK uses it directly — so we MUST include `redirectUri`,
+  // otherwise the SDK falls back to its default `${baseUrl}/callback` which
+  // our Logto Cloud allowlist does NOT contain (see AUTH-DIAGNOSIS.md).
+  // The `firstScreen` hint asks Logto to render the register screen first.
+  await (
+    signIn as (
+      cfg: typeof logtoConfig,
+      opts?: { redirectUri?: string; firstScreen?: string },
+    ) => Promise<void>
+  )(logtoConfig, { redirectUri: LOGTO_REDIRECT_URI, firstScreen: 'register' });
   return new Response(null, { status: 307 });
 }
