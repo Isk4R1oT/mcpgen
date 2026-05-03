@@ -51,8 +51,12 @@ Each entry follows this template:
 - **Authority:** Agent 4-entry / orchestrator (apps/web/src/app/layout.tsx)
 - **Purpose:** Per `mcpgen-frontend-rebuild-contract.md` §5.1 the tweaks
   panel is dev-tooling and must be invisible to end users.
-- **Status:** OPEN — orchestrator (M-5 phase) will apply the conditional
-  mount; current state is "panel never mounts" which is safe.
+- **Status:** APPLIED (M-5 phase) — orchestrator added the conditional
+  mount in `apps/web/src/app/layout.tsx`. When `ui_tweaks_panel_perm` is
+  false (default), no node is rendered. A new client wrapper at
+  `apps/web/src/components/tweaks-panel-client-shell.tsx` defensively
+  loads the locked `tweaks-panel.jsx` side-effect module and renders
+  `window.TweaksPanel` once registered.
 - **Suggested patch sketch:**
   ```tsx
   // apps/web/src/app/layout.tsx — inside RootLayout, after <ApplyTokens />

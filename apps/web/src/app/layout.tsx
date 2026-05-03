@@ -30,6 +30,8 @@ import type { ReactElement, ReactNode } from 'react';
 
 import '@/global.css';
 
+import TweaksPanelClientShell from '@/components/tweaks-panel-client-shell';
+import { evaluateBooleanFlag } from '@/lib/flags';
 import I18nProvider from '@/providers/i18n-provider';
 import { LogtoSessionProvider } from '@/providers/logto-session';
 import NavShim from '@/providers/nav-shim';
@@ -64,13 +66,23 @@ interface Props {
   children: ReactNode;
 }
 
-export default function RootLayout({ children }: Props): ReactElement {
+export default async function RootLayout({ children }: Props): Promise<ReactElement> {
   const fontVariables = [
     inter.variable,
     instrumentSerif.variable,
     jetbrainsMono.variable,
     fraunces.variable,
   ].join(' ');
+
+  // REQ-002 — gate the dev-tooling panel behind ui_tweaks_panel_perm.
+  // Default false → render NO node at all (no invisible placeholder).
+  const tweaksEnabled = await evaluateBooleanFlag(
+    'ui_tweaks_panel_perm',
+    'anonymous',
+    {},
+    false,
+  );
+
   return (
     <html lang="en" className={fontVariables}>
       <body>
@@ -80,6 +92,7 @@ export default function RootLayout({ children }: Props): ReactElement {
               <NavShim>
                 <ApplyTokens />
                 {children}
+                {tweaksEnabled ? <TweaksPanelClientShell /> : null}
               </NavShim>
             </I18nProvider>
           </QueryProvider>
