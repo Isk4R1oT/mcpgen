@@ -21,8 +21,13 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
-// Mock the artifact hook to return a "no data" state by default.
+// Mock both job hooks to return a "no data" state by default. Tests below
+// override per-call when they need to assert a populated shape.
 vi.mock('@/lib/api/jobs', () => ({
+  useJob: () => ({
+    data: { ok: false, status: 0, error: 'pending' },
+    isLoading: true,
+  }),
   useJobArtifact: () => ({
     data: { ok: false, status: 0, error: 'pending' },
     isLoading: true,
@@ -70,19 +75,54 @@ describe('<Preview>', () => {
     expect(pushMock).toHaveBeenCalledWith('/generate/job_xyz');
   });
 
-  it('navigates to /generate?spec_url=... on continue when originalSpecUrl present', () => {
-    const specUrl = 'https://example.com/openapi.json';
-    renderWithQuery(<Preview jobId="job_xyz" originalSpecUrl={specUrl} />);
-    // Continue CTA is the primary "continue · auth setup" button.
+  it('navigates to /generate/[jobId]/quality on continue (review → quality → playground → deploy)', () => {
+    renderWithQuery(<Preview jobId="job_xyz" originalSpecUrl="https://example.com/openapi.json" />);
     fireEvent.click(screen.getByText(/continue · auth setup/i));
-    expect(pushMock).toHaveBeenCalledWith(
-      `/generate?spec_url=${encodeURIComponent(specUrl)}`,
-    );
+    expect(pushMock).toHaveBeenCalledWith('/generate/job_xyz/quality');
   });
 
-  it('falls back to /generate when no originalSpecUrl is provided', () => {
-    renderWithQuery(<Preview jobId="job_xyz" />);
-    fireEvent.click(screen.getByText(/continue · auth setup/i));
-    expect(pushMock).toHaveBeenCalledWith('/generate');
+  it('renders no canon demo literals in the empty/loading state', () => {
+    const { container } = renderWithQuery(<Preview jobId="job_loading" />);
+    const html = container.innerHTML;
+    // Canon header literal — must NOT leak into a real-data render.
+    expect(html).not.toContain('lumen-payments');
+    // Canon category literals.
+    expect(html).not.toContain('transactions');
+    expect(html).not.toContain('card-issuing');
+    // Canon composite-merge banner literal.
+    expect(html).not.toContain('orders.create');
+    expect(html).not.toContain('orders.get');
+    expect(html).not.toContain('orders.update');
+    // Canon token-budget hardcoded numbers.
+    expect(html).not.toContain('14,200');
+    expect(html).not.toContain('3,400');
+    expect(html).not.toContain('4,750');
+    // Canon hardcoded auth label.
+    expect(html).not.toMatch(/oauth \+ api key/);
+  });
+});
+
+describe('<Preview> exhaustive canon-literal grep', () => {
+  it('exhaustive grep against banned canon literals', () => {
+    const { container } = renderWithQuery(<Preview jobId="job_grep" originalSpecUrl="https://api.stripe.com/openapi.json" />);
+    const html = container.innerHTML;
+    const banned = [
+      'lumen-payments',
+      'transactions',
+      'accounts',
+      'card-issuing',
+      'orders.create',
+      'orders.get',
+      'orders.update',
+      '4 750',
+      '3 400',
+      '14 200',
+      '14,200',
+      'oauth + api key',
+      '↓ 28%',
+    ];
+    for (const literal of banned) {
+      expect(html.includes(literal), `canon literal "${literal}" leaked into rendered HTML`).toBe(false);
+    }
   });
 });

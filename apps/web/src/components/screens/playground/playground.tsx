@@ -37,7 +37,8 @@ import {
 } from 'react';
 
 import { Badge, Btn, Icon, SectionLabel, TopBar } from '@/components/ui';
-import { useJobArtifact } from '@/lib/api/jobs';
+import { deriveServerNameFromSpecUrl } from '@/components/screens/canvas/canvas';
+import { useJob, useJobArtifact } from '@/lib/api/jobs';
 import { runPlaygroundTool } from '@/lib/api/playground';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -52,6 +53,9 @@ export interface PlaygroundSample {
 export interface PlaygroundProps {
   readonly jobId: string;
   readonly sample?: PlaygroundSample;
+  /** Original spec URL — used to derive a breadcrumb server name when the
+   *  BFF hasn't surfaced `partial_result.spec_name` yet. */
+  readonly specUrl?: string;
   readonly onBack?: () => void;
   readonly onDeploy?: () => void;
   /** Override the default OFF playground-run flag (used by tests). */
@@ -181,6 +185,7 @@ const FALLBACK_TOOL = 'list_charges';
 export default function Playground({
   jobId,
   sample,
+  specUrl,
   onBack,
   onDeploy,
   runToolEnabled = false,
@@ -331,7 +336,22 @@ export default function Playground({
   const cost = ((totalNew / 1e6) * 15).toFixed(3);
   const naiveCost = ((totalNaive / 1e6) * 15).toFixed(3);
 
-  const crumb = `${sample?.name ?? 'lumen-payments'}-mcp · playground`;
+  // Breadcrumb server name — same chain as canvas/preview screens.
+  // Priority: explicit sample.name (server-side prop) → BFF
+  // partial_result.spec_name → derived from spec URL → "mcp-server".
+  const jobQuery = useJob(jobId);
+  const job = jobQuery.data?.ok === true ? jobQuery.data.data : null;
+  const partial = job?.partial_result ?? null;
+  const specNameFromJob =
+    partial !== null && typeof partial.spec_name === 'string' && partial.spec_name !== ''
+      ? partial.spec_name
+      : null;
+  const specNameFromUrl = deriveServerNameFromSpecUrl(specUrl);
+  const derivedServerName: string =
+    sample?.name !== undefined && sample.name !== ''
+      ? sample.name
+      : specNameFromJob ?? specNameFromUrl;
+  const crumb = `${derivedServerName}-mcp · playground`;
 
   return (
     <div className="mc-screen" style={{ minHeight: '100vh' }}>

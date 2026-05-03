@@ -29,6 +29,12 @@ vi.mock('@/lib/sse/use-generation-sse', () => ({
   }),
 }));
 
+// Stub useJob so the breadcrumb derivation has a clean "no data yet" path
+// without us pulling in TanStack Query in this unit test.
+vi.mock('@/lib/api/jobs', () => ({
+  useJob: (): { data: undefined } => ({ data: undefined }),
+}));
+
 // Spy on toast so we can assert the recovery CTAs hit the canon stub.
 const toastMock = vi.fn();
 vi.mock('@/lib/toast', () => ({
@@ -136,8 +142,18 @@ describe('<StreamLog>', () => {
     expect(screen.getByText(/generating stripe-mcp/i)).toBeTruthy();
   });
 
-  it('falls back to the canon default sample name when none passed', () => {
+  it('falls back to a generic mcp-server slug when no sample/specUrl', () => {
     render(<StreamLog jobId={TEST_JOB_ID} />);
-    expect(screen.getByText(/generating lumen-payments-mcp/i)).toBeTruthy();
+    expect(screen.getByText(/generating mcp-server-mcp/i)).toBeTruthy();
+  });
+
+  it('derives the breadcrumb name from specUrl hostname when provided', () => {
+    render(
+      <StreamLog
+        jobId={TEST_JOB_ID}
+        specUrl="https://petstore3.swagger.io/api/v3/openapi.json"
+      />,
+    );
+    expect(screen.getByText(/generating petstore3-mcp/i)).toBeTruthy();
   });
 });

@@ -1,22 +1,20 @@
 // apps/web/src/components/screens/canvas/canvas.tsx
 //
-// Phase 1 / A2 — Canvas screen (post-paste analysis canvas).
+// Canvas screen — post-paste analysis canvas, driven by REAL backend data.
 //
-// Source of truth: claude-design-reference/canon/screen-canvas.jsx (`Canvas`).
-// Visual baseline: claude-design-reference/visual-baseline/canvas-{375,768,1280,1920}.png.
+// Source of truth: claude-design-reference/canon/screen-canvas.jsx (visual).
+// All numerical content (tool list, endpoint count, totals) flows from the
+// running BFF job — no canon-static TOOL_DATA literal.
 //
-// Behaviors (per SCREEN-BEHAVIORS-CATALOG.md § canvas + PHASE-1.md A2):
-// - Three-pane CSS Grid layout (`mc-three`): tools list / detail / refinement chat.
-// - Auto-accept countdown 3s on diff; manual accept/revert overrides.
-// - First-visit summary card with localStorage persistence (`mcpgen_canvas_summary_seen`).
-// - Wired entry: when `?spec_url=...` query param is present, auto-POST /api/v1/generate
-//   and redirect to `/generate/${job_id}` on 202.
-// - Errors during submit surface via toast (canon `window.mcpToast` → `@/lib/toast`).
-//
-// Backend wire-ups deferred (per catalog):
-// - Description shorten / chat / quick actions: stays as static seed for now (canon
-//   already provides static fake diff + seeded chat bubbles + toasts on quick actions).
-// - The "edit description" persistence is client-only, dropped on navigation.
+// Behaviors:
+//   * `?spec_url=...` query → POST /api/v1/generate, then redirect to
+//     /generate/[jobId] (same as before).
+//   * `jobId` prop (from /generate/[jobId] route) → poll BFF status via
+//     `useJob` and render real `partial_result.final_tools` once Pass 5 has
+//     completed. While waiting: render canon's empty/loading state, NOT
+//     canon's static TOOL_DATA literals.
+//   * Refinement chat / quick-action toasts kept verbatim (canon parity —
+//     backend not implemented).
 
 'use client';
 
@@ -35,15 +33,16 @@ import {
 import { useRouter } from 'next/navigation';
 
 import { Badge, Btn, Icon, SectionLabel, TopBar } from '@/components/ui';
-import type { IconName } from '@/components/ui';
 import { submitGeneration } from '@/lib/api/generate';
+import { useJob } from '@/lib/api/jobs';
 import { toast } from '@/lib/toast';
 
-// ─── Static seed data (canon TOOL_DATA — replace with engine IR in Phase 2) ───
+// ─── Types from real engine output (Pass 5 final tools) ──────────────────────
 //
-// Each tool exposes `rawTk` (naive 1:1 token estimate from the upstream spec)
-// and `tk` (after our optimization passes). The delta is the headline metric
-// surfaced in the tools list, the detail header, and the status bar.
+// We accept a minimal shape — engine pass 5 yields tool objects with at least
+// `name` (str), `description` (str), `inputSchema.properties` (record), and
+// optionally `tk` / `raw_tk` token estimates. Anything missing → graceful
+// fallback to "…" or hidden.
 
 interface CanvasParam {
   readonly name: string;
@@ -57,167 +56,96 @@ interface CanvasTool {
   readonly tk: number;
   readonly rawTk: number;
   readonly desc: string;
-  readonly short?: string;
   readonly source: string;
   readonly params: ReadonlyArray<CanvasParam>;
   readonly composite?: boolean;
+  readonly category: string;
 }
 
 interface CanvasCategory {
   readonly label: string;
   readonly tools: ReadonlyArray<CanvasTool>;
-  readonly icon?: IconName;
 }
 
-const TOOL_DATA: Readonly<Record<string, CanvasCategory>> = {
-  transactions: {
-    label: 'transactions',
-    tools: [
-      {
-        id: 'create_charge',
-        name: 'create_charge',
-        tk: 47,
-        rawTk: 186,
-        desc: "charges a customer's card. returns a charge object.",
-        short: 'charges a card. returns charge.',
-        source: 'POST /v1/charges',
-        params: [
-          { name: 'amount', type: 'number', req: true },
-          { name: 'currency', type: 'string', req: true },
-          { name: 'customer', type: 'string', req: true },
-          { name: 'metadata', type: 'object', req: false },
-        ],
-      },
-      {
-        id: 'list_charges',
-        name: 'list_charges',
-        tk: 38,
-        rawTk: 142,
-        desc: 'lists charges; supports filters by date, customer, status.',
-        source: 'GET /v1/charges',
-        params: [
-          { name: 'limit', type: 'number', req: false },
-          { name: 'customer', type: 'string', req: false },
-          { name: 'starting_after', type: 'string', req: false },
-        ],
-      },
-      {
-        id: 'refund_charge',
-        name: 'refund_charge',
-        tk: 32,
-        rawTk: 118,
-        desc: 'refunds a charge by id. partial amounts supported.',
-        source: 'POST /v1/charges/:id/refund',
-        params: [
-          { name: 'charge_id', type: 'string', req: true },
-          { name: 'amount', type: 'number', req: false },
-        ],
-      },
-      {
-        id: 'capture_charge',
-        name: 'capture_charge',
-        tk: 28,
-        rawTk: 96,
-        desc: 'captures a previously authorized charge.',
-        source: 'POST /v1/charges/:id/capture',
-        params: [{ name: 'charge_id', type: 'string', req: true }],
-      },
-    ],
-  },
-  accounts: {
-    label: 'accounts',
-    tools: [
-      {
-        id: 'create_customer',
-        name: 'create_customer',
-        tk: 41,
-        rawTk: 152,
-        desc: 'creates a customer record.',
-        source: 'POST /v1/customers',
-        params: [
-          { name: 'email', type: 'string', req: true },
-          { name: 'name', type: 'string', req: false },
-        ],
-      },
-      {
-        id: 'find_customer',
-        name: 'find_customer',
-        tk: 35,
-        rawTk: 128,
-        desc: 'finds a customer by id or email.',
-        source: 'GET /v1/customers/search',
-        params: [{ name: 'query', type: 'string', req: true }],
-      },
-      {
-        id: 'update_customer',
-        name: 'update_customer',
-        tk: 33,
-        rawTk: 124,
-        desc: 'updates customer attributes.',
-        source: 'PATCH /v1/customers/:id',
-        params: [{ name: 'customer_id', type: 'string', req: true }],
-      },
-    ],
-  },
-  plans: {
-    label: 'plans',
-    tools: [
-      {
-        id: 'list_plans',
-        name: 'list_plans',
-        tk: 26,
-        rawTk: 88,
-        desc: 'lists subscription plans.',
-        source: 'GET /v1/plans',
-        params: [],
-      },
-      {
-        id: 'subscribe',
-        name: 'subscribe',
-        tk: 44,
-        rawTk: 168,
-        desc: 'subscribes a customer to a plan.',
-        source: 'POST /v1/subscriptions',
-        params: [
-          { name: 'customer_id', type: 'string', req: true },
-          { name: 'plan_id', type: 'string', req: true },
-        ],
-      },
-    ],
-  },
-  composite: {
-    label: 'composite',
-    icon: 'bolt',
-    tools: [
-      {
-        id: 'order_lifecycle',
-        name: 'order_lifecycle',
-        tk: 62,
-        rawTk: 412,
-        composite: true,
-        desc: 'creates a customer if missing, charges them, returns charge + receipt.',
-        source: '3 endpoints merged',
-        params: [
-          { name: 'email', type: 'string', req: true },
-          { name: 'amount', type: 'number', req: true },
-          { name: 'currency', type: 'string', req: true },
-        ],
-      },
-      {
-        id: 'refund_with_audit',
-        name: 'refund_with_audit',
-        tk: 48,
-        rawTk: 286,
-        composite: true,
-        desc: 'refunds and writes an audit log entry.',
-        source: '2 endpoints merged',
-        params: [{ name: 'charge_id', type: 'string', req: true }],
-      },
-    ],
-  },
-};
+// Adapt a free-form engine tool blob into a `CanvasTool`. Conservative — any
+// missing field becomes a placeholder; the screen never invents numbers.
+function adaptTool(raw: unknown): CanvasTool | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const name = typeof r['name'] === 'string' ? r['name'] : null;
+  if (name === null || name === '') return null;
 
-// ─── TokenSaveBadge — tiny "raw → tk · ↓N%" pill (canon parity) ───────────────
+  const description = typeof r['description'] === 'string' ? r['description'] : '';
+  const isWorkflow = r['type'] === 'workflow';
+  const sourceEndpoints = Array.isArray(r['source_endpoints'])
+    ? (r['source_endpoints'] as unknown[]).filter((s): s is string => typeof s === 'string')
+    : [];
+
+  // inputSchema.properties — JSON Schema object map.
+  const schema = (r['inputSchema'] ?? r['input_schema']) as Record<string, unknown> | undefined;
+  const properties = (schema?.['properties'] ?? {}) as Record<string, unknown>;
+  const requiredList = Array.isArray(schema?.['required'])
+    ? (schema!['required'] as unknown[]).filter((s): s is string => typeof s === 'string')
+    : [];
+  const params: ReadonlyArray<CanvasParam> = Object.entries(properties).map(
+    ([pname, pschema]) => {
+      const ps = (pschema ?? {}) as Record<string, unknown>;
+      const type = typeof ps['type'] === 'string' ? ps['type'] : 'unknown';
+      return { name: pname, type, req: requiredList.includes(pname) };
+    },
+  );
+
+  // Token estimates — engine may surface `tk`/`raw_tk`/`tokens`/`raw_tokens`;
+  // until pass 5 emits these we conservatively return 0 and let the badge
+  // collapse to a single number (no fake savings %).
+  const tk =
+    typeof r['tk'] === 'number'
+      ? (r['tk'] as number)
+      : typeof r['tokens'] === 'number'
+        ? (r['tokens'] as number)
+        : 0;
+  const rawTk =
+    typeof r['raw_tk'] === 'number'
+      ? (r['raw_tk'] as number)
+      : typeof r['raw_tokens'] === 'number'
+        ? (r['raw_tokens'] as number)
+        : 0;
+
+  // Category bucket — default "tools"; known engine tags map to friendlier
+  // canon labels.
+  const rawCat = typeof r['category'] === 'string' ? r['category'] : null;
+  const rawType = typeof r['type'] === 'string' ? r['type'] : null;
+  const category = rawCat ?? rawType ?? 'tools';
+
+  const out: CanvasTool = {
+    id: name,
+    name,
+    tk,
+    rawTk,
+    desc: description,
+    source: sourceEndpoints[0] ?? '',
+    params,
+    category,
+    ...(isWorkflow ? { composite: true } : {}),
+  };
+  return out;
+}
+
+// Group tools by `category` while preserving insertion order.
+function groupByCategory(tools: ReadonlyArray<CanvasTool>): Record<string, CanvasCategory> {
+  const out: Record<string, CanvasCategory> = {};
+  for (const t of tools) {
+    const existing = out[t.category];
+    if (existing === undefined) {
+      out[t.category] = { label: t.category, tools: [t] };
+    } else {
+      out[t.category] = { label: existing.label, tools: [...existing.tools, t] };
+    }
+  }
+  return out;
+}
+
+// ─── TokenSaveBadge ──────────────────────────────────────────────────────────
 
 interface TokenSaveBadgeProps {
   readonly raw: number | undefined;
@@ -226,8 +154,8 @@ interface TokenSaveBadgeProps {
 }
 
 function TokenSaveBadge({ raw, tk, size = 'sm' }: TokenSaveBadgeProps): JSX.Element {
-  if (raw === undefined || raw <= tk) {
-    return <span className="mc-tk">{tk} tk</span>;
+  if (raw === undefined || raw <= tk || tk === 0) {
+    return <span className="mc-tk">{tk > 0 ? `${tk} tk` : '— tk'}</span>;
   }
   const pct = Math.round((1 - tk / raw) * 100);
   const big = size === 'md';
@@ -263,11 +191,11 @@ function TokenSaveBadge({ raw, tk, size = 'sm' }: TokenSaveBadgeProps): JSX.Elem
 // ─── Canvas component ─────────────────────────────────────────────────────────
 
 export interface CanvasProps {
-  /** Optional sample (for breadcrumb name). Defaults to "lumen-payments". */
   readonly sample?: { readonly name?: string };
   /** Spec URL pulled from `?spec_url=` — when present, auto-submits on mount. */
   readonly specUrl?: string | undefined;
-  /** Optional click handlers (router-wire from page.tsx). */
+  /** Job ID (when arriving on /generate/[jobId]). */
+  readonly jobId?: string | undefined;
   readonly onPlay?: () => void;
   readonly onDeploy?: () => void;
   readonly onCmdK?: () => void;
@@ -282,8 +210,7 @@ interface DiffState {
   readonly afterTk: number;
 }
 
-// FNV-1a 32-bit hash → hex. Stable spec_hash for the idempotency key bucket
-// so retries on the SAME URL reuse the same key. Lightweight; no crypto dep.
+// FNV-1a 32-bit hash → hex idempotency bucket for the spec URL.
 function hashSpecUrl(url: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < url.length; i += 1) {
@@ -293,23 +220,31 @@ function hashSpecUrl(url: string): string {
   return h.toString(16).padStart(8, '0');
 }
 
-function findTool(id: string): CanvasTool | null {
-  for (const cat of Object.values(TOOL_DATA)) {
-    const found = cat.tools.find((t) => t.id === id);
-    if (found !== undefined) return found;
+// Derive a human-readable server slug from a spec URL hostname. Strips common
+// API subdomain prefixes and TLDs so `https://petstore3.swagger.io/api/v3/openapi.json`
+// → `petstore3`. Falls back to `mcp-server` when parsing fails.
+export function deriveServerNameFromSpecUrl(url: string | undefined): string {
+  if (url === undefined || url === '') return 'mcp-server';
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    // Take leftmost label that isn't a generic prefix.
+    const labels = host.split('.').filter((l) => l !== '');
+    if (labels.length === 0) return 'mcp-server';
+    const skip = new Set(['www', 'api', 'docs', 'developer', 'developers']);
+    const first = labels.find((l) => !skip.has(l)) ?? labels[0]!;
+    // Sanitize to slug.
+    const slug = first.replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
+    return slug !== '' ? slug : 'mcp-server';
+  } catch {
+    return 'mcp-server';
   }
-  return null;
 }
-
-const ALL_TOOLS: ReadonlyArray<CanvasTool> = Object.values(TOOL_DATA).flatMap(
-  (c) => c.tools,
-);
-
-const FIRST_TOOL: CanvasTool = TOOL_DATA['transactions']!.tools[0]!;
 
 export function Canvas({
   sample,
   specUrl,
+  jobId,
   onPlay,
   onDeploy,
   onCmdK,
@@ -318,7 +253,6 @@ export function Canvas({
   const router = useRouter();
 
   // ─── Auto-submit when arriving with ?spec_url=... ───────────────────────────
-  // Latch via ref so React 19 strict-mode double-invoke doesn't fire twice.
   const submittedRef = useRef(false);
   useEffect(() => {
     if (submittedRef.current) return;
@@ -348,17 +282,62 @@ export function Canvas({
     })();
   }, [router, specUrl]);
 
-  // ─── Canvas-local state (canon parity) ─────────────────────────────────────
-  const [openCats, setOpenCats] = useState<Record<string, boolean>>({
-    transactions: true,
-    accounts: true,
-    plans: false,
-    composite: true,
-  });
-  const [selected, setSelected] = useState<string>('create_charge');
+  // ─── Real backend data ──────────────────────────────────────────────────────
+  // Poll the BFF every 1.5s while the job is in-flight so freshly-completed
+  // passes show up. Disabled when there is no jobId (i.e. the un-wired
+  // /generate landing canvas without a query param).
+  const jobQuery = useJob(
+    jobId,
+    jobId !== undefined ? { refetchIntervalMs: 1500 } : undefined,
+  );
+  const job = jobQuery.data?.ok === true ? jobQuery.data.data : null;
+  const partial = job?.partial_result ?? null;
+  // BFF surfaces `spec_name` once Pass 1 has run — it's the smart-id prefix
+  // (e.g. "stripe", "petstore"). Until then we derive a slug from the spec URL
+  // hostname so the breadcrumb stops claiming "lumen-payments" for every job.
+  const specNameFromJob =
+    partial !== null && typeof partial.spec_name === 'string' && partial.spec_name !== ''
+      ? partial.spec_name
+      : null;
+  const specNameFromUrl = deriveServerNameFromSpecUrl(specUrl);
+  const derivedServerName: string =
+    sample?.name ?? specNameFromJob ?? specNameFromUrl;
+
+  // Endpoint count from Stage A (available within ~1s of submit).
+  const endpointCount: number | null =
+    partial !== null && typeof partial.endpoint_count === 'number'
+      ? partial.endpoint_count
+      : null;
+
+  // Final tools list — populated once Pass 5 has completed and the BFF has
+  // proxied artifacts (`/api/v1/generate/{job_id}/artifacts`). Until then
+  // `final_tools` is undefined → empty list.
+  const realTools: ReadonlyArray<CanvasTool> = useMemo(() => {
+    if (partial === null) return [];
+    const ft = partial.final_tools;
+    if (!Array.isArray(ft)) return [];
+    return ft
+      .map((t) => adaptTool(t))
+      .filter((t): t is CanvasTool => t !== null);
+  }, [partial]);
+
+  const grouped = useMemo(() => groupByCategory(realTools), [realTools]);
+  const groupedKeys = useMemo(() => Object.keys(grouped), [grouped]);
+
+  const ALL_TOOLS = realTools;
+
+  const findTool = useCallback(
+    (id: string): CanvasTool | null =>
+      ALL_TOOLS.find((t) => t.id === id) ?? null,
+    [ALL_TOOLS],
+  );
+
+  // ─── Canvas-local state ─────────────────────────────────────────────────────
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
+  const [selected, setSelected] = useState<string>('');
   const [filter, setFilter] = useState<string>('');
   const [chatOpen, setChatOpen] = useState<boolean>(true);
-  const [tool, setTool] = useState<CanvasTool>(FIRST_TOOL);
+  const [tool, setTool] = useState<CanvasTool | null>(null);
   const [diff, setDiff] = useState<DiffState | null>(null);
   const [autoCountdown, setAutoCountdown] = useState<number>(0);
   const [changedSet, setChangedSet] = useState<ReadonlySet<string>>(
@@ -366,8 +345,33 @@ export function Canvas({
   );
   const [editing, setEditing] = useState<boolean>(false);
 
-  // First-visit summary card. Persisted via localStorage so a returning user
-  // doesn't see it again, but a fresh tab does.
+  // When tools first arrive, auto-select the first one + auto-open all cats.
+  useEffect(() => {
+    if (ALL_TOOLS.length === 0) return;
+    setOpenCats((prev) => {
+      const next = { ...prev };
+      for (const k of groupedKeys) {
+        if (next[k] === undefined) next[k] = true;
+      }
+      return next;
+    });
+    setSelected((prev) => {
+      if (prev !== '' && ALL_TOOLS.some((t) => t.id === prev)) return prev;
+      return ALL_TOOLS[0]!.id;
+    });
+  }, [ALL_TOOLS, groupedKeys]);
+
+  // Sync detail tool when sidebar selection changes.
+  useEffect(() => {
+    if (selected === '') {
+      setTool(null);
+      return;
+    }
+    const t = findTool(selected);
+    if (t !== null) setTool(t);
+  }, [selected, findTool]);
+
+  // First-visit summary card.
   const [showSummary, setShowSummary] = useState<boolean>(() => {
     if (typeof localStorage === 'undefined') return true;
     try {
@@ -383,28 +387,22 @@ export function Canvas({
         localStorage.setItem('mcpgen_canvas_summary_seen', '1');
       }
     } catch {
-      /* swallow — storage quota or disabled. */
+      /* swallow */
     }
   }, []);
 
-  // Sync detail tool when sidebar selection changes.
-  useEffect(() => {
-    const t = findTool(selected);
-    if (t !== null) setTool(t);
-  }, [selected]);
-
   const acceptDiff = useCallback((): void => {
-    if (diff === null) return;
+    if (diff === null || tool === null) return;
     const { id, after, afterTk } = diff;
     setChangedSet((s) => {
       const next = new Set(s);
       next.add(id);
       return next;
     });
-    setTool((t) => ({ ...t, tk: afterTk, desc: after }));
+    setTool({ ...tool, tk: afterTk, desc: after });
     setDiff(null);
     setAutoCountdown(0);
-  }, [diff]);
+  }, [diff, tool]);
 
   const revertDiff = useCallback((): void => {
     setDiff(null);
@@ -412,12 +410,13 @@ export function Canvas({
   }, []);
 
   const triggerDiff = useCallback((): void => {
+    if (tool === null) return;
     setDiff({
       id: tool.id,
       before: tool.desc,
-      after: tool.short ?? 'charges a card. returns charge.',
+      after: tool.desc.length > 60 ? tool.desc.slice(0, 60) + '…' : tool.desc,
       beforeTk: tool.tk,
-      afterTk: 23,
+      afterTk: Math.max(1, Math.floor(tool.tk * 0.6)),
     });
     setAutoCountdown(3);
   }, [tool]);
@@ -444,26 +443,63 @@ export function Canvas({
     () =>
       ALL_TOOLS.reduce(
         (s, t) =>
-          s + (changedSet.has(t.id) && t.id === tool.id ? tool.tk : t.tk),
+          s + (changedSet.has(t.id) && tool !== null && t.id === tool.id ? tool.tk : t.tk),
         0,
       ),
-    [changedSet, tool],
+    [ALL_TOOLS, changedSet, tool],
   );
 
+  const totalRawTk = useMemo(
+    () => ALL_TOOLS.reduce((s, t) => s + t.rawTk, 0),
+    [ALL_TOOLS],
+  );
+
+  const compressionPct =
+    totalRawTk > 0 && totalTk < totalRawTk
+      ? Math.round((1 - totalTk / totalRawTk) * 100)
+      : 0;
+
   const onShareClick = useCallback((): void => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard !== undefined && typeof window !== 'undefined') {
+      void navigator.clipboard
+        .writeText(window.location.href)
+        .then(() => toast('share link copied'))
+        .catch(() => toast('share link copy failed', { kind: 'error' }));
+      return;
+    }
     toast('share link copied · expires in 24 h');
   }, []);
-
+  // Default top-bar handlers — wired only when no parent override is supplied.
+  // Gated on jobId so they collapse to a friendly stub when the canvas is on
+  // /generate without a real job context.
+  const onCmdKDefault = useCallback((): void => {
+    toast('command palette: not yet wired', { kind: 'info' });
+  }, []);
+  const onPlayDefault = useCallback((): void => {
+    if (jobId === undefined || jobId === '') {
+      toast('start a generation first', { kind: 'info' });
+      return;
+    }
+    router.push(`/generate/${encodeURIComponent(jobId)}/playground`);
+  }, [router, jobId]);
+  const onDeployDefault = useCallback((): void => {
+    if (jobId === undefined || jobId === '') {
+      toast('start a generation first', { kind: 'info' });
+      return;
+    }
+    router.push(`/generate/${encodeURIComponent(jobId)}/deploy`);
+  }, [router, jobId]);
+  const cmdKHandler = onCmdK ?? onCmdKDefault;
+  const playHandler = onPlay ?? onPlayDefault;
+  const deployHandler = onDeploy ?? onDeployDefault;
   const onChatLinkClick = useCallback((): void => {
     toast('opening diff inline…');
   }, []);
-
-  // Quick action toasts (canon parity — backend not ready yet).
   const onQAExample = useCallback((): void => {
-    toast('drafted example · +18 tk');
+    toast('drafted example');
   }, []);
   const onQACombine = useCallback((): void => {
-    toast('analyzing tool overlap… found 2 candidates');
+    toast('analyzing tool overlap…');
   }, []);
   const onQATone = useCallback((): void => {
     toast('tone updated to formal across all tools');
@@ -472,13 +508,27 @@ export function Canvas({
   const onDescBlur = useCallback(
     (e: FocusEvent<HTMLTextAreaElement>): void => {
       const next = e.target.value;
-      setTool((t) => ({ ...t, desc: next }));
+      if (tool === null) return;
+      setTool({ ...tool, desc: next });
       setEditing(false);
     },
-    [],
+    [tool],
   );
 
-  const breadcrumb = `${sample?.name ?? 'lumen-payments'}-mcp · draft`;
+  // Drop the "draft" tag once the engine has emitted a quality_report (i.e.
+  // generation is terminal-complete and the user is reviewing real output).
+  const isComplete =
+    partial !== null && partial.quality_report !== null && partial.quality_report !== undefined;
+  const breadcrumb = `${derivedServerName}-mcp${isComplete ? '' : ' · draft'}`;
+
+  // Derived loading state — shown when no jobId or no tools yet.
+  const isLoading = jobId !== undefined && ALL_TOOLS.length === 0;
+  const isEmpty = jobId === undefined && ALL_TOOLS.length === 0;
+
+  const compositeCount = useMemo(
+    () => ALL_TOOLS.filter((t) => t.composite === true).length,
+    [ALL_TOOLS],
+  );
 
   return (
     <div className="mc-screen" style={{ minHeight: '100vh' }}>
@@ -487,16 +537,16 @@ export function Canvas({
         {...(onBack !== undefined ? { onLogo: onBack } : {})}
         right={
           <>
-            <Btn kind="ghost" size="sm" icon="cmd" onClick={onCmdK}>
+            <Btn kind="ghost" size="sm" icon="cmd" onClick={cmdKHandler}>
               K
             </Btn>
-            <Btn kind="ghost" size="sm" icon="play" onClick={onPlay}>
+            <Btn kind="ghost" size="sm" icon="play" onClick={playHandler}>
               test
             </Btn>
             <Btn kind="ghost" size="sm" icon="share" onClick={onShareClick}>
               share
             </Btn>
-            <Btn kind="primary" size="sm" icon="cloud" onClick={onDeploy}>
+            <Btn kind="primary" size="sm" icon="cloud" onClick={deployHandler}>
               review &amp; deploy
             </Btn>
           </>
@@ -509,12 +559,21 @@ export function Canvas({
           <div className="row-bw" style={{ marginBottom: 14 }}>
             <span className="mc-caption-up">tools · {ALL_TOOLS.length}</span>
             <span className="mc-mono muted" style={{ fontSize: 11 }}>
-              {totalTk} tk
+              {totalTk > 0 ? `${totalTk} tk` : '—'}
             </span>
           </div>
 
           <div className="mc-tools-list">
-            {Object.entries(TOOL_DATA).map(([key, cat]) => (
+            {isLoading ? (
+              <div className="mc-mono muted" style={{ fontSize: 12, padding: 8 }}>
+                loading tools…
+              </div>
+            ) : isEmpty ? (
+              <div className="mc-mono muted" style={{ fontSize: 12, padding: 8 }}>
+                paste a spec url to begin
+              </div>
+            ) : null}
+            {Object.entries(grouped).map(([key, cat]) => (
               <div key={key}>
                 <div
                   className="mc-tool-cat"
@@ -523,9 +582,6 @@ export function Canvas({
                   }
                 >
                   <Icon name={openCats[key] ? 'caret-d' : 'caret-r'} size={10} />
-                  {cat.icon !== undefined ? (
-                    <Icon name={cat.icon} size={11} />
-                  ) : null}
                   <span>{cat.label}</span>
                   <span style={{ marginLeft: 'auto', fontSize: 10.5, opacity: 0.6 }}>
                     {cat.tools.length}
@@ -535,9 +591,9 @@ export function Canvas({
                   ? cat.tools.filter(matchFilter).map((t) => {
                       const isSel = selected === t.id;
                       const liveTk =
-                        isSel && t.id === tool.id ? tool.tk : t.tk;
+                        isSel && tool !== null && t.id === tool.id ? tool.tk : t.tk;
                       const pct =
-                        t.rawTk > 0
+                        t.rawTk > 0 && liveTk > 0
                           ? Math.round((1 - liveTk / t.rawTk) * 100)
                           : 0;
                       return (
@@ -557,16 +613,18 @@ export function Canvas({
                             className="tk"
                             title={`${t.rawTk} raw → ${liveTk} (↓${pct}%)`}
                           >
-                            <span
-                              style={{
-                                opacity: 0.55,
-                                textDecoration: 'line-through',
-                                marginRight: 3,
-                              }}
-                            >
-                              {t.rawTk}
-                            </span>
-                            {liveTk}
+                            {t.rawTk > 0 ? (
+                              <span
+                                style={{
+                                  opacity: 0.55,
+                                  textDecoration: 'line-through',
+                                  marginRight: 3,
+                                }}
+                              >
+                                {t.rawTk}
+                              </span>
+                            ) : null}
+                            {liveTk > 0 ? liveTk : '—'}
                           </span>
                         </div>
                       );
@@ -603,136 +661,146 @@ export function Canvas({
           {showSummary ? (
             <SummaryCard
               toolCount={ALL_TOOLS.length}
-              categoryCount={Object.keys(TOOL_DATA).length}
-              compositeCount={Object.values(TOOL_DATA).reduce(
-                (s, c) => s + c.tools.filter((t) => t.composite === true).length,
-                0,
-              )}
+              categoryCount={Object.keys(grouped).length}
+              compositeCount={compositeCount}
               totalTk={totalTk}
+              endpointCount={endpointCount}
+              compressionPct={compressionPct}
               onDismiss={dismissSummary}
             />
           ) : null}
 
-          <div style={{ marginBottom: 8 }}>
-            <div className="row" style={{ gap: 10, marginBottom: 8 }}>
-              {tool.composite === true ? (
-                <Badge kind="primary" mono={false}>
-                  <Icon name="bolt" size={10} /> composite
-                </Badge>
-              ) : null}
-              {changedSet.has(tool.id) ? (
-                <Badge kind="accent">edited</Badge>
-              ) : null}
-              <span className="mc-caption">tools / {tool.id}</span>
+          {tool === null ? (
+            <div className="mc-mono muted" style={{ padding: 24 }}>
+              {isLoading ? 'waiting for the engine to finish pass 5…' : 'no tool selected'}
             </div>
-            <div
-              className="mc-h1 mc-mono"
-              style={{
-                fontStyle: 'normal',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 28,
-              }}
-            >
-              {tool.name}
-            </div>
-          </div>
-
-          <div className="mc-rule" style={{ margin: '20px 0' }} />
-
-          {/* Description */}
-          <div style={{ marginBottom: 24 }}>
-            <SectionLabel
-              right={<TokenSaveBadge raw={tool.rawTk} tk={tool.tk} size="md" />}
-            >
-              description
-            </SectionLabel>
-            {!editing && diff === null ? (
-              <div
-                onClick={() => setEditing(true)}
-                style={{
-                  fontSize: 15,
-                  lineHeight: 1.6,
-                  cursor: 'text',
-                  padding: 8,
-                  marginLeft: -8,
-                  borderRadius: 'var(--radius)',
-                }}
-                title="click to edit"
-              >
-                &quot;{tool.desc}&quot;
-              </div>
-            ) : null}
-            {editing ? (
-              <textarea
-                autoFocus
-                defaultValue={tool.desc}
-                onBlur={onDescBlur}
-                style={DESC_TEXTAREA_STYLE}
-              />
-            ) : null}
-            {diff !== null ? (
-              <DiffPanel
-                diff={diff}
-                autoCountdown={autoCountdown}
-                onAccept={acceptDiff}
-                onRevert={revertDiff}
-              />
-            ) : null}
-          </div>
-
-          {/* Params */}
-          <div style={{ marginBottom: 24 }}>
-            <SectionLabel>parameters</SectionLabel>
-            <div className="mc-mono" style={{ fontSize: 13 }}>
-              {tool.params.length === 0 ? (
-                <div className="muted">none</div>
-              ) : null}
-              {tool.params.map((p) => (
+          ) : (
+            <>
+              <div style={{ marginBottom: 8 }}>
+                <div className="row" style={{ gap: 10, marginBottom: 8 }}>
+                  {tool.composite === true ? (
+                    <Badge kind="primary" mono={false}>
+                      <Icon name="bolt" size={10} /> composite
+                    </Badge>
+                  ) : null}
+                  {changedSet.has(tool.id) ? (
+                    <Badge kind="accent">edited</Badge>
+                  ) : null}
+                  <span className="mc-caption">tools / {tool.id}</span>
+                </div>
                 <div
-                  key={p.name}
-                  className="row"
+                  className="mc-h1 mc-mono"
                   style={{
-                    padding: '6px 0',
-                    borderBottom: '1px dashed var(--border)',
-                    gap: 12,
+                    fontStyle: 'normal',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 28,
                   }}
                 >
-                  <span style={{ minWidth: 140 }}>{p.name}</span>
-                  <span className="muted" style={{ minWidth: 80 }}>
-                    {p.type}
-                  </span>
-                  <span className={p.req ? '' : 'faint'}>
-                    {p.req ? 'required' : 'optional'}
-                  </span>
+                  {tool.name}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          {/* Source */}
-          <div style={{ marginBottom: 24 }}>
-            <SectionLabel>source</SectionLabel>
-            <div className="mc-code" style={{ background: 'var(--paper-alt)' }}>
-              <span className="muted"># mapped from openapi spec</span>
-              {'\n'}
-              <span style={{ color: 'var(--accent)' }}>
-                {tool.source.split(' ')[0]}
-              </span>{' '}
-              {tool.source.split(' ').slice(1).join(' ')}
-            </div>
-          </div>
+              <div className="mc-rule" style={{ margin: '20px 0' }} />
 
-          <div className="row" style={{ gap: 8 }}>
-            <Btn kind="ghost" size="sm" icon="spark" onClick={triggerDiff}>
-              auto-shorten
-            </Btn>
-            <Btn kind="ghost" size="sm" onClick={() => setEditing(true)}>
-              edit description
-            </Btn>
-            <Btn kind="ink" size="sm" icon="play" onClick={onPlay}>
-              test in playground
-            </Btn>
-          </div>
+              <div style={{ marginBottom: 24 }}>
+                <SectionLabel
+                  right={<TokenSaveBadge raw={tool.rawTk} tk={tool.tk} size="md" />}
+                >
+                  description
+                </SectionLabel>
+                {!editing && diff === null ? (
+                  <div
+                    onClick={() => setEditing(true)}
+                    style={{
+                      fontSize: 15,
+                      lineHeight: 1.6,
+                      cursor: 'text',
+                      padding: 8,
+                      marginLeft: -8,
+                      borderRadius: 'var(--radius)',
+                    }}
+                    title="click to edit"
+                  >
+                    &quot;{tool.desc}&quot;
+                  </div>
+                ) : null}
+                {editing ? (
+                  <textarea
+                    autoFocus
+                    defaultValue={tool.desc}
+                    onBlur={onDescBlur}
+                    style={DESC_TEXTAREA_STYLE}
+                  />
+                ) : null}
+                {diff !== null ? (
+                  <DiffPanel
+                    diff={diff}
+                    autoCountdown={autoCountdown}
+                    onAccept={acceptDiff}
+                    onRevert={revertDiff}
+                  />
+                ) : null}
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <SectionLabel>parameters</SectionLabel>
+                <div className="mc-mono" style={{ fontSize: 13 }}>
+                  {tool.params.length === 0 ? (
+                    <div className="muted">none</div>
+                  ) : null}
+                  {tool.params.map((p) => (
+                    <div
+                      key={p.name}
+                      className="row"
+                      style={{
+                        padding: '6px 0',
+                        borderBottom: '1px dashed var(--border)',
+                        gap: 12,
+                      }}
+                    >
+                      <span style={{ minWidth: 140 }}>{p.name}</span>
+                      <span className="muted" style={{ minWidth: 80 }}>
+                        {p.type}
+                      </span>
+                      <span className={p.req ? '' : 'faint'}>
+                        {p.req ? 'required' : 'optional'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <SectionLabel>source</SectionLabel>
+                <div className="mc-code" style={{ background: 'var(--paper-alt)' }}>
+                  <span className="muted"># mapped from openapi spec</span>
+                  {'\n'}
+                  {tool.source !== '' ? (
+                    <>
+                      <span style={{ color: 'var(--accent)' }}>
+                        {tool.source.split(' ')[0]}
+                      </span>{' '}
+                      {tool.source.split(' ').slice(1).join(' ')}
+                    </>
+                  ) : (
+                    <span className="muted">(source endpoints not yet available)</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="row" style={{ gap: 8 }}>
+                <Btn kind="ghost" size="sm" icon="spark" onClick={triggerDiff}>
+                  auto-shorten
+                </Btn>
+                <Btn kind="ghost" size="sm" onClick={() => setEditing(true)}>
+                  edit description
+                </Btn>
+                <Btn kind="ink" size="sm" icon="play" onClick={playHandler}>
+                  test in playground
+                </Btn>
+              </div>
+            </>
+          )}
         </main>
 
         {/* Right: chat */}
@@ -751,32 +819,10 @@ export function Canvas({
               </button>
             </div>
 
-            <div className="mc-bubble user">
-              <small>you · 10:42</small>
-              make all descriptions in &apos;transactions&apos; 30% shorter
-            </div>
             <div className="mc-bubble">
-              <small>mcpgen · 10:42</small>
-              rewrote 5 descriptions. saved 124 tokens total.
-              <br />
-              <span className="muted" style={{ fontSize: 12 }}>
-                review changes — orange dots in the list.
-              </span>
-            </div>
-            <div className="mc-bubble user">
-              <small>you · 10:43</small>
-              add example usage to create_charge
-            </div>
-            <div className="mc-bubble">
-              <small>mcpgen · 10:43</small>
-              done. cost: +18 tk.{' '}
-              <a
-                className="mc-link"
-                style={{ cursor: 'pointer' }}
-                onClick={onChatLinkClick}
-              >
-                show diff →
-              </a>
+              <small>mcpgen · ready</small>
+              ask anything about the tools on the left, or use the quick
+              actions below to refine.
             </div>
 
             <div style={{ marginTop: 18 }}>
@@ -807,6 +853,9 @@ export function Canvas({
               <Btn kind="ghost" size="sm" full onClick={onQATone}>
                 set tone: formal
               </Btn>
+              <Btn kind="ghost" size="sm" full onClick={onChatLinkClick}>
+                show diff
+              </Btn>
             </div>
           </aside>
         ) : (
@@ -834,9 +883,13 @@ export function Canvas({
       {/* status bar */}
       <div className="mc-statusbar">
         <span>{ALL_TOOLS.length} tools</span>
-        <span>{totalTk.toLocaleString()} tokens</span>
-        <span style={{ color: 'var(--success)' }}>↓76%</span>
-        <span style={{ marginLeft: 'auto' }}>last edit 10s ago</span>
+        <span>{totalTk > 0 ? `${totalTk.toLocaleString()} tokens` : '— tokens'}</span>
+        {compressionPct > 0 ? (
+          <span style={{ color: 'var(--success)' }}>↓{compressionPct}%</span>
+        ) : null}
+        <span style={{ marginLeft: 'auto' }}>
+          {jobId !== undefined ? `job ${jobId.slice(0, 16)}…` : 'no job'}
+        </span>
         <span>
           <Icon name="cmd" size={10} /> K
         </span>
@@ -845,13 +898,15 @@ export function Canvas({
   );
 }
 
-// ─── SummaryCard subcomponent (canon first-visit "here's what we made") ──────
+// ─── SummaryCard subcomponent ────────────────────────────────────────────────
 
 interface SummaryCardProps {
   readonly toolCount: number;
   readonly categoryCount: number;
   readonly compositeCount: number;
   readonly totalTk: number;
+  readonly endpointCount: number | null;
+  readonly compressionPct: number;
   readonly onDismiss: () => void;
 }
 
@@ -860,6 +915,8 @@ function SummaryCard({
   categoryCount,
   compositeCount,
   totalTk,
+  endpointCount,
+  compressionPct,
   onDismiss,
 }: SummaryCardProps): JSX.Element {
   return (
@@ -908,7 +965,9 @@ function SummaryCard({
           lineHeight: 1.15,
         }}
       >
-        {toolCount} tools · {categoryCount} categories · {totalTk} tk total
+        {toolCount > 0
+          ? `${toolCount} tools · ${categoryCount} categories · ${totalTk > 0 ? `${totalTk} tk total` : 'tokens pending'}`
+          : 'analyzing your spec…'}
       </div>
 
       <div
@@ -919,7 +978,14 @@ function SummaryCard({
           marginBottom: 14,
         }}
       >
-        <SummaryStat value={`${toolCount}`} caption="tools (from 348 endpoints)" />
+        <SummaryStat
+          value={`${toolCount}`}
+          caption={
+            endpointCount !== null
+              ? `tools (from ${endpointCount} endpoints)`
+              : 'tools'
+          }
+        />
         <SummaryStat
           value={
             <>
@@ -929,7 +995,11 @@ function SummaryCard({
           }
           caption="composite (multi-step)"
         />
-        <SummaryStat value="↓76%" caption="fewer tokens vs naive" highlight />
+        <SummaryStat
+          value={compressionPct > 0 ? `↓${compressionPct}%` : '—'}
+          caption="fewer tokens vs naive"
+          highlight
+        />
       </div>
 
       <div
@@ -1006,7 +1076,7 @@ function SummaryStat({
   );
 }
 
-// ─── DiffPanel subcomponent (canon shorten diff) ─────────────────────────────
+// ─── DiffPanel subcomponent ──────────────────────────────────────────────────
 
 interface DiffPanelProps {
   readonly diff: DiffState;
@@ -1021,7 +1091,7 @@ function DiffPanel({
   onAccept,
   onRevert,
 }: DiffPanelProps): JSX.Element {
-  const pct = Math.round((1 - diff.afterTk / diff.beforeTk) * 100);
+  const pct = diff.beforeTk > 0 ? Math.round((1 - diff.afterTk / diff.beforeTk) * 100) : 0;
   return (
     <div
       style={{

@@ -180,7 +180,13 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
   }
 
   const artifacts = (await artifactsRes.value.json()) as {
-    raw_ir?: { endpoints?: unknown[] };
+    raw_ir?: { endpoints?: unknown[]; spec_format?: string };
+    pass_0_output?: {
+      composite_candidates?: unknown[];
+      dropped_endpoints?: unknown[];
+      auth_requirements?: Record<string, Array<{ scheme?: string; recommended_mode?: string }>>;
+      target_complexity?: string;
+    };
     pass_1_output?: { spec_slug?: string; routing?: { smart_id?: { format?: string } } };
     pass_5_output?: { tools?: unknown[] };
   };
@@ -203,6 +209,43 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
       ? smartIdFormat.split(':')[0] ?? null
       : (artifacts.pass_1_output?.spec_slug ?? null);
 
+  // Stage A spec_format ("openapi-3.0" | "openapi-3.1" | "graphql" | "postman").
+  const specFormat =
+    typeof artifacts.raw_ir?.spec_format === 'string' ? artifacts.raw_ir.spec_format : null;
+
+  // Pass 0 — collapse per-endpoint auth_requirements (D-21 list) into a
+  // de-duped, ordered set of distinct schemes the user needs to wire up.
+  // Empty array when pass_0_output is absent (engine still streaming).
+  const authReqs = artifacts.pass_0_output?.auth_requirements;
+  const authSchemesSet = new Set<string>();
+  if (authReqs !== undefined && authReqs !== null && typeof authReqs === 'object') {
+    for (const reqList of Object.values(authReqs)) {
+      if (!Array.isArray(reqList)) continue;
+      for (const req of reqList) {
+        if (req !== null && typeof req === 'object' && typeof req.scheme === 'string' && req.scheme !== 'none') {
+          authSchemesSet.add(req.scheme);
+        }
+      }
+    }
+  }
+  const authModes: ReadonlyArray<string> = Array.from(authSchemesSet);
+
+  // Pass 0 composite candidates (Pass 0 hints toward Pass 1 workflow tools).
+  const compositeCandidates = Array.isArray(artifacts.pass_0_output?.composite_candidates)
+    ? artifacts.pass_0_output!.composite_candidates
+    : [];
+
+  // Pass 0 dropped endpoints — endpoints filtered out (deprecated, internal,
+  // health checks, etc).
+  const droppedEndpoints = Array.isArray(artifacts.pass_0_output?.dropped_endpoints)
+    ? artifacts.pass_0_output!.dropped_endpoints
+    : [];
+
+  const targetComplexity =
+    typeof artifacts.pass_0_output?.target_complexity === 'string'
+      ? artifacts.pass_0_output.target_complexity
+      : null;
+
   return c.json(
     {
       status: qualityReport !== null ? 'completed' : 'streaming',
@@ -213,6 +256,11 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
         quality_report: qualityReport,
         endpoint_count: endpointCount,
         spec_name: specName,
+        spec_format: specFormat,
+        auth_modes: authModes,
+        composite_candidates: compositeCandidates,
+        dropped_endpoints: droppedEndpoints,
+        target_complexity: targetComplexity,
       },
     },
     200,

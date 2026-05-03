@@ -31,7 +31,9 @@ vi.mock('@/lib/api/playground', () => ({
 
 // Stub the artefact hook — vary `data` per test via `mockReturnValue`.
 const useJobArtifactSpy = vi.fn();
+const useJobSpy = vi.fn(() => ({ data: undefined }));
 vi.mock('@/lib/api/jobs', () => ({
+  useJob: (...args: unknown[]) => useJobSpy(...(args as [])),
   useJobArtifact: (...args: unknown[]) => useJobArtifactSpy(...args),
 }));
 

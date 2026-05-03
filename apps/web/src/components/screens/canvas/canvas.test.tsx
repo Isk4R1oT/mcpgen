@@ -6,8 +6,18 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 
-import { Canvas } from './canvas';
+import { Canvas, type CanvasProps } from './canvas';
+
+function renderCanvas(props: CanvasProps = {}): ReturnType<typeof render> {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const wrapper = (children: ReactElement): ReactElement => (
+    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+  );
+  return render(wrapper(<Canvas {...props} />));
+}
 
 // jsdom in this repo doesn't ship a working `localStorage` (it's a no-op stub),
 // so install a Map-backed Storage shim per test (matching the pattern already
@@ -83,16 +93,18 @@ afterEach(() => {
 });
 
 describe('<Canvas>', () => {
-  it('renders the canon TopBar with breadcrumb + tools list', () => {
-    const { getByText, getAllByText } = render(<Canvas />);
+  it('renders the canon TopBar with breadcrumb + empty tools list', () => {
+    const { getByText, getAllByText } = renderCanvas();
     // Breadcrumb tail uses the default sample name.
-    expect(getByText(/lumen-payments-mcp · draft/i)).toBeTruthy();
-    // Tools count caption (canon: `tools · 11`).
-    expect(getAllByText(/tools · 11/i).length).toBeGreaterThan(0);
+    // No spec URL + no real job → derived name falls back to generic slug.
+    expect(getByText(/mcp-server-mcp · draft/i)).toBeTruthy();
+    // No jobId / no real data → tools count is 0; canvas no longer ships
+    // canon's TOOL_DATA literal.
+    expect(getAllByText(/tools · 0/i).length).toBeGreaterThan(0);
   });
 
   it('persists summary dismissal in localStorage', () => {
-    const { getByLabelText, queryByText } = render(<Canvas />);
+    const { getByLabelText, queryByText } = renderCanvas();
     // First-visit summary card is visible.
     expect(queryByText(/here's what we made/i)).not.toBeNull();
     fireEvent.click(getByLabelText('dismiss'));
@@ -103,7 +115,7 @@ describe('<Canvas>', () => {
 
   it('skips summary card when localStorage flag is set', () => {
     window.localStorage.setItem('mcpgen_canvas_summary_seen', '1');
-    const { queryByText } = render(<Canvas />);
+    const { queryByText } = renderCanvas();
     expect(queryByText(/here's what we made/i)).toBeNull();
   });
 
@@ -116,7 +128,7 @@ describe('<Canvas>', () => {
       },
     });
 
-    render(<Canvas specUrl="https://example.com/openapi.json" />);
+    renderCanvas({ specUrl: 'https://example.com/openapi.json' });
 
     await waitFor(() => {
       expect(submitGeneration).toHaveBeenCalledTimes(1);
@@ -136,7 +148,7 @@ describe('<Canvas>', () => {
       raw: null,
     });
 
-    render(<Canvas specUrl="https://example.com/openapi.json" />);
+    renderCanvas({ specUrl: 'https://example.com/openapi.json' });
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith('engine is busy, please retry', {
@@ -147,7 +159,7 @@ describe('<Canvas>', () => {
   });
 
   it('toasts on invalid specUrl without calling submitGeneration', async () => {
-    render(<Canvas specUrl="not-a-url" />);
+    renderCanvas({ specUrl: 'not-a-url' });
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalled();

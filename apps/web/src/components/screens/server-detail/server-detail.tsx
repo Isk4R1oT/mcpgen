@@ -74,24 +74,10 @@ const CANON_TOOLS: ReadonlyArray<ToolEntry> = [
   { name: 'order_lifecycle', desc: 'composed: list → refund → notify in one call', tk: 62, comp: true },
 ];
 
-// Canon stub fallback — used when the BFF stub returns no detail. Mirrors
-// the canon `s.author/s.name` etc. so the layout still renders cleanly.
-const CANON_STUB: MarketplaceServerDetail = {
-  id: 'stripe-official',
-  name: 'stripe-mcp',
-  author: 'stripe',
-  verified: true,
-  tools: 64,
-  stars: 4280,
-  installs: 42100,
-  weekly: 8200,
-  desc:
-    'official mcp server for stripe payments. charges, customers, subscriptions, and disputes.',
-  tags: ['payments', 'official', 'stripe'],
-  updated: '2 days ago',
-  license: 'mit',
-  forks: 38,
-};
+// Empty-state stub — used when the BFF stub returns no detail. We do NOT
+// fall back to canon literal server names here; the disabled-stub render
+// path takes over the whole page surface and shows a "Coming soon —
+// marketplace not yet wired" overlay.
 
 type TabId = 'readme' | 'tools' | 'changelog' | 'issues' | 'security';
 
@@ -125,22 +111,100 @@ export default function ServerDetail({
   const router = useRouter();
   const queryResult = useMarketplaceServer(serverId);
 
-  // Disabled-stub-aware: when the result is the typed `flag_off_or_not_implemented`
-  // marker, fall back to the canon structural shape so the design still
-  // renders. The canon stub uses `serverId` as a synthetic id so URLs stay
-  // self-consistent.
+  // Disabled-stub-aware: when the BFF returns the typed
+  // `flag_off_or_not_implemented` marker, render a minimal "Coming soon —
+  // marketplace not yet wired" overlay instead of fabricating a fake server
+  // record. We deliberately do NOT fall back to a canon literal server name
+  // here — the empty state must never claim to be a real server.
   const result = queryResult.data;
   const stubMode = result === undefined || result.ok !== true;
-  const s: MarketplaceServerDetail = stubMode
-    ? { ...CANON_STUB, id: serverId }
-    : { ...CANON_STUB, id: serverId };
-  // NB: when the real endpoint lands the schema parse will succeed and we
-  // map `result.data` → `MarketplaceServerDetail` in place of CANON_STUB.
 
   const [tab, setTab] = useState<TabId>('readme');
 
   const onMarketplace = (): void => router.push('/marketplace');
   const onDashboard = (): void => router.push('/dashboard');
+
+  // Stub-mode early return — render only the canon "coming soon" overlay
+  // (no fake server name surfaces).
+  if (stubMode) {
+    return (
+      <div className="mc-screen mc-grain" style={{ minHeight: '100vh' }}>
+        <TopBar
+          crumb="marketplace / coming soon"
+          onLogo={onMarketplace}
+          right={
+            <>
+              <button
+                type="button"
+                className="mc-btn mc-btn-ghost mc-btn-sm"
+                onClick={onMarketplace}
+              >
+                ← back
+              </button>
+              <button
+                type="button"
+                className="mc-btn mc-btn-ghost mc-btn-sm"
+                onClick={onDashboard}
+              >
+                my servers
+              </button>
+            </>
+          }
+        />
+        <main
+          style={{
+            maxWidth: 1180,
+            margin: '0 auto',
+            padding: '32px 28px 64px',
+            position: 'relative',
+            zIndex: 2,
+          }}
+        >
+          <div
+            className="mc-card"
+            style={{
+              padding: 24,
+              background: 'var(--paper-alt)',
+              borderStyle: 'dashed',
+            }}
+            data-testid="marketplace-server-stub"
+          >
+            <div className="mc-h2" style={{ marginBottom: 8 }}>
+              coming soon
+            </div>
+            <div className="mc-mono muted" style={{ fontSize: 13 }}>
+              marketplace detail is not yet wired — server{' '}
+              <span className="mc-mono">{serverId}</span> will appear here once
+              the backend lands.
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // BFF schema (`MarketplaceServer`) is narrower than the canon detail shape
+  // — map what's present and surface ambiguous numeric stats as 0 until the
+  // BFF response evolves. This branch is currently unreachable (the
+  // `useMarketplaceServer` client returns `flag_off_or_not_implemented` until
+  // the endpoint is wired), but the mapping below freezes the contract.
+  const data = result.ok ? result.data : null;
+  const s: MarketplaceServerDetail = {
+    id: data?.id ?? serverId,
+    name: data?.name ?? serverId,
+    author: typeof data?.category === 'string' ? data.category : '',
+    verified: data?.quality_badge === 'premium' || data?.quality_badge === 'verified',
+    tools: 0,
+    stars: 0,
+    installs: typeof data?.install_count === 'number' ? data.install_count : 0,
+    weekly: 0,
+    desc: data?.description ?? '',
+    tags: data?.tags ?? [],
+    updated: '',
+    license: '',
+    forks: 0,
+  };
+
   const onInstall = (): void => {
     if (!installEnabled) {
       toast('Coming soon — install requires backend wiring');
@@ -187,26 +251,6 @@ export default function ServerDetail({
           zIndex: 2,
         }}
       >
-        {/* "coming soon" disabled-stub banner — surfaces the BFF disabled
-            state without stripping any UI surface. */}
-        {stubMode ? (
-          <div
-            className="mc-card"
-            style={{
-              marginBottom: 24,
-              padding: 14,
-              background: 'var(--paper-alt)',
-              borderStyle: 'dashed',
-            }}
-            data-testid="marketplace-server-stub"
-          >
-            <div className="mc-mono muted" style={{ fontSize: 12 }}>
-              marketplace detail · coming soon — preview is rendered with
-              canon defaults until the backend lands.
-            </div>
-          </div>
-        ) : null}
-
         {/* Header */}
         <div
           className="row-bw"

@@ -3,16 +3,14 @@
 // Phase 2 / Agent B4 — ServerDetail unit smoke.
 //
 // Verifies:
-//   1. Page header renders the canon mc-display-l server name.
-//   2. With the BFF stub disabled, the "coming soon" banner renders
-//      (data-testid='marketplace-server-stub').
-//   3. Tabs render (readme / tools / changelog / issues / security) and
-//      switching to "tools" reveals the tool list rows.
-//   4. Install button (default `installEnabled=false`) toasts "Coming
-//      soon" instead of attempting the (missing) backend install call.
+//   1. With the BFF stub disabled, the "coming soon" overlay renders as the
+//      sole content (no fake server name surfaces).
+//   2. The disabled-stub banner has data-testid='marketplace-server-stub'.
+//   3. The serverId is shown verbatim in the empty-state copy so the user
+//      knows which detail page is dark.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { cleanup, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import ServerDetail from './server-detail';
@@ -51,55 +49,26 @@ function renderDetail(props: {
 }
 
 describe('<ServerDetail>', () => {
-  it('renders the server name in the canon mc-display-l header', () => {
-    const { container } = renderDetail();
-    const name = container.querySelector('.mc-display-l');
-    expect(name).not.toBeNull();
-    // Canon stub fallback name (until BFF lands).
-    expect(name?.textContent).toContain('stripe-mcp');
-  });
-
-  it('shows the disabled-stub banner when BFF returns flag_off_or_not_implemented', () => {
+  it('shows the disabled-stub overlay when BFF returns flag_off_or_not_implemented', () => {
     const { getByTestId } = renderDetail();
     const stub = getByTestId('marketplace-server-stub');
     expect(stub.textContent?.toLowerCase()).toContain('coming soon');
   });
 
-  it('renders all 5 tabs (readme / tools / changelog / issues / security)', () => {
+  it('does NOT surface a fake server name in stub mode', () => {
     const { container } = renderDetail();
-    const tabs = container.querySelectorAll('.mc-tabs .mc-tab');
-    expect(tabs.length).toBe(5);
-    const labels = Array.from(tabs).map((t) => (t.textContent ?? '').toLowerCase());
-    expect(labels.some((l) => l.includes('readme'))).toBe(true);
-    expect(labels.some((l) => l.includes('tools'))).toBe(true);
-    expect(labels.some((l) => l.includes('changelog'))).toBe(true);
-    expect(labels.some((l) => l.includes('issues'))).toBe(true);
-    expect(labels.some((l) => l.includes('security'))).toBe(true);
+    // The previous canon literal fallback ("stripe-mcp") must never appear
+    // when the BFF is dark — empty state owns the whole surface.
+    expect(container.textContent ?? '').not.toContain('stripe-mcp');
   });
 
-  it('clicking the "tools" tab reveals the canon tool list rows', () => {
-    const { container, getAllByRole } = renderDetail();
-    const toolsTab = getAllByRole('button').find(
-      (b) => (b.textContent ?? '').toLowerCase().includes('tools'),
-    );
-    expect(toolsTab).toBeDefined();
-    fireEvent.click(toolsTab!);
-    // Tool rows render `create_charge` (canon stub).
-    const html = container.innerHTML;
-    expect(html).toContain('create_charge');
-    expect(html).toContain('refund_charge');
+  it('echoes the serverId in the empty-state copy', () => {
+    const { container } = renderDetail({ serverId: 'some-server-id' });
+    expect(container.textContent ?? '').toContain('some-server-id');
   });
 
-  it('install button toasts "Coming soon" when installEnabled=false', () => {
-    const { getAllByRole } = renderDetail({ installEnabled: false });
-    const installBtns = getAllByRole('button').filter(
-      (b) => (b.textContent ?? '').toLowerCase().trim() === 'install',
-    );
-    // Header right-side install + main action install — at least one match.
-    expect(installBtns.length).toBeGreaterThan(0);
-    fireEvent.click(installBtns[0]!);
-    expect(toastSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Coming soon'),
-    );
+  it('renders the "marketplace / coming soon" breadcrumb in stub mode', () => {
+    const { container } = renderDetail();
+    expect(container.textContent ?? '').toContain('marketplace / coming soon');
   });
 });

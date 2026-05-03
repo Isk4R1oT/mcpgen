@@ -1,22 +1,22 @@
 // apps/web/src/components/screens/preview/preview.tsx
 //
-// Phase 1 — Agent A4 — Preview screen.
+// Preview screen — review pane shown to the user after the engine has chewed
+// the spec. Visual layout is canon-locked
+// (`claude-design-reference/canon/screen-preview.jsx`). All numerical /
+// textual content is sourced from the running BFF job — there are NO canon
+// demo literals (no "lumen-payments", no "transactions(24)", no
+// "orders.create" merge banner, no "4 750 tk" etc).
 //
-// Source of truth: claude-design-reference/canon/screen-preview.jsx (function
-// `Preview`). 100% pixel parity with that JSX, but rebuilt against the
-// production primitive kit (`@/components/ui/*`) and wired to real BFF
-// artifacts via `useJobArtifact(jobId, 'final-tools')`.
+// Data sources (all via TanStack Query):
+//   * `useJob(jobId)` → BFF /api/v1/jobs/:id JSON snapshot. Surfaces
+//     `partial_result.{spec_name, spec_format, endpoint_count, auth_modes,
+//     composite_candidates, dropped_endpoints, target_complexity,
+//     quality_report}`.
+//   * `useJobArtifact(jobId, 'final-tools')` → optional per-tool list once
+//     Pass 5 has emitted final tools.
 //
-// Behaviour wiring (per Phase-1 brief A4):
-//   - onMakeIt → router.push(`/generate?spec_url=${encodeURIComponent(originalSpecUrl)}`)
-//                (= "go back to refine spec" CTA per catalog § preview)
-//   - onBack   → router.push(`/generate/${jobId}`)
-//                (back to stream/canvas)
-//
-// When `useJobArtifact(jobId, 'final-tools')` is pending or returns null the
-// canon's "loading" state is rendered — totalEndpoints/tools collapse to 0
-// and category/excluded sections render empty rows. Per Phase-1 brief: do
-// NOT crash on null.
+// Loading semantics: while the engine is mid-pipeline, panels render '—'
+// or hidden state instead of fake numbers.
 
 'use client';
 
@@ -39,8 +39,9 @@ import {
   SectionLabel,
   TopBar,
 } from '@/components/ui';
-import { useJobArtifact } from '@/lib/api/jobs';
+import { useJob, useJobArtifact } from '@/lib/api/jobs';
 import { toast } from '@/lib/toast';
+import { deriveServerNameFromSpecUrl } from '@/components/screens/canvas/canvas';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Inlined canon primitives — BlockBar / CountUp.
@@ -101,7 +102,7 @@ function CountUp({ value, duration = 600 }: CountUpProps): ReactElement {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Display-helpers — derive UI shapes from real `FinalTool[]`.
+// Helpers — derive UI shapes from real BFF data.
 // ────────────────────────────────────────────────────────────────────────────
 
 interface PreviewCategory {
@@ -119,16 +120,18 @@ interface ExcludedEndpoint {
   readonly override: boolean;
 }
 
-const CATEGORY_FALLBACK: ReadonlyArray<PreviewCategory> = [
-  { id: 'charges', label: 'transactions', count: 24, on: true, rare: false },
-  { id: 'customers', label: 'accounts', count: 18, on: true, rare: false },
-  { id: 'subs', label: 'plans', count: 15, on: true, rare: false },
-  { id: 'reports', label: 'reports', count: 8, on: false, rare: true },
-  { id: 'issuing', label: 'card-issuing', count: 32, on: false, rare: true },
-];
+interface CompositeCandidate {
+  readonly name: string;
+  readonly steps: ReadonlyArray<string>;
+  readonly rationale: string;
+}
 
+// Map Pass 5 FinalTool[] (typed) into category buckets keyed by the engine's
+// `type` field (universal | action | workflow | specialized). When tools have
+// not yet landed (Pass 5 still running), returns []. NEVER returns the
+// canon's hardcoded `transactions(24)` / `accounts(18)` / etc.
 function deriveCategories(tools: ReadonlyArray<FinalTool> | null): ReadonlyArray<PreviewCategory> {
-  if (tools === null || tools.length === 0) return CATEGORY_FALLBACK;
+  if (tools === null || tools.length === 0) return [];
   let universal = 0;
   let action = 0;
   let workflow = 0;
@@ -161,6 +164,89 @@ function deriveCategories(tools: ReadonlyArray<FinalTool> | null): ReadonlyArray
   return out;
 }
 
+// Format the spec_format enum value for display in the 'detected' panel.
+// "openapi-3.0" → "OpenAPI 3.0"; falls back to "—" while pending.
+function formatSpecFormat(specFormat: string | null | undefined): string {
+  if (specFormat === null || specFormat === undefined || specFormat === '') return '—';
+  if (specFormat.startsWith('openapi-')) {
+    return `OpenAPI ${specFormat.slice('openapi-'.length)}`;
+  }
+  if (specFormat === 'graphql') return 'GraphQL';
+  if (specFormat === 'postman') return 'Postman Collection';
+  return specFormat;
+}
+
+// Map raw IR auth_modes scheme strings into a single human-readable label
+// for the 'auth' field. Returns "—" while pending (empty list).
+function formatAuthModes(authModes: ReadonlyArray<string> | undefined): string {
+  if (authModes === undefined || authModes.length === 0) return '—';
+  const friendly = authModes.map((s) => {
+    if (s === 'apiKey') return 'api key';
+    if (s === 'oauth2') return 'oauth';
+    if (s === 'http_basic') return 'basic';
+    if (s === 'http_bearer') return 'bearer';
+    if (s === 'aws_signature') return 'aws sig';
+    return s;
+  });
+  return friendly.join(' + ');
+}
+
+// Adapt an unknown CompositeCandidate from BFF into a typed shape, or null
+// when the input doesn't conform.
+function adaptCompositeCandidate(raw: unknown): CompositeCandidate | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const name = typeof r['name'] === 'string' ? r['name'] : null;
+  if (name === null || name === '') return null;
+  const steps = Array.isArray(r['steps'])
+    ? (r['steps'] as unknown[]).filter((s): s is string => typeof s === 'string')
+    : [];
+  if (steps.length === 0) return null;
+  const rationale = typeof r['rationale'] === 'string' ? r['rationale'] : '';
+  return { name, steps, rationale };
+}
+
+// Adapt a Pass 0 DroppedEndpoint into our local UI shape. Returns null if
+// the BFF blob is malformed.
+function adaptDroppedEndpoint(raw: unknown): ExcludedEndpoint | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const method = typeof r['method'] === 'string' ? r['method'] : null;
+  const path = typeof r['path'] === 'string' ? r['path'] : null;
+  if (method === null || path === null) return null;
+  const reasonRaw = typeof r['reason'] === 'string' ? r['reason'] : 'DROPPED';
+  const reason = friendlyDropReason(reasonRaw);
+  const override = r['can_user_override'] === true;
+  return { method, path, reason, override };
+}
+
+function friendlyDropReason(reason: string): string {
+  switch (reason) {
+    case 'DEPRECATED':
+      return 'deprecated';
+    case 'INTERNAL':
+      return 'internal · /admin namespace';
+    case 'HEALTH_CHECK':
+      return 'meta endpoint · no business value';
+    case 'WEBHOOK':
+      return 'webhook callback · not callable';
+    case 'AUTH_FLOW':
+      return 'auth flow endpoint';
+    case 'REDUNDANT':
+      return 'subsumed by another endpoint';
+    case 'LOW_VALUE':
+      return 'low value · skipped by default';
+    case 'USER_EXCLUDED':
+      return 'excluded by user';
+    case 'EXCEEDS_CAP':
+      return 'over tool cap';
+    case 'METHOD_NOT_SUPPORTED':
+      return 'http method not supported';
+    default:
+      return reason.toLowerCase();
+  }
+}
+
 const COMPLEXITY: Record<
   'minimal' | 'standard' | 'comprehensive',
   { tools: number; label: string; desc: string }
@@ -178,6 +264,10 @@ const COMPLEXITY: Record<
   },
 };
 
+// Rough $/1k tokens estimate for "saved per session" copy. Anthropic Sonnet
+// 4.7 input pricing as of 2026-Q1.
+const DOLLARS_PER_KTOKEN = 0.015;
+
 // ────────────────────────────────────────────────────────────────────────────
 // Public component.
 // ────────────────────────────────────────────────────────────────────────────
@@ -185,11 +275,14 @@ const COMPLEXITY: Record<
 export interface PreviewProps {
   readonly jobId: string;
   /** The original spec URL the user pasted (carried via query string from
-   *  Stream → Preview). Used for the "refine spec" CTA. */
+   *  Stream → Preview). Used for both the "refine spec" CTA and as a
+   *  fallback for the breadcrumb's server name. */
   readonly originalSpecUrl?: string;
-  /** Optional human-friendly server name used in the breadcrumb/title. */
+  /** Optional human-friendly server name used in the breadcrumb/title.
+   *  Server-side prop wins over BFF-derived value when both are provided. */
   readonly specName?: string;
-  /** Total endpoint count from the BFF (Pass 0 input). */
+  /** Total endpoint count from the BFF (Pass 0 input). Server-side prop
+   *  short-circuits the client-side fetch for SSR-friendly first paint. */
   readonly endpointCount?: number;
 }
 
@@ -201,33 +294,98 @@ export default function Preview({
 }: PreviewProps): ReactElement {
   const router = useRouter();
 
+  // ─── BFF data ──────────────────────────────────────────────────────────────
+  const jobQuery = useJob(jobId, { refetchIntervalMs: 1500 });
+  const job = jobQuery.data?.ok === true ? jobQuery.data.data : null;
+  const partial = job?.partial_result ?? null;
+
   const artifactQuery = useJobArtifact(jobId, 'final-tools');
   const artifact = artifactQuery.data;
-  const finalTools: ReadonlyArray<FinalTool> | null = useMemo(() => {
+  const finalToolsFromArtifact: ReadonlyArray<FinalTool> | null = useMemo(() => {
     if (artifact !== undefined && artifact.ok && Array.isArray(artifact.data)) {
       return artifact.data as ReadonlyArray<FinalTool>;
     }
     return null;
   }, [artifact]);
+  // Prefer artifact endpoint, fall back to job.partial_result.final_tools (the
+  // BFF inlines the same payload there for SSR).
+  const finalTools: ReadonlyArray<FinalTool> | null = useMemo(() => {
+    if (finalToolsFromArtifact !== null) return finalToolsFromArtifact;
+    const ft = partial?.final_tools;
+    if (Array.isArray(ft) && ft.length > 0) return ft as ReadonlyArray<FinalTool>;
+    return null;
+  }, [finalToolsFromArtifact, partial]);
 
+  // Composite candidates — Pass 0 hints toward Pass 1 workflow tools. Hidden
+  // entirely until at least one candidate lands.
+  const compositeCandidates: ReadonlyArray<CompositeCandidate> = useMemo(() => {
+    const raw = partial?.composite_candidates;
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((c) => adaptCompositeCandidate(c))
+      .filter((c): c is CompositeCandidate => c !== null);
+  }, [partial]);
+
+  // Dropped endpoints — Pass 0 filtered list.
+  const excludedEndpoints: ReadonlyArray<ExcludedEndpoint> = useMemo(() => {
+    const raw = partial?.dropped_endpoints;
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((d) => adaptDroppedEndpoint(d))
+      .filter((d): d is ExcludedEndpoint => d !== null);
+  }, [partial]);
+
+  // ─── Local state ───────────────────────────────────────────────────────────
   const initialCats = useMemo(() => deriveCategories(finalTools), [finalTools]);
   const [cats, setCats] = useState<ReadonlyArray<PreviewCategory>>(initialCats);
   const [combine, setCombine] = useState<null | 'yes' | 'no'>(null);
   const [excludedOpen, setExcludedOpen] = useState<boolean>(false);
   const [included, setIncluded] = useState<ReadonlySet<string>>(() => new Set<string>());
-  const [excluded] = useState<ReadonlyArray<ExcludedEndpoint>>(() => []);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
-  const [complexity, setComplexity] = useState<'minimal' | 'standard' | 'comprehensive'>(
-    'standard',
-  );
-  const idForServer = specName !== undefined && specName.length > 0 ? specName : 'mcp';
-  const [serverName, setServerName] = useState<string>(`${idForServer}-mcp`);
+  const [complexity, setComplexity] = useState<'minimal' | 'standard' | 'comprehensive'>(() => {
+    const tc = partial?.target_complexity;
+    if (tc === 'minimal' || tc === 'standard' || tc === 'comprehensive') return tc;
+    return 'standard';
+  });
+
+  // Derived breadcrumb name — same chain as canvas screen.
+  const specNameFromJob =
+    partial !== null && typeof partial.spec_name === 'string' && partial.spec_name !== ''
+      ? partial.spec_name
+      : null;
+  const specNameFromUrl = deriveServerNameFromSpecUrl(originalSpecUrl);
+  const derivedServerName: string =
+    specName !== undefined && specName.length > 0
+      ? specName
+      : specNameFromJob ?? specNameFromUrl;
+
+  const [serverName, setServerName] = useState<string>(`${derivedServerName}-mcp`);
+  const serverNameInitRef = useRef<boolean>(false);
+  useEffect(() => {
+    // One-shot sync: when the BFF resolves spec_name (or we derive a sane
+    // value), seed the editable input the first time. After that, respect
+    // user edits.
+    if (serverNameInitRef.current) return;
+    if (derivedServerName !== '' && derivedServerName !== 'mcp-server') {
+      setServerName(`${derivedServerName}-mcp`);
+      serverNameInitRef.current = true;
+    }
+  }, [derivedServerName]);
+
   const [advancedOpen, setAdvancedOpen] = useState<boolean>(false);
 
   // Sync derived categories when the artifact lands.
   useEffect(() => {
     setCats(initialCats);
   }, [initialCats]);
+
+  // Sync target_complexity from the BFF once it resolves.
+  useEffect(() => {
+    const tc = partial?.target_complexity;
+    if (tc === 'minimal' || tc === 'standard' || tc === 'comprehensive') {
+      setComplexity(tc);
+    }
+  }, [partial]);
 
   const toggle = (id: string): void =>
     setCats((cs) => cs.map((c) => (c.id === id ? { ...c, on: !c.on } : c)));
@@ -239,20 +397,58 @@ export default function Preview({
       return next;
     });
 
-  const totalEndpoints = endpointCount ?? 0;
-  const naiveTokens =
-    totalEndpoints > 0 ? totalEndpoints * 250 : 14_200; // canon fallback for empty state
-  const baseOptTokens = combine === 'yes' ? 2_800 : 3_400;
-  const optTokens = baseOptTokens + included.size * 42;
-  const pct = Math.round((1 - optTokens / naiveTokens) * 100);
-  const dollars = (((naiveTokens - optTokens) / 1000) * 0.015).toFixed(2);
+  // ─── Detected panel values ─────────────────────────────────────────────────
+  // endpointCount: server-prop (SSR) wins; else partial; else null = pending.
+  const totalEndpoints: number | null =
+    endpointCount !== undefined
+      ? endpointCount
+      : typeof partial?.endpoint_count === 'number'
+        ? partial.endpoint_count
+        : null;
 
-  const onMakeIt = (): void => {
+  const includedCount = finalTools !== null ? finalTools.length : null;
+
+  const specFormatLabel = formatSpecFormat(partial?.spec_format ?? null);
+  const authLabel = formatAuthModes(partial?.auth_modes);
+
+  // ─── Token budget — real numbers when we have them, '—' otherwise ─────────
+  // Both naive and optimized counts come from the engine — we no longer
+  // synthesize a `endpointCount * 250` proxy because users perceived it as
+  // mock data. Until Pass 5 surfaces real `naive_token_count` and
+  // `optimized_token_count` fields, render '—' / 'calculating…' (matches
+  // the "with mcpgen" line behaviour).
+  const partialAny = partial as Record<string, unknown> | null;
+  const naiveFromBff = partialAny !== null ? partialAny['naive_token_count'] : undefined;
+  const optFromBff = partialAny !== null ? partialAny['optimized_token_count'] : undefined;
+  const naiveTokens: number | null =
+    typeof naiveFromBff === 'number' && Number.isFinite(naiveFromBff) && naiveFromBff > 0
+      ? naiveFromBff
+      : null;
+  const optTokens: number | null =
+    typeof optFromBff === 'number' && Number.isFinite(optFromBff) && optFromBff > 0
+      ? optFromBff
+      : null;
+  const hasTokenSavings = naiveTokens !== null && optTokens !== null;
+  const pct = hasTokenSavings ? Math.round((1 - (optTokens as number) / (naiveTokens as number)) * 100) : null;
+  const dollars = hasTokenSavings
+    ? ((((naiveTokens as number) - (optTokens as number)) / 1000) * DOLLARS_PER_KTOKEN).toFixed(2)
+    : null;
+
+  // ─── Navigation handlers ───────────────────────────────────────────────────
+  const onContinue = (): void => {
+    // Pipeline order: review → quality → playground → deploy. The /quality
+    // screen owns its own "continue → playground" handler; /playground owns
+    // "continue → deploy". Skipping straight to /deploy would bypass the
+    // quality + playground steps.
+    if (jobId !== '') {
+      router.push(`/generate/${encodeURIComponent(jobId)}/quality`);
+      toast('continuing to auth setup…');
+      return;
+    }
     if (originalSpecUrl !== undefined && originalSpecUrl.length > 0) {
       router.push(`/generate?spec_url=${encodeURIComponent(originalSpecUrl)}`);
       return;
     }
-    // No spec URL on hand → go back to canvas (still respects "refine" intent).
     router.push('/generate');
   };
 
@@ -260,7 +456,23 @@ export default function Preview({
     router.push(`/generate/${jobId}`);
   };
 
-  const breadcrumb = `${specName !== undefined && specName.length > 0 ? specName : 'mcp server'}-mcp · draft`;
+  // Drop the "draft" tag once the engine has emitted a quality_report (i.e.
+  // generation is terminal-complete and the user is reviewing real output).
+  const isComplete =
+    partial !== null && partial.quality_report !== null && partial.quality_report !== undefined;
+  const breadcrumb = `${derivedServerName}-mcp${isComplete ? '' : ' · draft'}`;
+
+  // ─── Composite candidate banner copy ──────────────────────────────────────
+  // Pass 0 surfaces composite candidate hints. Show them as a soft suggestion;
+  // the actual merge is deferred to Pass 1 (already run by the time we render
+  // here).
+  const showCompositeBanner = compositeCandidates.length > 0;
+  const compositeStepsTotal = compositeCandidates.reduce(
+    (s, c) => s + c.steps.length,
+    0,
+  );
+  const firstCompositeSteps =
+    showCompositeBanner ? compositeCandidates[0]!.steps.slice(0, 3) : [];
 
   return (
     <div className="mc-screen mc-grain" style={{ minHeight: '100vh' }}>
@@ -293,7 +505,7 @@ export default function Preview({
           <div className="mc-display-l">
             we read your spec.
             <br />
-            here's what we'd build.
+            here&apos;s what we&apos;d build.
           </div>
         </div>
 
@@ -337,24 +549,34 @@ export default function Preview({
               className="mc-mono"
             >
               <span className="muted">format</span>
-              <span>OpenAPI 3.1</span>
+              <span>{specFormatLabel}</span>
               <span className="muted">endpoints</span>
               <span>
-                {totalEndpoints} ·{' '}
-                <span className="muted">{COMPLEXITY[complexity].tools} included</span>
+                {totalEndpoints !== null ? totalEndpoints : '—'}
+                {includedCount !== null ? (
+                  <>
+                    {' '}
+                    · <span className="muted">{includedCount} included</span>
+                  </>
+                ) : null}
               </span>
               <span className="muted">categories</span>
-              <span>{cats.length}</span>
+              <span>{cats.length > 0 ? cats.length : '—'}</span>
               <span className="muted">complexity</span>
               <span>{COMPLEXITY[complexity].label}</span>
               <span className="muted">auth</span>
-              <span>oauth + api key</span>
+              <span>{authLabel}</span>
             </div>
 
             <div className="mc-caption-up" style={{ marginBottom: 10 }}>
               categories — toggle to include
             </div>
             <div className="col" style={{ gap: 6 }}>
+              {cats.length === 0 ? (
+                <div className="muted mc-mono" style={{ fontSize: 12, padding: '6px 0' }}>
+                  {finalTools === null ? 'analyzing tools…' : 'no categories yet'}
+                </div>
+              ) : null}
               {cats.map((c) => (
                 <label
                   key={c.id}
@@ -387,7 +609,7 @@ export default function Preview({
             <SectionLabel
               right={
                 <span className="mc-mono" style={{ fontSize: 11 }}>
-                  opus pricing
+                  sonnet pricing
                 </span>
               }
             >
@@ -397,9 +619,13 @@ export default function Preview({
             <div style={{ marginBottom: 18 }}>
               <div className="row-bw" style={{ marginBottom: 4 }}>
                 <span className="mc-caption">naive 1:1</span>
-                <span className="mc-mono">{naiveTokens.toLocaleString()} tk</span>
+                <span className="mc-mono">
+                  {naiveTokens !== null ? `${naiveTokens.toLocaleString()} tk` : '—'}
+                </span>
               </div>
-              <BlockBar value={naiveTokens} max={naiveTokens} width={28} dim />
+              {naiveTokens !== null ? (
+                <BlockBar value={naiveTokens} max={naiveTokens} width={28} dim />
+              ) : null}
             </div>
 
             <div style={{ marginBottom: 24 }}>
@@ -408,60 +634,83 @@ export default function Preview({
                   with mcpgen
                 </span>
                 <span className="mc-mono">
-                  <CountUp value={optTokens} /> tk
+                  {optTokens !== null ? (
+                    <>
+                      <CountUp value={optTokens} /> tk
+                    </>
+                  ) : (
+                    'calculating…'
+                  )}
                 </span>
               </div>
-              <BlockBar value={optTokens} max={naiveTokens} width={28} />
+              {optTokens !== null && naiveTokens !== null ? (
+                <BlockBar value={optTokens} max={naiveTokens} width={28} />
+              ) : null}
             </div>
 
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-              <div
-                className="mc-mono"
-                style={{
-                  fontSize: 28,
-                  fontWeight: 500,
-                  color: 'var(--success)',
-                  letterSpacing: '-0.02em',
-                  lineHeight: 1,
-                }}
-              >
-                ↓ <CountUp value={pct} />%
-              </div>
-              <div className="mc-caption" style={{ marginTop: 4 }}>
-                ≈ ${dollars} saved per session
-              </div>
+              {pct !== null && dollars !== null ? (
+                <>
+                  <div
+                    className="mc-mono"
+                    style={{
+                      fontSize: 28,
+                      fontWeight: 500,
+                      color: 'var(--success)',
+                      letterSpacing: '-0.02em',
+                      lineHeight: 1,
+                    }}
+                  >
+                    ↓ <CountUp value={pct} />%
+                  </div>
+                  <div className="mc-caption" style={{ marginTop: 4 }}>
+                    ≈ ${dollars} saved per session
+                  </div>
+                </>
+              ) : (
+                <div className="mc-caption muted">
+                  optimized token estimate pending
+                </div>
+              )}
             </div>
           </Card>
         </div>
 
-        {/* AI suggestion */}
-        <div className="mc-ai-strip" style={{ marginBottom: 16 }}>
-          <Icon name="spark" size={16} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 14 }}>
-              12 endpoints look like they belong together.
-            </div>
-            <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
-              <span className="mc-mono">orders.create</span>,{' '}
-              <span className="mc-mono">orders.get</span>,{' '}
-              <span className="mc-mono">orders.update</span>, … combine into 3 composite
-              tools? saves another 600 tk.
-            </div>
-            <div className="row" style={{ gap: 8 }}>
-              <Btn kind="ghost" size="sm" onClick={(): void => setCombine('no')}>
-                keep separate
-              </Btn>
-              <Btn
-                kind="ink"
-                size="sm"
-                onClick={(): void => setCombine('yes')}
-                {...(combine === 'yes' ? { icon: 'check' as const } : {})}
-              >
-                {combine === 'yes' ? 'merge applied' : 'combine — show me the merge'}
-              </Btn>
+        {/* Composite candidate banner — Pass 0 hint, hidden when none */}
+        {showCompositeBanner ? (
+          <div className="mc-ai-strip" style={{ marginBottom: 16 }}>
+            <Icon name="spark" size={16} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 14 }}>
+                {compositeStepsTotal} endpoints look like they belong together.
+              </div>
+              <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+                {firstCompositeSteps.map((step, i) => (
+                  <span key={step}>
+                    {i > 0 ? ', ' : ''}
+                    <span className="mc-mono">{step}</span>
+                  </span>
+                ))}
+                {compositeCandidates[0]!.steps.length > firstCompositeSteps.length ? ', …' : ''}
+                {' '}combine into {compositeCandidates.length} composite tool
+                {compositeCandidates.length === 1 ? '' : 's'}?
+              </div>
+              <div className="row" style={{ gap: 8 }}>
+                <Btn kind="ghost" size="sm" onClick={(): void => setCombine('no')}>
+                  keep separate
+                </Btn>
+                <Btn
+                  kind="ink"
+                  size="sm"
+                  onClick={(): void => setCombine('yes')}
+                  {...(combine === 'yes' ? { icon: 'check' as const } : {})}
+                >
+                  {combine === 'yes' ? 'merge applied' : 'combine — show me the merge'}
+                </Btn>
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
         {/* Excluded endpoints (collapsible) */}
         <div className="mc-excluded">
@@ -472,7 +721,7 @@ export default function Preview({
             <div className="row" style={{ gap: 10 }}>
               <Icon name={excludedOpen ? 'caret-d' : 'caret-r'} size={11} />
               <span className="mc-caption-up">endpoints not included</span>
-              <Badge kind="soft">{excluded.length - included.size}</Badge>
+              <Badge kind="soft">{excludedEndpoints.length - included.size}</Badge>
               {included.size > 0 ? (
                 <Badge kind="accent">+{included.size} restored</Badge>
               ) : null}
@@ -481,13 +730,13 @@ export default function Preview({
               {excludedOpen ? 'hide' : 'show'} →
             </span>
           </div>
-          {excludedOpen && excluded.length > 0 ? (
+          {excludedOpen && excludedEndpoints.length > 0 ? (
             <div className="mc-excluded-table">
-              {excluded.map((e) => {
+              {excludedEndpoints.map((e) => {
                 const isIncluded = included.has(e.path);
                 return (
                   <div
-                    key={e.path}
+                    key={`${e.method}-${e.path}`}
                     className="mc-excluded-row"
                     style={{ opacity: isIncluded ? 0.55 : 1 }}
                   >
@@ -560,7 +809,7 @@ export default function Preview({
             >
               re-generate
             </Btn>
-            <Btn kind="ghost" size="sm" onClick={onMakeIt}>
+            <Btn kind="ghost" size="sm" onClick={onContinue}>
               continue without
             </Btn>
           </div>
@@ -568,7 +817,7 @@ export default function Preview({
 
         <div style={{ height: 24 }} />
 
-        <Btn kind="primary" size="lg" full iconR="arrow-r" onClick={onMakeIt}>
+        <Btn kind="primary" size="lg" full iconR="arrow-r" onClick={onContinue}>
           continue · auth setup
         </Btn>
         <div className="mc-caption" style={{ textAlign: 'center', marginTop: 12 }}>
@@ -633,6 +882,11 @@ export default function Preview({
 
               <SectionLabel>categories</SectionLabel>
               <div className="col" style={{ gap: 4, marginBottom: 20 }}>
+                {cats.length === 0 ? (
+                  <div className="muted mc-mono" style={{ fontSize: 12 }}>
+                    {finalTools === null ? 'analyzing tools…' : 'no categories detected'}
+                  </div>
+                ) : null}
                 {cats.map((c) => (
                   <label
                     key={c.id}

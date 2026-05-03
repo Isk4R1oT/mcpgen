@@ -23,7 +23,9 @@
 import { useState, type ReactElement } from 'react';
 
 import { Badge, Btn, Card, Icon, SectionLabel, TopBar } from '@/components/ui';
+import { deriveServerNameFromSpecUrl } from '@/components/screens/canvas/canvas';
 import { useDeployEphemeral } from '@/lib/api/deployments';
+import { useJob } from '@/lib/api/jobs';
 import type { DeployResponse } from '@mcpgen/contracts/dashboard-api';
 import { useErrorMode } from '@/stores/error-mode';
 
@@ -82,6 +84,9 @@ export interface DeploySample {
 export interface DeployProps {
   readonly jobId: string;
   readonly sample?: DeploySample;
+  /** Original spec URL — used to derive a breadcrumb server name when the
+   *  BFF hasn't surfaced `partial_result.spec_name` yet. */
+  readonly specUrl?: string;
   readonly onBack?: () => void;
   /**
    * Called on successful deploy with the BFF response. The owning route
@@ -93,6 +98,7 @@ export interface DeployProps {
 export default function Deploy({
   jobId,
   sample,
+  specUrl,
   onBack,
   onDeployed,
 }: DeployProps): ReactElement {
@@ -103,23 +109,48 @@ export default function Deploy({
   const [auth, setAuth] = useState<'passthrough' | 'static'>('passthrough');
   const [deploying, setDeploying] = useState<boolean>(false);
   const [failed, setFailed] = useState<boolean>(false);
+  // Real BFF error captured from the mutation Result. When this is null we
+  // render the willFail/test-fixture message; otherwise we surface the actual
+  // error_code + message (no canon "mcp-sdk@2.1" placeholder strings).
+  const [deployError, setDeployError] = useState<DeployErrorView | null>(null);
 
   const deployMutation = useDeployEphemeral();
+
+  // Breadcrumb server name — same chain as canvas/preview screens.
+  // Priority: explicit sample.name (server-side prop) → BFF
+  // partial_result.spec_name → derived from spec URL → "mcp-server".
+  const jobQuery = useJob(jobId);
+  const job = jobQuery.data?.ok === true ? jobQuery.data.data : null;
+  const partial = job?.partial_result ?? null;
+  const specNameFromJob =
+    partial !== null && typeof partial.spec_name === 'string' && partial.spec_name !== ''
+      ? partial.spec_name
+      : null;
+  const specNameFromUrl = deriveServerNameFromSpecUrl(specUrl);
+  const derivedServerName: string =
+    sample?.name !== undefined && sample.name !== ''
+      ? sample.name
+      : specNameFromJob ?? specNameFromUrl;
 
   const go = async (): Promise<void> => {
     setDeploying(true);
     setFailed(false);
+    setDeployError(null);
 
     // Honour `errorMode === 'deploy-fail'` test override — short-circuit to
-    // the canon failure card without firing a real request.
+    // the failure card without firing a real request.
     if (willFail) {
-      setTimeout(() => setFailed(true), 1800);
+      setTimeout(() => {
+        setFailed(true);
+        setDeployError(null); // willFail uses the fallback copy
+      }, 1800);
       return;
     }
 
     const result = await deployMutation.mutateAsync({ generationId: jobId });
     if (!result.ok) {
       setFailed(true);
+      setDeployError(adaptDeployError(result));
       return;
     }
     onDeployed?.(result.data);
@@ -127,6 +158,11 @@ export default function Deploy({
 
   // ─── Failed branch ───────────────────────────────────────────────────────
   if (deploying && failed) {
+    // Resolve display copy from the real BFF error when present, else fall
+    // back to the willFail/test-fixture defaults. Canon DEMO strings
+    // ("mcp-sdk@2.1", "2.0.4", "cdg, sfo, sin", "v1.1.7 rollback") are gone.
+    const display = deployError ?? FALLBACK_FAIL_VIEW;
+
     return (
       <div className="mc-screen mc-grain" style={{ minHeight: '100vh' }}>
         <TopBar
@@ -140,6 +176,7 @@ export default function Deploy({
               onClick={() => {
                 setDeploying(false);
                 setFailed(false);
+                setDeployError(null);
               }}
             >
               back to options
@@ -152,10 +189,10 @@ export default function Deploy({
             style={{ marginBottom: 8, color: 'var(--accent)' }}
           >
             <span className="mc-dot alert" style={{ marginRight: 6 }} />
-            deploy failed · 0 / 3 regions healthy
+            deploy failed
           </div>
           <div className="mc-display-l" style={{ marginBottom: 28 }}>
-            edge rejected the bundle.
+            {display.headline}
           </div>
 
           <Card
@@ -168,26 +205,18 @@ export default function Deploy({
             <SectionLabel>what happened</SectionLabel>
             <div className="mc-log">
               <div>
-                <span className="ok">✓ </span>bundled typescript module · 4.2 kb
+                <span style={{ color: 'var(--accent)' }}>✕ </span>
+                {display.errorTitle}
               </div>
-              <div>
-                <span className="ok">✓ </span>generated mcp manifest
-              </div>
-              <div>
-                <span className="ok">✓ </span>uploaded to edge
-              </div>
-              <div>
-                <span style={{ color: 'var(--accent)' }}>✕ </span>cold-start
-                probe failed in <span className="mc-mono">cdg, sfo, sin</span>
-              </div>
-              <div className="indent">
-                runtime error ·{' '}
-                <span className="mc-mono">cannot find module 'mcp-sdk@2.1'</span>
-              </div>
-              <div className="indent">
-                → rollback to v1.1.7 was triggered automatically · existing
-                traffic unaffected
-              </div>
+              {display.errorCode !== null ? (
+                <div className="indent">
+                  error code ·{' '}
+                  <span className="mc-mono">{display.errorCode}</span>
+                </div>
+              ) : null}
+              {display.statusLine !== null ? (
+                <div className="indent">{display.statusLine}</div>
+              ) : null}
             </div>
           </Card>
 
@@ -199,28 +228,26 @@ export default function Deploy({
                 <div
                   style={{ fontSize: 13.5, fontWeight: 500, marginBottom: 2 }}
                 >
-                  your runtime pin doesn't exist on edge
+                  {display.causeTitle}
                 </div>
                 <div
                   className="muted"
                   style={{ fontSize: 12.5, marginBottom: 8 }}
                 >
-                  the manifest requests{' '}
-                  <span className="mc-mono">mcp-sdk@2.1</span>, but the edge
-                  runtime ships <span className="mc-mono">2.0.4</span>. either
-                  downgrade the pin or switch to{' '}
-                  <span className="mc-mono">cloud (managed)</span> which
-                  auto-bumps.
+                  {display.causeMessage}
                 </div>
                 <div className="row" style={{ gap: 6 }}>
-                  <Btn kind="primary" size="sm" icon="spark" disabled>
-                    auto-fix &amp; retry
-                  </Btn>
-                  <Btn kind="ink" size="sm" disabled>
-                    use mcp-sdk@2.0.4
-                  </Btn>
-                  <Btn kind="ghost" size="sm" disabled>
-                    view full log
+                  <Btn
+                    kind="primary"
+                    size="sm"
+                    icon="play"
+                    onClick={() => {
+                      setFailed(false);
+                      setDeployError(null);
+                      void go();
+                    }}
+                  >
+                    retry deploy
                   </Btn>
                 </div>
               </div>
@@ -229,22 +256,12 @@ export default function Deploy({
 
           <div className="row" style={{ gap: 8, marginTop: 24 }}>
             <Btn
-              kind="ink"
-              size="lg"
-              icon="play"
-              onClick={() => {
-                setFailed(false);
-                void go();
-              }}
-            >
-              retry deploy
-            </Btn>
-            <Btn
               kind="ghost"
               size="lg"
               onClick={() => {
                 setDeploying(false);
                 setFailed(false);
+                setDeployError(null);
               }}
             >
               change options
@@ -252,14 +269,6 @@ export default function Deploy({
             <Btn kind="ghost" size="lg" onClick={onBack}>
               back to canvas
             </Btn>
-          </div>
-
-          <div className="mc-caption" style={{ marginTop: 16 }}>
-            we keep failed deploys for 7 days. open{' '}
-            <span className="mc-link" style={{ opacity: 0.6 }}>
-              deploy logs
-            </span>{' '}
-            if you want to ssh into the failed environment.
           </div>
         </main>
       </div>
@@ -299,7 +308,7 @@ export default function Deploy({
   }
 
   // ─── Form branch ─────────────────────────────────────────────────────────
-  const crumb = `deploy ${sample?.name ?? 'lumen-payments'}-mcp`;
+  const crumb = `deploy ${derivedServerName}-mcp`;
 
   return (
     <div className="mc-screen mc-grain" style={{ minHeight: '100vh' }}>
@@ -472,4 +481,112 @@ export default function Deploy({
 function shortId(jobId: string): string {
   const cleaned = jobId.replace(/[^a-z0-9]/gi, '').toLowerCase();
   return cleaned.length >= 6 ? cleaned.slice(0, 6) : cleaned.padEnd(6, 'x');
+}
+
+// ─── Deploy error adapter ──────────────────────────────────────────────────
+//
+// The BFF returns a `Result<DeployResponse>`; on failure the shape is
+// `{ ok: false, status, error, raw? }`. `error` is the canonical error_code
+// string (e.g. "no_anon_session", "rate_limited", "internal"). `raw` may
+// carry a structured `{ error, message, detail }` blob from the API.
+//
+// Adapt this into a plain view-model so the failed branch never has to peek
+// at the Result shape inline. Returns null for the willFail / test-fixture
+// path which uses FALLBACK_FAIL_VIEW.
+
+interface DeployErrorView {
+  readonly headline: string;
+  readonly errorTitle: string;
+  readonly errorCode: string | null;
+  readonly statusLine: string | null;
+  readonly causeTitle: string;
+  readonly causeMessage: string;
+}
+
+const FALLBACK_FAIL_VIEW: DeployErrorView = {
+  headline: 'we couldn’t deploy this build.',
+  errorTitle: 'deploy failed',
+  errorCode: null,
+  statusLine: null,
+  causeTitle: 'something went wrong while shipping the bundle',
+  causeMessage:
+    'no further detail was returned. retry the deploy — if it keeps failing, change the deployment target and try again.',
+};
+
+interface BffErrorResult {
+  readonly ok: false;
+  readonly status: number;
+  readonly error: string;
+  readonly raw?: unknown;
+}
+
+function adaptDeployError(result: BffErrorResult): DeployErrorView {
+  const code = result.error;
+  const status = result.status;
+
+  // Surface a structured `message` / `detail` from the raw BFF body when
+  // present. The BFF contract is `{ error: <code>, message?: string,
+  // detail?: string }`.
+  const rawObj =
+    result.raw !== null && typeof result.raw === 'object'
+      ? (result.raw as Record<string, unknown>)
+      : null;
+  const rawMessage =
+    rawObj !== null && typeof rawObj['message'] === 'string'
+      ? (rawObj['message'] as string)
+      : null;
+  const rawDetail =
+    rawObj !== null && typeof rawObj['detail'] === 'string'
+      ? (rawObj['detail'] as string)
+      : null;
+
+  // Common error codes get tailored copy. Everything else falls back to the
+  // raw error code + message.
+  if (code === 'no_anon_session') {
+    return {
+      headline: 'your session expired.',
+      errorTitle: 'deploy failed: anon session missing',
+      errorCode: code,
+      statusLine: status > 0 ? `http ${status}` : null,
+      causeTitle: 'your anon session cookie is missing',
+      causeMessage:
+        'refresh the page to start a new anonymous session, then try the deploy again.',
+    };
+  }
+  if (code === 'rate_limited') {
+    return {
+      headline: 'too many deploys, too fast.',
+      errorTitle: 'deploy failed: rate limited',
+      errorCode: code,
+      statusLine: status > 0 ? `http ${status}` : null,
+      causeTitle: 'you’ve hit the anonymous deploy rate limit',
+      causeMessage:
+        rawMessage ?? 'wait a minute and try again — or sign in for higher limits.',
+    };
+  }
+  if (code === 'generation_not_found' || code === 'not_found') {
+    return {
+      headline: 'we lost track of this build.',
+      errorTitle: 'deploy failed: generation not found',
+      errorCode: code,
+      statusLine: status > 0 ? `http ${status}` : null,
+      causeTitle: 'this generation no longer exists',
+      causeMessage:
+        rawMessage ??
+        'the generation may have expired or been cleaned up. go back and re-run generation.',
+    };
+  }
+
+  // Generic fallback — use whatever the BFF gave us.
+  const detail = rawDetail ?? rawMessage ?? null;
+  return {
+    headline: 'we couldn’t deploy this build.',
+    errorTitle: rawMessage ?? `deploy failed: ${code}`,
+    errorCode: code !== '' ? code : null,
+    statusLine: status > 0 ? `http ${status}` : null,
+    causeTitle: 'the deploy request was rejected',
+    causeMessage:
+      detail ??
+      'no further detail was returned. retry the deploy — if it keeps failing, contact support with the error code above.',
+  };
 }

@@ -135,8 +135,10 @@ const PLANS: ReadonlyArray<PlanDef> = [
 ];
 
 // ────────────────────────────────────────────────────────────────────────────
-// Static "usage by server" — until /api/v1/billing/usage lands. Pulled
-// verbatim from canon (lines 165–169) so the visual baseline matches.
+// "Usage by server" row — populated at runtime from useUsageHourly() joined
+// with useDashboardSummary() deployments (deployment_id → server_name).
+// When the BFF returns no rows we render the canon "no usage yet" empty
+// state rather than seeding canon mock data.
 // ────────────────────────────────────────────────────────────────────────────
 
 interface UsageRow {
@@ -144,13 +146,6 @@ interface UsageRow {
   readonly calls: number;
   readonly pct: number;
 }
-
-const FALLBACK_USAGE_ROWS: ReadonlyArray<UsageRow> = [
-  { name: 'lumen-payments-mcp', calls: 64200, pct: 78 },
-  { name: 'helio-commerce-mcp', calls: 12400, pct: 15 },
-  { name: 'nimbus-storage-mcp', calls: 4380, pct: 5 },
-  { name: 'anvil-forms-mcp', calls: 1200, pct: 2 },
-];
 
 // ────────────────────────────────────────────────────────────────────────────
 // Static invoice rows (canon screen-billing.jsx lines 57–62 — kept literal
@@ -414,15 +409,56 @@ export default function Billing({ userEmail }: BillingProps = {}): JSX.Element {
 
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
 
-  // Real data — returns a `Result<…>` envelope; we only use it to drive the
-  // canon "loading" / "fallback" surfaces. The visual layout is fixed by the
-  // baseline so we keep canon mock numbers when the BFF endpoints are missing
-  // (this matches the static screenshot tests).
+  // Real data — returns a `Result<…>` envelope. We aggregate per-deployment
+  // usage rows into the "usage by server" breakdown below; when the BFF
+  // returns nothing (empty rows or not-implemented) we render the canon
+  // "no usage yet" empty state instead of falling back to canon mock data.
   // We deliberately fetch the last 24 hours of hourly usage.
   const usageTo = new Date().toISOString();
   const usageFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  useUsageHourly({ from: usageFrom, to: usageTo });
-  useDashboardSummary();
+  const usageHourlyQuery = useUsageHourly({ from: usageFrom, to: usageTo });
+  const dashboardSummaryQuery = useDashboardSummary();
+
+  // Aggregate per-deployment usage and join with deployment metadata
+  // (server_name) for the "usage by server" card. Empty array → canon's
+  // "no usage yet" empty state.
+  const usageRows: ReadonlyArray<UsageRow> = (() => {
+    const usageData = usageHourlyQuery.data;
+    const dashData = dashboardSummaryQuery.data;
+    if (
+      usageData === undefined ||
+      !usageData.ok ||
+      dashData === undefined ||
+      !dashData.ok
+    ) {
+      return [];
+    }
+    // deployment_id → server_name lookup.
+    const nameById = new Map<string, string>();
+    for (const d of dashData.data.deployments) {
+      nameById.set(d.deployment_id, d.server_name);
+    }
+    // Sum call_count per deployment.
+    const callsById = new Map<string, number>();
+    for (const row of usageData.data.rows) {
+      const prev = callsById.get(row.deployment_id) ?? 0;
+      callsById.set(row.deployment_id, prev + row.call_count);
+    }
+    const totalCalls = Array.from(callsById.values()).reduce(
+      (s, n) => s + n,
+      0,
+    );
+    if (totalCalls === 0) return [];
+    // Order by descending call volume (canon sort order).
+    const ordered = Array.from(callsById.entries())
+      .map(([deploymentId, calls]) => {
+        const name = nameById.get(deploymentId) ?? deploymentId;
+        const pct = Math.round((calls / totalCalls) * 100);
+        return { name, calls, pct } satisfies UsageRow;
+      })
+      .sort((a, b) => b.calls - a.calls);
+    return ordered;
+  })();
 
   // Stubs — render canon "loading" state until BFF lands. The stubs surface
   // `flag_off_or_not_implemented` (see `notImplementedResult` in client-base).
@@ -486,7 +522,7 @@ export default function Billing({ userEmail }: BillingProps = {}): JSX.Element {
             </button>
             <LangSwitcher />
             <span className="mc-caption" style={{ marginRight: 4 }}>
-              {userEmail ?? 'kira@dolla.io'}
+              {userEmail ?? ''}
             </span>
           </>
         }
@@ -685,42 +721,52 @@ export default function Billing({ userEmail }: BillingProps = {}): JSX.Element {
           >
             {t('usageBy')}
           </SectionLabel>
-          {FALLBACK_USAGE_ROWS.map((row, i) => (
+          {usageRows.length === 0 ? (
             <div
-              key={row.name}
-              className="row"
-              style={{
-                gap: 12,
-                padding: '8px 0',
-                borderBottom:
-                  i === FALLBACK_USAGE_ROWS.length - 1
-                    ? 'none'
-                    : '1px dashed var(--border)',
-              }}
+              className="mc-mono muted"
+              style={{ fontSize: 12.5, padding: '12px 0' }}
+              data-testid="usage-by-server-empty"
             >
-              <span
-                className="mc-mono"
-                style={{ fontSize: 12.5, minWidth: 220 }}
-              >
-                {row.name}
-              </span>
-              <span style={{ flex: 1 }}>
-                <BlockBar value={row.pct} max={100} width={28} />
-              </span>
-              <span
-                className="mc-mono"
-                style={{ fontSize: 12.5, minWidth: 80, textAlign: 'right' }}
-              >
-                {row.calls.toLocaleString()}
-              </span>
-              <span
-                className="mc-mono muted"
-                style={{ fontSize: 11.5, minWidth: 40, textAlign: 'right' }}
-              >
-                {row.pct}%
-              </span>
+              no usage yet — deploy a server to start tracking calls.
             </div>
-          ))}
+          ) : (
+            usageRows.map((row, i) => (
+              <div
+                key={row.name}
+                className="row"
+                style={{
+                  gap: 12,
+                  padding: '8px 0',
+                  borderBottom:
+                    i === usageRows.length - 1
+                      ? 'none'
+                      : '1px dashed var(--border)',
+                }}
+              >
+                <span
+                  className="mc-mono"
+                  style={{ fontSize: 12.5, minWidth: 220 }}
+                >
+                  {row.name}
+                </span>
+                <span style={{ flex: 1 }}>
+                  <BlockBar value={row.pct} max={100} width={28} />
+                </span>
+                <span
+                  className="mc-mono"
+                  style={{ fontSize: 12.5, minWidth: 80, textAlign: 'right' }}
+                >
+                  {row.calls.toLocaleString()}
+                </span>
+                <span
+                  className="mc-mono muted"
+                  style={{ fontSize: 11.5, minWidth: 40, textAlign: 'right' }}
+                >
+                  {row.pct}%
+                </span>
+              </div>
+            ))
+          )}
         </Card>
 
         {/* Plan picker header + cycle toggle */}

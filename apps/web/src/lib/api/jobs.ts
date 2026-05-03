@@ -41,6 +41,14 @@ export const JobStatusSchema = z.object({
       quality_report: z.unknown().optional(),
       endpoint_count: z.number().int().nonnegative().optional(),
       spec_name: z.string().nullable().optional(),
+      // BFF surfaces these from Stage A / Pass 0 artefacts so the locked
+      // Preview screen can render real data (no canon literals like
+      // "lumen-payments" or "transactions(24)").
+      spec_format: z.string().nullable().optional(),
+      auth_modes: z.array(z.string()).optional(),
+      composite_candidates: z.array(z.unknown()).optional(),
+      dropped_endpoints: z.array(z.unknown()).optional(),
+      target_complexity: z.string().nullable().optional(),
     })
     .nullable()
     .optional(),
