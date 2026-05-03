@@ -774,6 +774,137 @@ function ScreenPreview({ sample }) {
 
 ---
 
+## 6.5 Parallel execution playbook
+
+Раздел формализует SOTA-2026 практики оркестрации параллельных Claude Code
+sub-agent'ов на время этой миграции. Базируется на:
+
+- Anthropic engineering blog "How we built our multi-agent research system"
+  (3-5 sub-agents per lead, 90% time reduction, ~15× token cost factor).
+- Claude Code Agent Teams официальная документация (worktree isolation,
+  shared task list coordination).
+- Production case studies: incident.io / Cursor / Rakuten (4-5 параллельных
+  агентов routinely, delivery 24 → 5 days).
+- DEV Community Claude Code subagent rate-limits guide (10 hard concurrent
+  cap, 2-5 sweet spot).
+
+### 6.5.1 Concurrency cap
+
+- **Hard limit:** 10 одновременных sub-agent'ов (Claude Code platform
+  constraint).
+- **Recommended sweet-spot:** 3-5 (per Anthropic research-system + community
+  consensus).
+- **Rationale:** beyond 5 — coordination cost outweighs parallelism gain
+  (диminishing returns на верификации output'ов).
+
+### 6.5.2 Token economy honesty
+
+- Single agent ≈ **4× chat tokens**.
+- Multi-agent ≈ **15× chat tokens**.
+- Justified только когда wall-clock saves outweigh token cost.
+
+Per-phase guidance:
+
+| Phase | Mode | Agents | Cost factor | Justification |
+|-------|------|--------|-------------|---------------|
+| M-1 inventory | parallel | 3 | ~8-10× | read-only analysis, parallel scan |
+| M-4 wire-up | parallel | 5 | ~12-15× | ~10× wall-clock saving outweighs cost |
+| M-2 / M-3 / M-5 / M-8 | sequential | 1 | 1× | no parallelism win (linear deps) |
+
+### 6.5.3 Sub-agents cannot spawn sub-sub-agents
+
+Orchestrator (главный Claude session человека) — **ЕДИНСТВЕННАЯ** сущность,
+которая fans out work. Sub-agents **только** execute и report. Никаких
+nested Agent tool calls внутри sub-agent'ов (returns nothing per Claude
+Code platform constraint).
+
+### 6.5.4 Git worktree isolation (Anthropic-documented pattern)
+
+Для Phase M-4 (5 агентов пишут concurrent code), каждый агент работает в
+собственном git worktree:
+
+```bash
+git worktree add ../mcpgen-m4-flow      -b feature/m4-flow      feature/ui-rebuild-09.2
+git worktree add ../mcpgen-m4-artifacts -b feature/m4-artifacts feature/ui-rebuild-09.2
+git worktree add ../mcpgen-m4-actions   -b feature/m4-actions   feature/ui-rebuild-09.2
+git worktree add ../mcpgen-m4-entry     -b feature/m4-entry     feature/ui-rebuild-09.2
+git worktree add ../mcpgen-m4-gated     -b feature/m4-gated     feature/ui-rebuild-09.2
+```
+
+Orchestrator merge'ит branches sequentially после того как все 5
+finish'ат (НЕ concurrent merge → избегаем conflict storm).
+
+### 6.5.5 Shared file authority registry (M-4)
+
+Файлы, которые несколько агентов могут хотеть тронуть — только ОДИН имеет
+authority на запись:
+
+| File | Authority |
+|------|-----------|
+| `apps/web/src/app/layout.tsx` | Agent 4 (entry) |
+| `apps/web/src/middleware.ts` | Agent 4 (entry) |
+| `packages/feature-flags/_manifest/flags.yaml` | Agent 5 (gated) |
+| `packages/feature-flags/default/features.yaml` | Agent 5 (gated) |
+| `apps/web/package.json` | Agent 4 |
+| `pnpm-lock.yaml` | Agent 4 |
+
+Другие агенты, которым нужны изменения в этих файлах, пишут request в
+`.planning/ui-rebuild-sandbox/SHARED-FILE-REQUESTS.md`; orchestrator
+batches & применяет сам.
+
+### 6.5.6 Mandatory dispatch template
+
+Каждый dispatch агента ОБЯЗАН содержать:
+
+1. **Goal** — one-sentence problem statement.
+2. **Scope (your zone)** — точные file paths для read/write/create +
+   worktree path.
+3. **Forbidden** — files/zones, которые агент НЕ должен touch'ать.
+4. **Context (pre-loaded)** — contract refs (§X), source-of-truth paths,
+   existing logic to wire, API endpoints. **Sub-agent НЕ имеет памяти этой
+   conversation** — всё нужное передаётся explicitly.
+5. **Success criteria** — typecheck green, tests green, hash match,
+   zero-mock greps.
+6. **Output** — branch name, PR title, ≤200-word summary.
+
+### 6.5.7 Coordination layer
+
+- `.planning/ui-rebuild-sandbox/EXECUTION-STATE.md` — orchestrator-maintained
+  progress log (single writer = orchestrator).
+- `.planning/ui-rebuild-sandbox/SHARED-FILE-REQUESTS.md` — queued
+  cross-agent file change requests.
+- Каждый агент commits в СВОЙ branch с atomic Conventional Commits
+  (см. `docs/mcpgen-git-workflow-rules.md`).
+
+### 6.5.8 Anti-patterns
+
+1. **Vague prompts** ("Wire up the dashboard") → poor output. Всегда —
+   precise scope + success criteria.
+2. **Over-parallelizing simple tasks** → token waste. Если задача < 30
+   минут sequential — НЕ дробить на агентов.
+3. **Allowing agents to share file authority** → merge conflicts. Один
+   файл = один writer.
+4. **Forgetting agents have no conversation context** → mis-aligned output.
+   Pre-load всё нужное в dispatch prompt.
+5. **Letting agents "improve" UI per their judgement** → I-1 violation
+   (см. §3.1). Агенту НЕ разрешено менять визуал zip-файлов сверх §6.2
+   exceptions.
+
+### 6.5.9 Why not GSD framework
+
+Для этой миграции:
+
+- **Scope is well-defined** — этот контракт (§§1-12) покрывает всё.
+- **No discuss/research phase needed** — §§1-12 уже зафиксировали все
+  decisions.
+- **Cost ratio:** ~30-40 GSD sub-agent invocations vs ~15 direct Agent
+  tool calls = **~3× cost overhead** без proportional benefit.
+- **GSD optimal** для unknown-scope features (требующих discuss/plan/spec);
+  refactor известного scope лучше делать через direct orchestration этого
+  контракта.
+
+---
+
 ## 7. Sequencing относительно Phase 09.1 / Phase 10
 
 ### 7.1 Текущее состояние (2026-05-03)
