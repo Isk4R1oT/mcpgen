@@ -653,16 +653,15 @@ async def run_pipeline(
     try:
         # Stage A — deterministic OpenAPI parse.
         yield _event(job_id=job_id, stage="A", status="started", partial_result=None, error=None)
-        raw_ir, spec_servers, original_format = await stage_a.run(
+        raw_ir, spec_servers, original_format, parsed_spec_title = await stage_a.run(
             spec_url=spec_url, spec_content=spec_content
         )
 
         # Resolve a friendlier spec_title for Pass 3 smart-id slugification.
-        info = getattr(raw_ir, "info", None)
-        if info is not None:
-            inferred = getattr(info, "title", None)
-            if isinstance(inferred, str) and inferred:
-                spec_title = inferred
+        # Stage A surfaces the upstream `info.title` as the 4th return value
+        # (RawIR itself doesn't carry a title field — frozen contract).
+        if parsed_spec_title is not None:
+            spec_title = parsed_spec_title
 
         # L1 fast-path: skip Pass 0..5 + Stage E when the whole pipeline
         # output for this spec_hash is already cached.

@@ -95,8 +95,8 @@ class StageAError(ValueError):
 
 async def run(
     spec_url: str | None, spec_content: str | None
-) -> tuple[RawIR, list[dict[str, Any]], str | None]:
-    """Parse an API spec into the canonical ``RawIR`` + spec servers + original format.
+) -> tuple[RawIR, list[dict[str, Any]], str | None, str | None]:
+    """Parse an API spec into the canonical ``RawIR`` + spec servers + original format + title.
 
     Exactly one of ``spec_url`` or ``spec_content`` must be set. Both-set or
     both-None raises ``StageAError("INVALID_INPUT: ...")``.
@@ -104,7 +104,9 @@ async def run(
     The function is deterministic: identical input always produces a
     byte-identical ``RawIR.spec_hash``.
 
-    Returns a ``(raw_ir, servers, original_format)`` tuple.
+    Returns a ``(raw_ir, servers, original_format, spec_title)`` tuple. The
+    ``spec_title`` is the upstream ``info.title`` (when present + non-empty),
+    surfaced for breadcrumb/slug derivation in the pipeline.
 
     * ``servers`` is the OpenAPI ``servers[]`` array (each entry
       ``{"url": str, "description"?: str, "variables"?: dict}``);
@@ -184,6 +186,10 @@ async def run(
         }
     )
 
+    info = resolved.get("info") if isinstance(resolved, dict) else None
+    raw_title = info.get("title") if isinstance(info, dict) else None
+    spec_title = raw_title.strip() if isinstance(raw_title, str) and raw_title.strip() else None
+
     _log.info(
         "stage_a.complete",
         spec_format=spec_format,
@@ -195,7 +201,7 @@ async def run(
         parse_duration_ms=(time.perf_counter_ns() - started_ns) // 1_000_000,
     )
 
-    return raw_ir, servers, original_format
+    return raw_ir, servers, original_format, spec_title
 
 
 def _extract_servers(resolved: dict[str, Any]) -> list[dict[str, Any]]:

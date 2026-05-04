@@ -177,6 +177,34 @@ export function useGenerationSSE(jobId: string): {
       }
     };
 
+    // Parallel /:id poll. Runs alongside SSE because the engine `/stream`
+    // endpoint re-executes the pipeline on every connection — F2/F3 LLM
+    // calls re-run and the terminal `validation_complete` event may take
+    // 20–60s. Meanwhile the BFF `/jobs/:id` already returns
+    // `status:"completed"` the moment the engine has a quality_report
+    // cached. Polling /:id in parallel lets us short-circuit out of the
+    // streaming UI as soon as the BFF can confirm completion, without
+    // waiting for the redundant SSE re-run to finish.
+    const fallbackPoll = async (): Promise<void> => {
+      while (!cancelled) {
+        await new Promise<void>((r) => setTimeout(r, POLL_INTERVAL_MS));
+        if (cancelled) return;
+        let res: Response;
+        try {
+          res = await fetch(`/api/v1/jobs/${encodeURIComponent(jobId)}`);
+        } catch {
+          continue;
+        }
+        if (!res.ok) continue;
+        const job = (await res.json()) as JobStatusResponse;
+        if (isTerminal(job.status)) {
+          setStatus(job.status);
+          abortRef.current?.abort();
+          return;
+        }
+      }
+    };
+
     const bootstrap = async (): Promise<void> => {
       let res: Response;
       try {
@@ -195,6 +223,7 @@ export function useGenerationSSE(jobId: string): {
         setStatus(job.status);
         return;
       }
+      void fallbackPoll();
       // POST-09.1 fix: BFF status stubs return objects without `last_known_event_id`.
       // The TS type widens to `string | null` but the runtime value is `undefined`,
       // and `buildSseHeaders(undefined)` throws TypeError on `.length` → caught,

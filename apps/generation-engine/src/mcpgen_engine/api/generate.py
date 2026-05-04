@@ -80,7 +80,7 @@ async def _resolve_spec_hash(job_id: str, job: dict[str, Any]) -> str:
     cached_hash = job.get("spec_hash")
     if isinstance(cached_hash, str) and cached_hash:
         return cached_hash
-    raw_ir, _, _ = await stage_a.run(
+    raw_ir, _, _, _ = await stage_a.run(
         spec_url=job["spec_url"],
         spec_content=job["spec_content"],
     )

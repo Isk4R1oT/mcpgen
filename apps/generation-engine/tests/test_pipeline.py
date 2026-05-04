@@ -674,7 +674,7 @@ async def test_pipeline_persists_full_architect_output_to_l1(httpx_mock: HTTPXMo
     from mcpgen_engine.cache import get_l1, l1_key
     from mcpgen_engine.stages import stage_a
 
-    raw_ir, _, _ = await stage_a.run(spec_url=None, spec_content=_synthetic_openapi_spec())
+    raw_ir, _, _, _ = await stage_a.run(spec_url=None, spec_content=_synthetic_openapi_spec())
     cached = get_l1(l1_key(raw_ir.spec_hash))
     assert cached is not None
     # Phase 4 D-34: L1 value layout — 8 keys (incl. pass_5_output + stage_e_manifest).
