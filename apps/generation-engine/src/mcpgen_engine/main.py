@@ -11,6 +11,7 @@ Phase 4 (Plan 04-11): FastAPI lifespan handler pre-warms
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -20,6 +21,12 @@ import structlog
 from fastapi import FastAPI
 
 from mcpgen_engine.api import generate as generate_api
+from mcpgen_engine.llm.warmup import (
+    WarmupResult,
+    start_keepwarm_task,
+    stop_keepwarm_task,
+    warmup_all,
+)
 from mcpgen_engine.observability import configure_langfuse_otel, redact_before_send
 from mcpgen_engine.stages.stage_e.validate import ensure_codegen_node_modules
 
@@ -66,7 +73,32 @@ async def _engine_lifespan(_app: FastAPI) -> AsyncIterator[None]:
         # Defensive: degraded engine still serves /health; developer can
         # diagnose codegen-templates issues from the structured log line.
         _log.warning("engine.startup.codegen_templates_failed", error=repr(exc))
+
+    # LLM cache warmup — fire one minimal call per pass-specific system
+    # prompt so the upstream provider's prefix cache is populated before
+    # the first user generation. Then start the keep-warm loop that
+    # re-fires every 4 minutes (under the 5-min provider TTL) so an idle
+    # engine doesn't lose the cache. Failure here NEVER blocks startup —
+    # warmup is a latency optimization, not a correctness requirement.
+    try:
+        # Background-task: don't block the lifespan startup. The first
+        # user request may still hit a partially-cold cache if it lands
+        # within ~10s of boot, but that's acceptable vs. delaying engine
+        # readiness by the warmup duration (~5-15s for 6 parallel calls).
+        # Task ref is intentionally not stored - lifespan-scoped
+        # fire-and-forget; keep-warm loop owns the long-lived task.
+        asyncio.create_task(warmup_all(), name="llm-warmup-initial")  # noqa: RUF006
+        start_keepwarm_task()
+    except Exception as exc:
+        _log.warning("engine.startup.llm_warmup_failed", error=repr(exc))
+
     yield
+
+    # Shutdown — cancel the keep-warm task cleanly.
+    try:
+        await stop_keepwarm_task()
+    except Exception as exc:
+        _log.warning("engine.shutdown.llm_warmup_stop_failed", error=repr(exc))
 
 
 def create_app() -> FastAPI:
@@ -88,6 +120,33 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    # On-demand cache warmup - POST /api/v1/warmup. The web app fires
+    # this fire-and-forget when the user lands on /generate (paste form)
+    # so the OpenRouter prefix cache is hot by the time they click
+    # "make it" 5-30 s later. Returns timing + cached_tokens per target
+    # so callers can dashboard the warmup hit ratio.
+    @app.post("/api/v1/warmup")
+    async def warmup() -> dict[str, object]:
+        results: list[WarmupResult] = await warmup_all()
+        return {
+            "targets": [
+                {
+                    "name": r.name,
+                    "elapsed_ms": r.elapsed_ms,
+                    "prompt_tokens": r.prompt_tokens,
+                    "cached_tokens": r.cached_tokens,
+                    "error": r.error,
+                }
+                for r in results
+            ],
+            "summary": {
+                "target_count": len(results),
+                "error_count": sum(1 for r in results if r.error is not None),
+                "cached_tokens_total": sum((r.cached_tokens or 0) for r in results),
+                "prompt_tokens_total": sum((r.prompt_tokens or 0) for r in results),
+            },
+        }
 
     # Phase 2: POST /api/v1/generate + GET /api/v1/generate/{job_id}/stream.
     app.include_router(generate_api.router)

@@ -50,12 +50,19 @@ from pydantic_ai.settings import ModelSettings
 # parameter, which made the flag filter every provider. Determinism is
 # preserved by `order` + `allow_fallbacks=False` + `quantizations`.
 # See decision doc dated 2026-04-28.
-_PROVIDER_ROUTING: dict[str, dict[str, object]] = {
+_PROVIDER_ROUTING: dict[str, object] = {
     "provider": {
         "order": ["atlas-cloud"],
         "allow_fallbacks": False,
         "quantizations": ["fp8"],
-    }
+    },
+    # Ask OpenRouter to include `prompt_tokens_details.cached_tokens` in
+    # the response so we can observe prefix-cache hit ratio per call. The
+    # cache itself lives on the upstream provider (AtlasCloud); OpenRouter
+    # only proxies the metric. See `mcpgen_engine.llm.warmup` for the
+    # startup + periodic prefix warmup that keeps this metric > 0 on
+    # second and subsequent generations.
+    "usage": {"include": True},
 }
 
 # D-06: Pass 0 LLM stage — classification-grade, deterministic.

@@ -63,6 +63,7 @@ import { qualityRoute } from './routes/v1/quality.js';
 import { playgroundRoute } from './routes/v1/playground.js';
 import { claimRoute } from './routes/v1/claim.js';
 import { ephemeralDeployRoute } from './routes/v1/deploy-ephemeral.js';
+import { warmupRoute } from './routes/v1/warmup.js';
 import { downloadRoute } from './routes/v1/download.js';
 import { dashboardRoutes } from './routes/v1/dashboard.js';
 import { accountRoutes } from './routes/v1/account.js';
@@ -188,6 +189,7 @@ export function buildApp(env: Bindings): Hono<{ Bindings: Bindings; Variables: V
   app.route('/api/v1/generate', generateRoute);
   app.route('/api/v1/jobs', jobsRoute);
   app.route('/api/v1/deploy/ephemeral', ephemeralDeployRoute);
+  app.route('/api/v1/warmup', warmupRoute);
 
   // ─── Conditional public routes per BFF_ANONYMOUS_GATE (D-01) ──────────
   // Default 'playground' = most-restrictive: only generate/jobs/ephemeral

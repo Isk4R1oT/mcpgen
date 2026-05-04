@@ -250,6 +250,15 @@ export default function Landing(): ReactElement {
     save: 76,
   });
 
+  // Fire-and-forget LLM cache warmup. By the time the user pastes a
+  // URL and clicks "make it" (typically 5-30s after landing), the
+  // upstream provider's prefix cache is hot for all six pass system
+  // prompts. See apps/web/src/lib/api/warmup.ts for the de-duped
+  // 30s-rate-limited client.
+  useEffect(() => {
+    void import('@/lib/api/warmup').then((m) => m.fireWarmup());
+  }, []);
+
   const onMakeIt = (): void => {
     const trimmed = urlText.trim();
     const target =

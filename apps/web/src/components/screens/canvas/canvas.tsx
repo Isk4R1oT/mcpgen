@@ -252,6 +252,15 @@ export function Canvas({
 }: CanvasProps): JSX.Element {
   const router = useRouter();
 
+  // Fire LLM cache warmup the moment the user lands on /generate (paste
+  // form). Even if they came directly here without visiting / first,
+  // the de-duped client will still warm the upstream prefix cache so
+  // their POST /generate hits a hot provider.
+  useEffect(() => {
+    if (jobId !== undefined && jobId !== '') return; // post-gen view, no warmup needed
+    void import('@/lib/api/warmup').then((m) => m.fireWarmup());
+  }, [jobId]);
+
   // ─── Auto-submit when arriving with ?spec_url=... ───────────────────────────
   const submittedRef = useRef(false);
   useEffect(() => {
