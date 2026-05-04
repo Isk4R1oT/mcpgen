@@ -269,3 +269,88 @@ export async function deletePlaygroundSession(
     schema: z.object({ job_id: z.string(), found: z.boolean() }),
   });
 }
+
+// ─── Tests + suite ─────────────────────────────────────────────────────────
+
+export const PlaygroundTestSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  prompt: z.string().optional(),
+  expected_tools: z.array(z.string()),
+  last_status: z.string().nullable().optional(),
+  last_run_at: z.string().or(z.date()).nullable().optional(),
+  last_failure: z
+    .object({
+      missing_tool: z.string(),
+      actual_tool: z.string().nullable(),
+      hint: z.string(),
+    })
+    .nullable()
+    .optional(),
+});
+export type PlaygroundTest = z.infer<typeof PlaygroundTestSchema>;
+
+export async function listPlaygroundTests(
+  jobId: string,
+): Promise<Result<{ readonly tests: ReadonlyArray<PlaygroundTest> }>> {
+  return request<{ readonly tests: ReadonlyArray<PlaygroundTest> }>({
+    method: 'GET',
+    path: `/api/v1/playground/${encodeURIComponent(jobId)}/tests`,
+    schema: z.object({ tests: z.array(PlaygroundTestSchema) }),
+  });
+}
+
+export async function savePlaygroundRunAsTest(
+  jobId: string,
+  runId: string,
+  name?: string,
+): Promise<Result<{ id: string; name: string; expected_tools: string[] }>> {
+  return request<{ id: string; name: string; expected_tools: string[] }>({
+    method: 'POST',
+    path: `/api/v1/playground/${encodeURIComponent(jobId)}/tests`,
+    body: name !== undefined ? { run_id: runId, name } : { run_id: runId },
+    schema: z.object({
+      id: z.string(),
+      name: z.string(),
+      expected_tools: z.array(z.string()),
+    }),
+    successStatuses: [200, 201],
+  });
+}
+
+export const PlaygroundSuiteResultSchema = z.object({
+  tests: z.array(
+    z.object({
+      test_id: z.string(),
+      name: z.string(),
+      status: z.string(),
+      expected_tools: z.array(z.string()),
+      actual_tools: z.array(z.string()),
+      failure: z
+        .object({
+          missing_tool: z.string(),
+          actual_tool: z.string().nullable(),
+          hint: z.string(),
+        })
+        .optional(),
+      duration_ms: z.number(),
+    }),
+  ),
+  summary: z.object({
+    total: z.number(),
+    passed: z.number(),
+    failed: z.number(),
+  }),
+});
+export type PlaygroundSuiteResult = z.infer<typeof PlaygroundSuiteResultSchema>;
+
+export async function runPlaygroundSuite(
+  jobId: string,
+): Promise<Result<PlaygroundSuiteResult>> {
+  return request<PlaygroundSuiteResult>({
+    method: 'POST',
+    path: `/api/v1/playground/${encodeURIComponent(jobId)}/tests/run`,
+    body: {},
+    schema: PlaygroundSuiteResultSchema,
+  });
+}

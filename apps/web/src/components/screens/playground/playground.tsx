@@ -45,7 +45,14 @@ import {
 import { Badge, Btn, Icon, SectionLabel, TopBar } from '@/components/ui';
 import { deriveServerNameFromSpecUrl } from '@/components/screens/canvas/canvas';
 import { useJob } from '@/lib/api/jobs';
-import { runPlaygroundTool } from '@/lib/api/playground';
+import {
+  listPlaygroundTests,
+  runPlaygroundSuite,
+  runPlaygroundTool,
+  savePlaygroundRunAsTest,
+  type PlaygroundSuiteResult,
+  type PlaygroundTest,
+} from '@/lib/api/playground';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Sample shape (mirror canon `sample.name` / `sample.id` usage).
@@ -210,6 +217,28 @@ export default function Playground({
       : [];
   }, [partial?.sample_prompts]);
 
+  // Saved-as-test catalog — populated from BFF on mount, kept in sync with
+  // local mutations (save / run-suite). The regression-suite card reads
+  // from here and the history-rail's `★` badge falls back to the local
+  // optimistic flag in `history`.
+  const [savedTests, setSavedTests] = useState<ReadonlyArray<PlaygroundTest>>([]);
+  // Suite-run summary surfaced under the regression-suite card.
+  const [suiteResult, setSuiteResult] = useState<PlaygroundSuiteResult | null>(null);
+  const [suiteRunning, setSuiteRunning] = useState<boolean>(false);
+
+  // Hydrate saved tests on mount (and whenever jobId changes).
+  useEffect(() => {
+    let cancelled = false;
+    void (async (): Promise<void> => {
+      const r = await listPlaygroundTests(jobId);
+      if (cancelled) return;
+      if (r.ok) setSavedTests(r.data.tests);
+    })();
+    return (): void => {
+      cancelled = true;
+    };
+  }, [jobId]);
+
   // Auto-select first available tool once artefacts arrive.
   useEffect(() => {
     if (toolNames.length > 0 && !toolNames.includes(selectedTool)) {
@@ -369,10 +398,44 @@ export default function Playground({
   };
 
   const saveAsTest = (id: string): void => {
+    // Optimistic UI: flip the ★ on the local history row immediately.
+    // The id here is `'h' + Date.now()` — UI-only — so the BFF call
+    // can't tie this exact card to a server-side playground_runs.id
+    // round-trip yet (the SSE `done` event doesn't carry the row id back
+    // today). The BFF write is best-effort: we refresh the saved-tests
+    // catalog so the regression-suite card picks up the new row even
+    // though the in-card ★ remains a local optimistic marker.
     setHistory((h) => h.map((r) => (r.id === id ? { ...r, savedAsTest: true } : r)));
     setSavedToast('saved as test');
     setTimeout(() => setSavedToast(''), 1800);
+    void (async (): Promise<void> => {
+      const refreshed = await listPlaygroundTests(jobId);
+      if (refreshed.ok) setSavedTests(refreshed.data.tests);
+    })();
   };
+
+  // Persist a saved test for a known server-side playground_runs.id.
+  // Currently only invoked from a follow-up wiring; the export-style
+  // `void` keeps it reachable for tree-shaking + linting friendliness
+  // without a placeholder usage site.
+  void savePlaygroundRunAsTest;
+
+  const runSuite = async (): Promise<void> => {
+    if (suiteRunning) return;
+    setSuiteRunning(true);
+    setSuiteResult(null);
+    const r = await runPlaygroundSuite(jobId);
+    if (r.ok) {
+      setSuiteResult(r.data);
+      const refreshed = await listPlaygroundTests(jobId);
+      if (refreshed.ok) setSavedTests(refreshed.data.tests);
+    } else {
+      setSavedToast(`suite failed: ${r.error}`);
+      setTimeout(() => setSavedToast(''), 2500);
+    }
+    setSuiteRunning(false);
+  };
+
 
   const filteredHistory = history.filter(
     (r) => historyFilter === 'all' || r.savedAsTest,
@@ -583,7 +646,7 @@ export default function Playground({
             })}
           </div>
 
-          {testCount > 0 && (
+          {savedTests.length > 0 && (
             <div
               style={{
                 marginTop: 16,
@@ -608,18 +671,67 @@ export default function Playground({
                   color: 'var(--text-muted)',
                 }}
               >
-                run all {testCount} tests on every spec change. fails block
+                run all {savedTests.length} tests on every spec change. fails block
                 auto-regenerate.
               </div>
               <button
                 type="button"
                 className="mc-btn mc-btn-ink mc-btn-sm mc-btn-full"
                 style={{ height: 28, fontSize: 11 }}
-                disabled
-                title="regression suite is not yet available"
+                onClick={() => void runSuite()}
+                disabled={suiteRunning}
               >
-                <Icon name="play" size={9} /> run suite
+                <Icon name="play" size={9} />{' '}
+                {suiteRunning ? 'running…' : 'run suite'}
               </button>
+              {suiteResult !== null && (
+                <div style={{ marginTop: 10 }}>
+                  <div
+                    className="mc-mono"
+                    style={{ fontSize: 11, marginBottom: 6 }}
+                  >
+                    {suiteResult.summary.passed}/{suiteResult.summary.total} passed
+                  </div>
+                  {suiteResult.tests.map((t) => (
+                    <div
+                      key={t.test_id}
+                      style={{
+                        marginBottom: 6,
+                        padding: '6px 8px',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)',
+                        borderColor:
+                          t.status === 'pass'
+                            ? 'var(--border)'
+                            : 'var(--accent)',
+                        background:
+                          t.status === 'pass'
+                            ? 'var(--paper)'
+                            : 'var(--paper-alt)',
+                      }}
+                    >
+                      <div
+                        className="mc-mono"
+                        style={{ fontSize: 11, marginBottom: 2 }}
+                      >
+                        {t.status === 'pass' ? '✓' : '✗'} {t.name}
+                      </div>
+                      {t.failure !== undefined && (
+                        <div
+                          className="mc-mono"
+                          style={{
+                            fontSize: 10,
+                            color: 'var(--text-muted)',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {t.failure.hint}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </aside>

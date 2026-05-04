@@ -30,7 +30,7 @@ import { sql } from 'drizzle-orm';
 import { eq, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import { playground_runs } from '@mcpgen/contracts/db-schema';
+import { playground_runs, playground_tests } from '@mcpgen/contracts/db-schema';
 
 import { db } from '../../db.js';
 import { generationBelongsToOrg } from '../../lib/auth-helpers.js';
@@ -396,3 +396,346 @@ playgroundRoute.delete('/sessions/:generationId', async (c) => {
     );
   }
 });
+
+// ─── Tests (save-as-test + suite execution) ────────────────────────────────
+
+const SaveTestBodySchema = z.object({
+  run_id: z.string().min(1),
+  name: z.string().trim().min(1).max(120).optional(),
+});
+
+interface TraceShape {
+  readonly name?: string;
+}
+
+function extractToolNamesFromTrace(trace: unknown): string[] {
+  if (!Array.isArray(trace)) return [];
+  const out: string[] = [];
+  for (const t of trace) {
+    if (t !== null && typeof t === 'object' && typeof (t as TraceShape).name === 'string') {
+      out.push((t as { name: string }).name);
+    }
+  }
+  return out;
+}
+
+function shortLabel(prompt: string): string {
+  const trimmed = prompt.trim();
+  return trimmed.length > 40 ? `${trimmed.slice(0, 38)}…` : trimmed;
+}
+
+// POST /:generationId/tests — save a successful run as a regression test.
+playgroundRoute.post(
+  '/:generationId/tests',
+  zValidator('json', SaveTestBodySchema),
+  async (c) => {
+    const guard = ensureUserAuth(c.var.auth);
+    if (!guard.ok) return c.json(guard.body, guard.status);
+    const generationId = c.req.param('generationId');
+    const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
+    if (!owns) return c.json({ error: 'not_found' }, 404);
+
+    const { run_id: runId, name: providedName } = c.req.valid('json');
+
+    const [runRow] = await db
+      .select({
+        id: playground_runs.id,
+        prompt: playground_runs.prompt,
+        trace: playground_runs.trace,
+        status: playground_runs.status,
+      })
+      .from(playground_runs)
+      .where(
+        and(
+          eq(playground_runs.id, runId),
+          eq(playground_runs.generation_id, generationId),
+          eq(playground_runs.org_id, guard.userAuth.organizationId),
+        ),
+      )
+      .limit(1);
+
+    if (!runRow) return c.json({ error: 'not_found', reason: 'run_missing' }, 404);
+    if (runRow.status !== 'ok') {
+      return c.json(
+        { error: 'invalid_state', reason: 'cannot_save_failed_run_as_test' },
+        400,
+      );
+    }
+    const expectedTools = extractToolNamesFromTrace(runRow.trace);
+    if (expectedTools.length === 0) {
+      return c.json(
+        { error: 'invalid_state', reason: 'run_has_no_tool_calls' },
+        400,
+      );
+    }
+
+    const id = crypto.randomUUID();
+    const name = providedName ?? shortLabel(runRow.prompt);
+    await db.insert(playground_tests).values({
+      id,
+      generation_id: generationId,
+      org_id: guard.userAuth.organizationId,
+      source_run_id: runRow.id,
+      name,
+      prompt: runRow.prompt,
+      expected_tools: expectedTools,
+      last_status: null,
+    });
+    return c.json({ id, name, expected_tools: expectedTools }, 201);
+  },
+);
+
+// GET /:generationId/tests — list saved tests for the playground rail.
+playgroundRoute.get('/:generationId/tests', async (c) => {
+  const guard = ensureUserAuth(c.var.auth);
+  if (!guard.ok) return c.json(guard.body, guard.status);
+  const generationId = c.req.param('generationId');
+  const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
+  if (!owns) return c.json({ error: 'not_found' }, 404);
+
+  const rows = await db
+    .select({
+      id: playground_tests.id,
+      name: playground_tests.name,
+      prompt: playground_tests.prompt,
+      expected_tools: playground_tests.expected_tools,
+      last_status: playground_tests.last_status,
+      last_run_at: playground_tests.last_run_at,
+      last_failure: playground_tests.last_failure,
+      created_at: playground_tests.created_at,
+    })
+    .from(playground_tests)
+    .where(
+      and(
+        eq(playground_tests.generation_id, generationId),
+        eq(playground_tests.org_id, guard.userAuth.organizationId),
+      ),
+    )
+    .orderBy(desc(playground_tests.created_at))
+    .limit(100);
+
+  return c.json({ tests: rows });
+});
+
+// DELETE /:generationId/tests/:testId — drop a saved test.
+playgroundRoute.delete('/:generationId/tests/:testId', async (c) => {
+  const guard = ensureUserAuth(c.var.auth);
+  if (!guard.ok) return c.json(guard.body, guard.status);
+  const generationId = c.req.param('generationId');
+  const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
+  if (!owns) return c.json({ error: 'not_found' }, 404);
+  const testId = c.req.param('testId');
+  await db
+    .delete(playground_tests)
+    .where(
+      and(
+        eq(playground_tests.id, testId),
+        eq(playground_tests.org_id, guard.userAuth.organizationId),
+      ),
+    );
+  return c.json({ id: testId, deleted: true });
+});
+
+// ─── Run suite ─────────────────────────────────────────────────────────────
+//
+// Sequential execution against the live engine playground session. We hit
+// `/sessions/{job}/invoke` per saved test, parse the `done` event, diff
+// the actually-invoked tool sequence against `expected_tools`. Pass = the
+// expected set is a subset of the actual set (agent may invoke MORE — that
+// often means it added a verification step, which is fine). Fail = at least
+// one expected tool was never invoked → friendly hint surfaces the missing
+// tool plus the closest substitute the agent picked.
+
+interface SuiteRunResult {
+  test_id: string;
+  name: string;
+  status: 'pass' | 'fail';
+  expected_tools: string[];
+  actual_tools: string[];
+  failure?: {
+    missing_tool: string;
+    actual_tool: string | null;
+    hint: string;
+  };
+  duration_ms: number;
+}
+
+async function invokeForSuite(
+  engineUrl: string,
+  generationId: string,
+  prompt: string,
+): Promise<{ ok: true; traces: unknown[] } | { ok: false; reason: string }> {
+  let resp: Response;
+  try {
+    resp = await fetch(
+      `${engineUrl}/api/v1/playground/sessions/${encodeURIComponent(generationId)}/invoke`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      },
+    );
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : 'engine_unreachable' };
+  }
+  if (!resp.ok || resp.body === null) {
+    return { ok: false, reason: `engine_${resp.status}` };
+  }
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let done: { traces?: unknown[] } | null = null;
+  while (true) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    buffer += decoder.decode(chunk.value, { stream: true });
+    while (true) {
+      const sep = buffer.indexOf('\n\n');
+      if (sep === -1) break;
+      const block = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      let event = 'message';
+      let data = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event: ')) event = line.slice(7).trim();
+        else if (line.startsWith('data: ')) data += line.slice(6);
+      }
+      if (event === 'done' && data !== '') {
+        try {
+          done = JSON.parse(data);
+        } catch {
+          // ignore — partial frame
+        }
+      }
+    }
+  }
+  if (done === null) return { ok: false, reason: 'no_done_event' };
+  return {
+    ok: true,
+    traces: Array.isArray(done.traces) ? done.traces : [],
+  };
+}
+
+playgroundRoute.post('/:generationId/tests/run', async (c) => {
+  const guard = ensureUserAuth(c.var.auth);
+  if (!guard.ok) return c.json(guard.body, guard.status);
+  const generationId = c.req.param('generationId');
+  const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
+  if (!owns) return c.json({ error: 'not_found' }, 404);
+
+  const tests = await db
+    .select({
+      id: playground_tests.id,
+      name: playground_tests.name,
+      prompt: playground_tests.prompt,
+      expected_tools: playground_tests.expected_tools,
+    })
+    .from(playground_tests)
+    .where(
+      and(
+        eq(playground_tests.generation_id, generationId),
+        eq(playground_tests.org_id, guard.userAuth.organizationId),
+      ),
+    );
+
+  if (tests.length === 0) {
+    return c.json({ tests: [], summary: { total: 0, passed: 0, failed: 0 } });
+  }
+
+  const engineUrl = getEngineEndpoint(c);
+  const results: SuiteRunResult[] = [];
+
+  // Sequential — Anthropic per-org rate limits + the wrangler-dev sandbox
+  // is single-isolate (parallel calls would race on shared Worker state).
+  for (const test of tests) {
+    const expected = Array.isArray(test.expected_tools)
+      ? (test.expected_tools as unknown[]).filter(
+          (x): x is string => typeof x === 'string',
+        )
+      : [];
+    const startedAt = Date.now();
+    const result = await invokeForSuite(engineUrl, generationId, test.prompt);
+    const durationMs = Date.now() - startedAt;
+
+    if (!result.ok) {
+      const failure = {
+        missing_tool: expected[0] ?? '(none)',
+        actual_tool: null,
+        hint: `engine call failed: ${result.reason}`,
+      };
+      await db
+        .update(playground_tests)
+        .set({
+          last_status: 'fail',
+          last_run_at: new Date(),
+          last_failure: failure,
+        })
+        .where(eq(playground_tests.id, test.id));
+      results.push({
+        test_id: test.id,
+        name: test.name,
+        status: 'fail',
+        expected_tools: expected,
+        actual_tools: [],
+        failure,
+        duration_ms: durationMs,
+      });
+      continue;
+    }
+
+    const actual = extractToolNamesFromTrace(result.traces);
+    const actualSet = new Set(actual);
+    const missing = expected.filter((t) => !actualSet.has(t));
+    const passed = missing.length === 0;
+
+    if (passed) {
+      await db
+        .update(playground_tests)
+        .set({ last_status: 'pass', last_run_at: new Date(), last_failure: null })
+        .where(eq(playground_tests.id, test.id));
+      results.push({
+        test_id: test.id,
+        name: test.name,
+        status: 'pass',
+        expected_tools: expected,
+        actual_tools: actual,
+        duration_ms: durationMs,
+      });
+    } else {
+      const missingTool = missing[0]!;
+      // Friendly hint: surface the expected tool + the actual first tool
+      // the agent picked instead. UI can prefix with a copywriter-friendly
+      // sentence explaining what likely went wrong (description overlap).
+      const actualTool =
+        actual.find((t) => !expected.includes(t)) ?? actual[0] ?? null;
+      const hint =
+        actualTool !== null
+          ? `expected '${missingTool}', agent picked '${actualTool}' — descriptions may overlap`
+          : `expected '${missingTool}', agent did not invoke any matching tool`;
+      const failure = { missing_tool: missingTool, actual_tool: actualTool, hint };
+      await db
+        .update(playground_tests)
+        .set({ last_status: 'fail', last_run_at: new Date(), last_failure: failure })
+        .where(eq(playground_tests.id, test.id));
+      results.push({
+        test_id: test.id,
+        name: test.name,
+        status: 'fail',
+        expected_tools: expected,
+        actual_tools: actual,
+        failure,
+        duration_ms: durationMs,
+      });
+    }
+  }
+
+  const passed = results.filter((r) => r.status === 'pass').length;
+  return c.json({
+    tests: results,
+    summary: { total: results.length, passed, failed: results.length - passed },
+  });
+});
+
+// `sql` is imported above but only used by inline helpers in this file —
+// keep the import to avoid a regression if a future helper needs raw SQL.
+void sql;

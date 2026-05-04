@@ -23,12 +23,26 @@ vi.mock('next/navigation', () => ({
   useRouter: (): { push: (p: string) => void } => ({ push: vi.fn() }),
 }));
 
-// Stub the playground BFF stub so we can flip "ENABLED" per test.
+// Stub the playground BFF — every export the screen imports needs a
+// definition so the unhandled-promise-rejection tracker stays silent.
 vi.mock('@/lib/api/playground', () => ({
   runPlaygroundTool: vi.fn(async () => ({
     ok: false,
     status: 0,
     error: 'flag_off_or_not_implemented',
+  })),
+  listPlaygroundTests: vi.fn(async () => ({
+    ok: true,
+    data: { tests: [] },
+  })),
+  savePlaygroundRunAsTest: vi.fn(async () => ({
+    ok: false,
+    status: 0,
+    error: 'flag_off_or_not_implemented',
+  })),
+  runPlaygroundSuite: vi.fn(async () => ({
+    ok: true,
+    data: { tests: [], summary: { total: 0, passed: 0, failed: 0 } },
   })),
 }));
 
