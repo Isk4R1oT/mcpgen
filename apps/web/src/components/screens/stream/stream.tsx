@@ -33,6 +33,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { useTranslations } from 'next-intl';
+
 import { Btn, Card, Icon, TopBar } from '@/components/ui';
 import { useGenerationSSE } from '@/lib/sse/use-generation-sse';
 import type { GenerationSseEvent } from '@mcpgen/contracts';
@@ -47,19 +49,25 @@ interface StreamSample {
 
 interface StreamStep {
   readonly id: string;
-  readonly label: string;
+  /**
+   * i18n key under the `stream` namespace ("stepParse" → "parsed openapi spec"
+   * in en, "openapi спецификация распарсена" in ru). The component resolves
+   * this via t() at render time so locale changes take effect without
+   * rebuilding the constant.
+   */
+  readonly labelKey: string;
 }
 
 // Canon step labels — visual parity with screen-stream.jsx. Right-column
 // `note` is computed live from SSE events, NOT a canon constant.
 const STREAM_STEPS: ReadonlyArray<StreamStep> = [
-  { id: 'parse',    label: 'parsed openapi spec' },
-  { id: 'auth',     label: 'detected auth strategy' },
-  { id: 'prune',    label: 'pruned deprecated paths' },
-  { id: 'compress', label: 'compressing descriptions' },
-  { id: 'cluster',  label: 'clustering similar endpoints' },
-  { id: 'compose',  label: 'generating composite tools' },
-  { id: 'finalize', label: 'finalizing typescript module' },
+  { id: 'parse',    labelKey: 'stepParse' },
+  { id: 'auth',     labelKey: 'stepAuth' },
+  { id: 'prune',    labelKey: 'stepPrune' },
+  { id: 'compress', labelKey: 'stepCompress' },
+  { id: 'cluster',  labelKey: 'stepCluster' },
+  { id: 'compose',  labelKey: 'stepCompose' },
+  { id: 'finalize', labelKey: 'stepFinalize' },
 ];
 
 const SPIN_FRAMES = ['⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const;
@@ -193,6 +201,7 @@ export function StreamLog({
   onCancel,
 }: StreamLogProps): ReactElement {
   const router = useRouter();
+  const t = useTranslations('stream');
   const errorMode = useErrorMode((s) => s.mode);
 
   // Derive a real server name: prefer the live job's spec_name (set by Pass 1),
@@ -251,12 +260,12 @@ export function StreamLog({
               method: 'DELETE',
             });
             if (res.ok) {
-              toast('cancelled', { kind: 'info' });
+              toast(t('toastCancelled'), { kind: 'info' });
             } else {
-              toast('cancelled (local)', { kind: 'info' });
+              toast(t('toastCancelledLocal'), { kind: 'info' });
             }
           } catch {
-            toast('cancelled (local)', { kind: 'info' });
+            toast(t('toastCancelledLocal'), { kind: 'info' });
           }
           router.push('/generate');
         })();
@@ -275,7 +284,7 @@ export function StreamLog({
     } else if (sse.status === 'failed') {
       navigatedRef.current = true;
       setErrored(true);
-      toast('generation failed', { kind: 'error' });
+      toast(t('toastGenerationFailed'), { kind: 'error' });
     }
   }, [sse.status, handleDone]);
 
@@ -301,10 +310,10 @@ export function StreamLog({
   return (
     <div className="mc-screen mc-grain" style={{ minHeight: '100vh' }}>
       <TopBar
-        crumb={`generating ${derivedServerName}-mcp`}
+        crumb={t('crumb', { name: derivedServerName })}
         right={
           <Btn kind="ghost" size="sm" icon="x" onClick={handleCancel}>
-            cancel
+            {t('cancel')}
           </Btn>
         }
       />
@@ -326,9 +335,21 @@ export function StreamLog({
           style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 28 }}
         >
           <span>
-            step {Math.min(activeIdx + 1, STREAM_STEPS.length)} of {STREAM_STEPS.length} · {progress}%
+            {t('stepProgress', {
+              current: Math.min(activeIdx + 1, STREAM_STEPS.length),
+              total: STREAM_STEPS.length,
+              percent: progress,
+            })}
           </span>
-          <span>{sse.status === 'streaming' || sse.status === 'connecting' ? 'streaming…' : sse.status}</span>
+          <span>
+            {sse.status === 'streaming' || sse.status === 'connecting'
+              ? t('statusStreaming')
+              : sse.status === 'completed'
+                ? t('statusCompleted')
+                : sse.status === 'failed'
+                  ? t('statusFailed')
+                  : sse.status}
+          </span>
         </div>
 
         {/* Log */}
@@ -355,7 +376,7 @@ export function StreamLog({
                           fontWeight: failed ? 600 : undefined,
                         }}
                       >
-                        {st.label}
+                        {t(st.labelKey)}
                       </span>
                     </span>
                     <span
@@ -367,9 +388,9 @@ export function StreamLog({
                     >
                       {failed
                         ? failStep === 0
-                          ? 'parse error'
-                          : '401 unauthorized'
-                        : view.note ?? (upcoming ? 'next' : '…')}
+                          ? t('noteParseError')
+                          : t('noteAuthError')
+                        : view.note ?? (upcoming ? t('noteNext') : t('noteEllipsis'))}
                     </span>
                   </div>
                 </div>
@@ -404,12 +425,10 @@ export function StreamLog({
             }}
           >
             <div className="mc-caption-up" style={{ marginBottom: 8 }}>
-              did you know?
+              {t('didYouKnow')}
             </div>
             <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text)' }}>
-              most MCP servers waste 70% of their token budget on verbose
-              descriptions copied straight from openapi specs.
-              this is exactly what we&apos;re fixing right now.
+              {t('didYouKnowBody')}
             </div>
           </div>
         )}
@@ -421,12 +440,10 @@ export function StreamLog({
               size="sm"
               icon="bell"
               onClick={(): void => {
-                toast("we'll email kira@dolla.io when it's done", {
-                  kind: 'info',
-                });
+                toast(t('notifyEmailToast'), { kind: 'info' });
               }}
             >
-              notify me when done — i&apos;ll do something else
+              {t('notifyMeWhenDone')}
             </Btn>
           </div>
         )}
@@ -442,17 +459,17 @@ function SpecFailCard({
 }: {
   readonly onDismiss: () => void;
 }): ReactElement {
+  const t = useTranslations('stream');
   return (
     <div>
       <div className="row" style={{ gap: 10, marginBottom: 8 }}>
         <Icon name="warn" size={14} style={{ color: 'var(--accent)' }} />
         <span className="mc-h3" style={{ color: 'var(--accent)' }}>
-          spec failed to parse
+          {t('specFailTitle')}
         </span>
       </div>
       <div style={{ fontSize: 14, lineHeight: 1.55, marginBottom: 14 }}>
-        we couldn&apos;t parse the upstream spec. fix the source and retry, or
-        try ai-assisted repair.
+        {t('specFailBody')}
       </div>
       <div className="row" style={{ gap: 8 }}>
         <Btn
@@ -460,22 +477,22 @@ function SpecFailCard({
           size="sm"
           icon="spark"
           onClick={(): void => {
-            toast('ai re-parsing spec… this usually takes 6s', { kind: 'info' });
+            toast(t('specFailRepairToast'), { kind: 'info' });
           }}
         >
-          try repair with ai
+          {t('specFailTryRepair')}
         </Btn>
         <Btn
           kind="ink"
           size="sm"
           onClick={(): void => {
-            toast('opening inline spec editor', { kind: 'info' });
+            toast(t('specFailEditorToast'), { kind: 'info' });
           }}
         >
-          edit spec inline
+          {t('specFailEditInline')}
         </Btn>
         <Btn kind="ghost" size="sm" onClick={onDismiss}>
-          upload new spec
+          {t('specFailUploadNew')}
         </Btn>
       </div>
     </div>
@@ -483,23 +500,24 @@ function SpecFailCard({
 }
 
 function AuthFailCard(): ReactElement {
+  const t = useTranslations('stream');
   return (
     <div>
       <div className="row" style={{ gap: 10, marginBottom: 8 }}>
         <Icon name="warn" size={14} style={{ color: 'var(--accent)' }} />
         <span className="mc-h3" style={{ color: 'var(--accent)' }}>
-          auth probe returned 401
+          {t('authFailTitle')}
         </span>
       </div>
       <div style={{ fontSize: 14, lineHeight: 1.55, marginBottom: 14 }}>
-        the api key probe failed. fix the credential and retry — generation
-        resumes from this step.
+        {t('authFailBody')}
       </div>
       <div className="mc-banner" style={{ marginBottom: 14 }}>
         <Icon name="lock" size={11} />
         <span>
-          most common cause: copied <span className="mc-mono">sk_test_…</span>{' '}
-          when the endpoint expects <span className="mc-mono">sk_live_…</span>
+          {t.rich('authFailHint', {
+            code: (chunks) => <span className="mc-mono">{chunks}</span>,
+          })}
         </span>
       </div>
       <div className="row" style={{ gap: 8 }}>
@@ -508,28 +526,28 @@ function AuthFailCard(): ReactElement {
           size="sm"
           icon="spark"
           onClick={(): void => {
-            toast('credential vault opening…', { kind: 'info' });
+            toast(t('authFailVaultToast'), { kind: 'info' });
           }}
         >
-          re-enter credential
+          {t('authFailReEnter')}
         </Btn>
         <Btn
           kind="ink"
           size="sm"
           onClick={(): void => {
-            toast('switching to oauth2 client_credentials', { kind: 'info' });
+            toast(t('authFailSchemeToast'), { kind: 'info' });
           }}
         >
-          use a different scheme
+          {t('authFailDifferentScheme')}
         </Btn>
         <Btn
           kind="ghost"
           size="sm"
           onClick={(): void => {
-            toast('skipping auth · read-only mode', { kind: 'info' });
+            toast(t('authFailSkipToast'), { kind: 'info' });
           }}
         >
-          skip auth (read-only)
+          {t('authFailSkip')}
         </Btn>
       </div>
     </div>
