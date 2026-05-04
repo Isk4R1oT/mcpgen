@@ -91,7 +91,7 @@ const messages = {
   table: 'table',
   marketplace: 'marketplace',
   billing: 'billing',
-  welcomeTitle: 'welcome, kira.',
+  welcomeTitle: 'welcome, {name}.',
   welcomeSub: 'no servers yet.',
   startPaste: 'paste a spec',
   startPasteSub: 'openapi…',
@@ -135,7 +135,8 @@ afterEach(() => {
 describe('<DashboardList>', () => {
   it('renders the empty/first-run state when no deployments are returned', () => {
     const { getByText } = renderWithProviders(<DashboardList />);
-    expect(getByText(/welcome, kira/i)).toBeTruthy();
+    // No userClaims -> name falls back to 'there'.
+    expect(getByText(/welcome, there/i)).toBeTruthy();
     expect(getByText(/paste a spec/i)).toBeTruthy();
   });
 

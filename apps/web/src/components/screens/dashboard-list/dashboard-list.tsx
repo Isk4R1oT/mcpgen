@@ -708,11 +708,13 @@ function ForkVisual(): ReactElement {
 interface EmptyDashboardProps {
   readonly onLanding: () => void;
   readonly onMarketplace: () => void;
+  readonly userName: string;
 }
 
 function EmptyDashboard({
   onLanding,
   onMarketplace,
+  userName,
 }: EmptyDashboardProps): ReactElement {
   const t = useTranslations();
   const checklist = [
@@ -725,7 +727,7 @@ function EmptyDashboard({
     <div style={{ paddingTop: 48 }}>
       <div style={{ marginBottom: 40, maxWidth: 720 }}>
         <div className="mc-display-l" style={{ marginBottom: 14 }}>
-          {t('welcomeTitle')}
+          {t('welcomeTitle', { name: userName })}
         </div>
         <div
           className="mc-mono"
@@ -970,10 +972,30 @@ export function DashboardList({
   };
 
   const isEmpty = servers.length === 0;
+  // Real user email — no canon fallback. Hide the topbar slot entirely
+  // when claims didn't carry an email so we never show a stranger's
+  // address (the prior 'kira@dolla.io' literal was the locked design
+  // mock that leaked into production for any user without claims.email).
   const userEmail =
     userClaims?.email !== undefined && userClaims.email.length > 0
       ? userClaims.email
-      : 'kira@dolla.io';
+      : null;
+  // Friendly first-name for the welcome title. Prefer the user's given
+  // name (Logto returns claims.name as the full display name); fall back
+  // to the email local-part, then 'there' as a last resort. lowercase to
+  // match the canon typography (welcome, igor.).
+  const userName: string = (() => {
+    const raw =
+      userClaims?.name !== undefined && userClaims.name.length > 0
+        ? userClaims.name
+        : userClaims?.email !== undefined && userClaims.email.length > 0
+          ? userClaims.email.split('@')[0] ?? ''
+          : '';
+    if (raw.length === 0) return 'there';
+    // Take the first word (handles "Igor Iskariot" → "Igor").
+    const first = raw.trim().split(/\s+/)[0] ?? raw;
+    return first.toLowerCase();
+  })();
 
   return (
     <div className="mc-screen mc-grain" style={{ minHeight: '100vh' }}>
@@ -997,9 +1019,11 @@ export function DashboardList({
               {t('billing')}
             </button>
             <LangSwitcher />
-            <span className="mc-caption" style={{ marginRight: 4 }}>
-              {userEmail}
-            </span>
+            {userEmail !== null ? (
+              <span className="mc-caption" style={{ marginRight: 4 }}>
+                {userEmail}
+              </span>
+            ) : null}
             <button
               type="button"
               className="mc-btn mc-btn-ghost mc-btn-sm"
@@ -1025,6 +1049,7 @@ export function DashboardList({
           <EmptyDashboard
             onLanding={handleLanding}
             onMarketplace={handleMarketplace}
+            userName={userName}
           />
         ) : (
           <>
