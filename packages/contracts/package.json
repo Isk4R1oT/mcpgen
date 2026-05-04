@@ -25,7 +25,8 @@
     "drizzle-kit:check": "drizzle-kit check --config ../../infrastructure/neon/drizzle.config.ts",
     "drizzle-kit:generate": "drizzle-kit generate --config ../../infrastructure/neon/drizzle.config.ts",
     "drizzle-kit:push": "drizzle-kit push --config ../../infrastructure/neon/drizzle.config.ts",
-    "db:test-migrate": "tsx scripts/test-migrate.ts"
+    "db:test-migrate": "tsx scripts/test-migrate.ts",
+    "db:migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@mcpgen/ir": "workspace:*",
