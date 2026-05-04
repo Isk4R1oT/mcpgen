@@ -33,7 +33,7 @@ import { zValidator } from '@hono/zod-validator';
 import { playground_runs, playground_tests } from '@mcpgen/contracts/db-schema';
 
 import { db } from '../../db.js';
-import { generationBelongsToOrg } from '../../lib/auth-helpers.js';
+import { readAnonSession } from '../../lib/anon-session.js';
 import type { AuthContext } from '../../middleware/auth.js';
 
 interface PlaygroundBindings {
@@ -42,42 +42,73 @@ interface PlaygroundBindings {
 
 export const playgroundRoute = new Hono<{
   Bindings: PlaygroundBindings;
-  Variables: { auth: AuthContext };
+  Variables: { auth?: AuthContext };
 }>();
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
-
-interface UserAuth {
-  organizationId: string;
+// ─── Auth ──────────────────────────────────────────────────────────────────
+//
+// Playground is mounted on the PUBLIC anon-allowed path
+// (`app.route('/api/v1/playground', ...)`) so the anonymous hero flow —
+// generate → playground without sign-in — actually works. Per-handler
+// authorization mirrors the `/jobs/:id` pattern: a generation is owned by
+// its anon-cookie session OR (post-claim) by a user's org via the JWT.
+// `org_id` is only available for JWT callers; anon callers operate against
+// the engine but don't persist runs / tests (the playground_runs table
+// requires NOT NULL org_id — anon history is intentionally session-only).
+interface PgAuthAuthorized {
+  ok: true;
+  // Set when caller carries a Logto JWT with an org_id; null when caller
+  // is anon-cookie-only — handlers that need persistence MUST short-circuit
+  // when `orgId === null`.
+  orgId: string | null;
+}
+interface PgAuthRefused {
+  ok: false;
+  status: 403 | 404;
+  body: { error: string; reason?: string };
 }
 
-function ensureUserAuth(
-  auth: AuthContext,
-):
-  | { ok: true; userAuth: UserAuth }
-  | { ok: false; status: 401 | 403 | 400; body: { error: string; reason: string } } {
-  if (auth.isM2M) {
-    return {
-      ok: false,
-      status: 403,
-      body: { error: 'forbidden', reason: 'm2m_cannot_use_playground' },
-    };
+async function authorizePlaygroundAccess(
+  c: import('hono').Context<{
+    Bindings: PlaygroundBindings;
+    Variables: { auth?: AuthContext };
+  }>,
+  generationId: string,
+): Promise<PgAuthAuthorized | PgAuthRefused> {
+  const auth = (c.var as { auth?: AuthContext }).auth;
+  const jwtOrgId = auth?.organizationId ?? null;
+  const anonSessionId = readAnonSession(c);
+
+  // Single round-trip — pull the join columns we need to make the decision.
+  // LEFT JOIN because permanent (claimed) generations may not have an
+  // anonymous_generations row anymore after row-level cleanup.
+  const r = await db.execute(sql`
+    SELECT
+      g.id                       AS gen_id,
+      ag.anon_session_id          AS anon_session_id,
+      ag.claimed_by_org_id        AS claimed_by_org_id
+    FROM generations g
+    LEFT JOIN anonymous_generations ag ON ag.generation_id = g.id
+    WHERE g.id = ${generationId}
+    LIMIT 1
+  `);
+  const row = r.rows[0] as
+    | { gen_id: string; anon_session_id: string | null; claimed_by_org_id: string | null }
+    | undefined;
+  if (!row) return { ok: false, status: 404, body: { error: 'not_found' } };
+
+  const ownsViaCookie =
+    anonSessionId !== null && row.anon_session_id === anonSessionId;
+  const ownsViaJwt =
+    jwtOrgId !== null && row.claimed_by_org_id === jwtOrgId;
+
+  if (!ownsViaCookie && !ownsViaJwt) {
+    // 404 (not 403) per T-9-bff-auth-07 — never confirm existence of a
+    // foreign-org generation to the caller.
+    return { ok: false, status: 404, body: { error: 'not_found' } };
   }
-  if (auth.subject.length === 0) {
-    return {
-      ok: false,
-      status: 401,
-      body: { error: 'unauthorized', reason: 'missing_subject' },
-    };
-  }
-  if (!auth.organizationId) {
-    return {
-      ok: false,
-      status: 400,
-      body: { error: 'no_org_context', reason: 'organization_id_missing' },
-    };
-  }
-  return { ok: true, userAuth: { organizationId: auth.organizationId } };
+
+  return { ok: true, orgId: ownsViaJwt ? jwtOrgId : null };
 }
 
 function getEngineEndpoint(c: { env: PlaygroundBindings }): string {
@@ -186,11 +217,9 @@ type InvokeBody = z.infer<typeof InvokeBodySchema>;
 // ─── POST /sessions/:generationId — ensure sandbox ─────────────────────────
 
 playgroundRoute.post('/sessions/:generationId', async (c) => {
-  const guard = ensureUserAuth(c.var.auth);
-  if (!guard.ok) return c.json(guard.body, guard.status);
   const generationId = c.req.param('generationId');
-  const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
-  if (!owns) return c.json({ error: 'not_found' }, 404);
+  const auth = await authorizePlaygroundAccess(c, generationId);
+  if (!auth.ok) return c.json(auth.body, auth.status);
 
   const engineUrl = getEngineEndpoint(c);
   let upstream: Response;
@@ -225,11 +254,9 @@ playgroundRoute.post(
   '/:generationId/invoke',
   zValidator('json', InvokeBodySchema),
   async (c) => {
-    const guard = ensureUserAuth(c.var.auth);
-    if (!guard.ok) return c.json(guard.body, guard.status);
     const generationId = c.req.param('generationId');
-    const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
-    if (!owns) return c.json({ error: 'not_found' }, 404);
+    const auth = await authorizePlaygroundAccess(c, generationId);
+    if (!auth.ok) return c.json(auth.body, auth.status);
 
     const body: InvokeBody = c.req.valid('json');
     const pinnedTool = body.pinned_tool ?? null;
@@ -295,10 +322,14 @@ playgroundRoute.post(
       }
 
       // Best-effort persistence — never fail the SSE response on DB error.
-      if (donePayload !== null) {
+      // Anonymous callers (no org_id) skip persistence; their playground
+      // history is session-only by design (playground_runs.org_id is NOT
+      // NULL — anon flow can still test the agent loop, just without a
+      // persistent history rail across page reloads).
+      if (donePayload !== null && auth.orgId !== null) {
         await persistRun({
           generationId,
-          orgId: guard.userAuth.organizationId,
+          orgId: auth.orgId,
           prompt: body.prompt,
           pinnedTool,
           donePayload,
@@ -311,11 +342,12 @@ playgroundRoute.post(
 // ─── GET /:generationId/runs — history rail ────────────────────────────────
 
 playgroundRoute.get('/:generationId/runs', async (c) => {
-  const guard = ensureUserAuth(c.var.auth);
-  if (!guard.ok) return c.json(guard.body, guard.status);
   const generationId = c.req.param('generationId');
-  const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
-  if (!owns) return c.json({ error: 'not_found' }, 404);
+  const auth = await authorizePlaygroundAccess(c, generationId);
+  if (!auth.ok) return c.json(auth.body, auth.status);
+  // Anonymous callers don't persist runs (org_id required) — return an
+  // empty list rather than 401 so the UI degrades gracefully.
+  if (auth.orgId === null) return c.json({ runs: [] });
 
   const rows = await db
     .select({
@@ -335,7 +367,7 @@ playgroundRoute.get('/:generationId/runs', async (c) => {
     .where(
       and(
         eq(playground_runs.generation_id, generationId),
-        eq(playground_runs.org_id, guard.userAuth.organizationId),
+        eq(playground_runs.org_id, auth.orgId),
       ),
     )
     .orderBy(desc(playground_runs.created_at))
@@ -349,7 +381,7 @@ playgroundRoute.get('/:generationId/runs', async (c) => {
     const savedRows = await db.execute(sql`
       SELECT source_run_id
       FROM playground_tests
-      WHERE org_id = ${guard.userAuth.organizationId}
+      WHERE org_id = ${auth.orgId}
         AND source_run_id = ANY(${ids})
     `);
     savedRunIds = new Set(
@@ -370,11 +402,9 @@ playgroundRoute.get('/:generationId/runs', async (c) => {
 // ─── DELETE /sessions/:generationId — teardown ─────────────────────────────
 
 playgroundRoute.delete('/sessions/:generationId', async (c) => {
-  const guard = ensureUserAuth(c.var.auth);
-  if (!guard.ok) return c.json(guard.body, guard.status);
   const generationId = c.req.param('generationId');
-  const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
-  if (!owns) return c.json({ error: 'not_found' }, 404);
+  const auth = await authorizePlaygroundAccess(c, generationId);
+  if (!auth.ok) return c.json(auth.body, auth.status);
 
   const engineUrl = getEngineEndpoint(c);
   try {
@@ -429,11 +459,17 @@ playgroundRoute.post(
   '/:generationId/tests',
   zValidator('json', SaveTestBodySchema),
   async (c) => {
-    const guard = ensureUserAuth(c.var.auth);
-    if (!guard.ok) return c.json(guard.body, guard.status);
     const generationId = c.req.param('generationId');
-    const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
-    if (!owns) return c.json({ error: 'not_found' }, 404);
+    const auth = await authorizePlaygroundAccess(c, generationId);
+    if (!auth.ok) return c.json(auth.body, auth.status);
+    if (auth.orgId === null) {
+      // Anonymous callers can't persist tests (org_id NOT NULL) — saving a
+      // test requires sign-in to attach the row to an org.
+      return c.json(
+        { error: 'unauthorized', reason: 'sign_in_to_save_tests' },
+        401,
+      );
+    }
 
     const { run_id: runId, name: providedName } = c.req.valid('json');
 
@@ -449,7 +485,7 @@ playgroundRoute.post(
         and(
           eq(playground_runs.id, runId),
           eq(playground_runs.generation_id, generationId),
-          eq(playground_runs.org_id, guard.userAuth.organizationId),
+          eq(playground_runs.org_id, auth.orgId),
         ),
       )
       .limit(1);
@@ -474,7 +510,7 @@ playgroundRoute.post(
     await db.insert(playground_tests).values({
       id,
       generation_id: generationId,
-      org_id: guard.userAuth.organizationId,
+      org_id: auth.orgId,
       source_run_id: runRow.id,
       name,
       prompt: runRow.prompt,
@@ -487,11 +523,12 @@ playgroundRoute.post(
 
 // GET /:generationId/tests — list saved tests for the playground rail.
 playgroundRoute.get('/:generationId/tests', async (c) => {
-  const guard = ensureUserAuth(c.var.auth);
-  if (!guard.ok) return c.json(guard.body, guard.status);
   const generationId = c.req.param('generationId');
-  const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
-  if (!owns) return c.json({ error: 'not_found' }, 404);
+  const auth = await authorizePlaygroundAccess(c, generationId);
+  if (!auth.ok) return c.json(auth.body, auth.status);
+  // Anonymous callers don't have persisted tests — return an empty list
+  // so the UI degrades gracefully (chip-row hides, suite stays disabled).
+  if (auth.orgId === null) return c.json({ tests: [] });
 
   const rows = await db
     .select({
@@ -508,7 +545,7 @@ playgroundRoute.get('/:generationId/tests', async (c) => {
     .where(
       and(
         eq(playground_tests.generation_id, generationId),
-        eq(playground_tests.org_id, guard.userAuth.organizationId),
+        eq(playground_tests.org_id, auth.orgId),
       ),
     )
     .orderBy(desc(playground_tests.created_at))
@@ -519,18 +556,19 @@ playgroundRoute.get('/:generationId/tests', async (c) => {
 
 // DELETE /:generationId/tests/:testId — drop a saved test.
 playgroundRoute.delete('/:generationId/tests/:testId', async (c) => {
-  const guard = ensureUserAuth(c.var.auth);
-  if (!guard.ok) return c.json(guard.body, guard.status);
   const generationId = c.req.param('generationId');
-  const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
-  if (!owns) return c.json({ error: 'not_found' }, 404);
+  const auth = await authorizePlaygroundAccess(c, generationId);
+  if (!auth.ok) return c.json(auth.body, auth.status);
+  if (auth.orgId === null) {
+    return c.json({ error: 'unauthorized', reason: 'sign_in_to_manage_tests' }, 401);
+  }
   const testId = c.req.param('testId');
   await db
     .delete(playground_tests)
     .where(
       and(
         eq(playground_tests.id, testId),
-        eq(playground_tests.org_id, guard.userAuth.organizationId),
+        eq(playground_tests.org_id, auth.orgId),
       ),
     );
   return c.json({ id: testId, deleted: true });
@@ -617,11 +655,13 @@ async function invokeForSuite(
 }
 
 playgroundRoute.post('/:generationId/tests/run', async (c) => {
-  const guard = ensureUserAuth(c.var.auth);
-  if (!guard.ok) return c.json(guard.body, guard.status);
   const generationId = c.req.param('generationId');
-  const owns = await generationBelongsToOrg(generationId, guard.userAuth.organizationId);
-  if (!owns) return c.json({ error: 'not_found' }, 404);
+  const auth = await authorizePlaygroundAccess(c, generationId);
+  if (!auth.ok) return c.json(auth.body, auth.status);
+  if (auth.orgId === null) {
+    // No persisted tests for anon callers → nothing to run.
+    return c.json({ tests: [], summary: { total: 0, passed: 0, failed: 0 } });
+  }
 
   const tests = await db
     .select({
@@ -634,7 +674,7 @@ playgroundRoute.post('/:generationId/tests/run', async (c) => {
     .where(
       and(
         eq(playground_tests.generation_id, generationId),
-        eq(playground_tests.org_id, guard.userAuth.organizationId),
+        eq(playground_tests.org_id, auth.orgId),
       ),
     );
 

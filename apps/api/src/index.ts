@@ -191,29 +191,33 @@ export function buildApp(env: Bindings): Hono<{ Bindings: Bindings; Variables: V
   app.route('/api/v1/deploy/ephemeral', ephemeralDeployRoute);
   app.route('/api/v1/warmup', warmupRoute);
 
+  // Phase 11 — playground execution is anon-allowed (Phase 09.1 anonymous
+  // hero flow): a user can paste a spec → generate → playground without
+  // signing in. Per-handler `authorizePlaygroundAccess` enforces ownership
+  // via either the anon session cookie OR (post-claim) the JWT org_id;
+  // anonymous callers cannot persist runs/tests (org_id NOT NULL) but
+  // the live SSE agent loop works for them.
+  app.route('/api/v1/playground', playgroundRoute);
+
   // ─── Conditional public routes per BFF_ANONYMOUS_GATE (D-01) ──────────
   // Default 'playground' = most-restrictive: only generate/jobs/ephemeral
   // are public. Higher gate values open more steps progressively.
   const gate: BffAnonymousGate = env.BFF_ANONYMOUS_GATE ?? 'playground';
 
   if (gate === 'deploy') {
-    // Most permissive: preview + quality + playground all public.
+    // Most permissive: preview + quality public.
     app.route('/api/v1/preview', previewRoute);
     app.route('/api/v1/quality', qualityRoute);
-    app.route('/api/v1/playground', playgroundRoute);
   } else if (gate === 'quality') {
     app.route('/api/v1/preview', previewRoute);
     app.route('/api/v1/quality', qualityRoute);
-    protectedApp.route('/playground', playgroundRoute);
   } else if (gate === 'preview') {
     app.route('/api/v1/preview', previewRoute);
     protectedApp.route('/quality', qualityRoute);
-    protectedApp.route('/playground', playgroundRoute);
   } else {
-    // 'playground' (default) — most-restrictive: all three gated.
+    // 'playground' (default) — most-restrictive: preview + quality gated.
     protectedApp.route('/preview', previewRoute);
     protectedApp.route('/quality', qualityRoute);
-    protectedApp.route('/playground', playgroundRoute);
   }
 
   // ─── Always-protected /api/v1 routes ──────────────────────────────────
