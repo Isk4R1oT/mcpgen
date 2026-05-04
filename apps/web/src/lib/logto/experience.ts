@@ -199,39 +199,96 @@ export interface SignInResult {
 }
 
 /**
- * Drive the embedded sign-in flow:
- *   1. PUT /api/experience              → start interaction (SignIn intent)
- *   2. POST /api/experience/identification → identify + verify password
- *   3. POST /api/experience/submit      → finalize, mints LOGTO_SESSION cookie
+ * Drive the embedded sign-in flow.
  *
- * Returns the Set-Cookie headers to forward verbatim. Callers are
- * responsible for attaching them to their NextResponse via `headers.append`.
+ * Logto's Experience API runs ON TOP of an active OIDC interaction session
+ * (interactionEvent + _logto cookie set by /oidc/auth). Calling /api/experience
+ * cold returns "session.not_found" because there's no interaction context.
+ * The full server-driven flow:
+ *
+ *   0. GET  /oidc/auth?...&prompt=login        → 303 + Set-Cookie: _logto=...
+ *   1. PUT  /api/experience { SignIn }         → 204 (interaction primed)
+ *   2. POST /api/experience/verification/password { identifier, password }
+ *                                              → 200 { verificationId }
+ *   3. POST /api/experience/identification { identifier, verificationId }
+ *                                              → 204 (identity confirmed)
+ *   4. POST /api/experience/submit             → 200 { redirectTo: <oidc auth code URL> }
+ *   5. GET  <redirectTo> with the same jar     → 303 to LOGTO_BASE_URL/api/auth/logto/callback
+ *                                                + Set-Cookie: LOGTO_SESSION=... (from cb)
+ *
+ * Step 5 is performed by the @logto/next callback handler — we only need
+ * to return the OIDC redirectTo URL plus the cookies accumulated through
+ * the experience flow. The browser follows the redirect, hits our callback
+ * route, and the SDK persists the session cookie.
+ *
+ * Returns the Set-Cookie headers to forward verbatim and the OIDC
+ * redirectTo URL the browser should navigate to.
  *
  * Error mapping:
- *   - 401 / invalid credentials → LogtoExperienceError(401, 'invalid_credentials')
- *   - 422 / user_not_exist / not_found → LogtoExperienceError(401, 'invalid_credentials')
- *   - other → LogtoExperienceError(status, code from body)
+ *   - 401 / invalid credentials               → LogtoExperienceError(401, 'invalid_credentials')
+ *   - 422 / session.invalid_credentials       → LogtoExperienceError(401, 'invalid_credentials')
+ *   - other                                   → LogtoExperienceError(status, code from body)
  */
 export async function signInWithPassword(email: string, password: string): Promise<SignInResult> {
   const env = readLogtoServerEnv();
   const base = env.endpoint.replace(/\/$/, '');
   const jar: RawCookieJar = { setCookieHeaders: [], cookieValues: {} };
 
-  // Step 1 — start interaction
+  // Step 0 — bootstrap the OIDC interaction session. Without this every
+  // subsequent /api/experience call dies with "session.not_found" (proven
+  // by direct curl probes 2026-05-04).
+  const preauthCookies = await bootstrapOidcInteraction(base);
+  Object.assign(jar.cookieValues, preauthCookies);
+
+  // Step 1 — start interaction (SignIn intent)
   const startRes = await fetch(`${base}/api/experience`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Cookie: buildCookieHeader(jar),
+    },
     body: JSON.stringify({ interactionEvent: 'SignIn' }),
   });
   if (!startRes.ok) {
     const body = await readJsonBody(startRes);
     throw mapExperienceError(startRes.status, body, 'start_interaction_failed');
   }
+  // Capture any cookies the interaction start mints; merge into jar.
   const startJar = parseSetCookieHeaders(startRes);
   jar.setCookieHeaders.push(...startJar.setCookieHeaders);
   Object.assign(jar.cookieValues, startJar.cookieValues);
 
-  // Step 2 — identification with password verification
+  // Step 2 — submit credentials, get verificationId
+  const verRes = await fetch(`${base}/api/experience/verification/password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Cookie: buildCookieHeader(jar),
+    },
+    body: JSON.stringify({
+      identifier: { type: 'email', value: email },
+      password,
+    }),
+  });
+  if (!verRes.ok) {
+    const body = await readJsonBody(verRes);
+    throw mapExperienceError(verRes.status, body, 'verification_failed');
+  }
+  const verJar = parseSetCookieHeaders(verRes);
+  jar.setCookieHeaders.push(...verJar.setCookieHeaders);
+  Object.assign(jar.cookieValues, verJar.cookieValues);
+  const verBody = (await readJsonBody(verRes)) as { verificationId?: string };
+  const verificationId = verBody.verificationId;
+  if (typeof verificationId !== 'string' || verificationId.length === 0) {
+    throw new LogtoExperienceError(
+      500,
+      'verification_no_id',
+      'Logto returned no verificationId',
+      verBody,
+    );
+  }
+
+  // Step 3 — identification using verificationId
   const idRes = await fetch(`${base}/api/experience/identification`, {
     method: 'POST',
     headers: {
@@ -240,7 +297,7 @@ export async function signInWithPassword(email: string, password: string): Promi
     },
     body: JSON.stringify({
       identifier: { type: 'email', value: email },
-      verification: { type: 'password', password },
+      verificationId,
     }),
   });
   if (!idRes.ok) {
@@ -251,7 +308,8 @@ export async function signInWithPassword(email: string, password: string): Promi
   jar.setCookieHeaders.push(...idJar.setCookieHeaders);
   Object.assign(jar.cookieValues, idJar.cookieValues);
 
-  // Step 3 — submit, persists LOGTO_SESSION cookie
+  // Step 4 — submit, finalizes interaction; body contains redirectTo for
+  // the OAuth code redemption.
   const submitRes = await fetch(`${base}/api/experience/submit`, {
     method: 'POST',
     headers: {
@@ -269,10 +327,56 @@ export async function signInWithPassword(email: string, password: string): Promi
 
   let redirectTo: string | null = null;
   const submitBody = await readJsonBody(submitRes);
-  if (isLogtoErrorBody(submitBody) && typeof (submitBody as { redirectTo?: unknown }).redirectTo === 'string') {
+  if (
+    submitBody !== null &&
+    typeof submitBody === 'object' &&
+    typeof (submitBody as { redirectTo?: unknown }).redirectTo === 'string'
+  ) {
     redirectTo = (submitBody as { redirectTo: string }).redirectTo;
   }
   return { cookies: jar.setCookieHeaders, redirectTo };
+}
+
+// Build the OIDC redirect_uri the BFF / app expects. Mirrors the Traditional
+// Web app registration (LOGTO_APP_ID) which has only this URI registered.
+function buildLogtoRedirectUri(): string {
+  const baseUrl = process.env['LOGTO_BASE_URL'] ?? 'http://localhost:3000';
+  return `${baseUrl.replace(/\/$/, '')}/api/auth/logto/callback`;
+}
+
+// GET /oidc/auth with prompt=login, capture _logto cookie. Returns the
+// cookie values dict for use in subsequent /api/experience requests.
+async function bootstrapOidcInteraction(base: string): Promise<Record<string, string>> {
+  const appId = process.env['LOGTO_APP_ID'] ?? '';
+  if (appId.length === 0) {
+    throw new LogtoConfigError('LOGTO_APP_ID');
+  }
+  const redirectUri = buildLogtoRedirectUri();
+  // crypto.randomUUID() is available in Node 19+ and the Edge runtime.
+  const state = crypto.randomUUID();
+  const nonce = crypto.randomUUID();
+  const params = new URLSearchParams({
+    client_id: appId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'openid profile email',
+    state,
+    nonce,
+    prompt: 'login',
+  });
+  const res = await fetch(`${base}/oidc/auth?${params.toString()}`, {
+    method: 'GET',
+    redirect: 'manual',
+  });
+  // Logto responds 303 + Location: /sign-in?... + Set-Cookie: _logto=...
+  // 200/204 also acceptable depending on tenant config; we only care about
+  // capturing the interaction cookie.
+  if (res.status >= 400) {
+    const body = await readJsonBody(res);
+    throw mapExperienceError(res.status, body, 'oidc_auth_failed');
+  }
+  const captured = parseSetCookieHeaders(res);
+  return captured.cookieValues;
 }
 
 // ─── Management API: create user (sign-up flow first half) ─────────────────
