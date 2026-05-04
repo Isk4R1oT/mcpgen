@@ -35,7 +35,7 @@ def get_model() -> OpenAIModel:
         api_key=os.environ["OPENROUTER_API_KEY"],
     )
     return OpenAIModel(
-        model_name=os.environ.get("PRIMARY_MODEL", "qwen/qwen3-coder"),
+        model_name=os.environ.get("PRIMARY_MODEL", "qwen/qwen3-coder-next"),
         provider=provider,
     )
 

@@ -52,16 +52,31 @@ from pydantic_ai.settings import ModelSettings
 # See decision doc dated 2026-04-28.
 _PROVIDER_ROUTING: dict[str, object] = {
     "provider": {
-        "order": ["atlas-cloud"],
-        "allow_fallbacks": False,
+        # Both providers serve qwen3-coder-next at fp8 AND advertise
+        # `input_cache_read` pricing on OpenRouter, so prefix caching is
+        # observable per the `usage.include=true` flag below.
+        #
+        # Ionstream primary: $0.09/M cache_read, verified 98.8% prefix
+        # cache hit on second call with ≥1024-token system prompt
+        # (warmup probe 2026-05-04).
+        # AtlasCloud fallback: $0.18/M cache_read, fp8, verified working
+        # for the entire PydanticAI request shape (4 prior decision
+        # entries — see history below).
+        #
+        # `allow_fallbacks=True` is required so Ionstream outage routes
+        # to AtlasCloud instead of returning a 503 to the user. Both
+        # providers cache, so a fallover loses ONE cache miss
+        # (re-warming the prefix on AtlasCloud) but stays observable.
+        "order": ["ionstream", "atlas-cloud"],
+        "only": ["ionstream", "atlas-cloud"],
+        "allow_fallbacks": True,
         "quantizations": ["fp8"],
     },
     # Ask OpenRouter to include `prompt_tokens_details.cached_tokens` in
     # the response so we can observe prefix-cache hit ratio per call. The
-    # cache itself lives on the upstream provider (AtlasCloud); OpenRouter
-    # only proxies the metric. See `mcpgen_engine.llm.warmup` for the
-    # startup + periodic prefix warmup that keeps this metric > 0 on
-    # second and subsequent generations.
+    # cache itself lives on the upstream provider; OpenRouter only
+    # proxies the metric. See `mcpgen_engine.llm.warmup` for the startup
+    # + periodic prefix warmup that keeps this metric > 0 across idle.
     "usage": {"include": True},
 }
 
