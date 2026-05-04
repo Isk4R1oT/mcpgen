@@ -72,15 +72,23 @@ function detectAuthType(authModes: unknown): 'apikey' | 'basic' | 'oauth' | 'hma
 // when auth_modes=['none'] the spec is unauthenticated and the generated
 // worker emits a no-op middleware. Together: the AUTH screen MUST be skipped
 // entirely for unauth specs, not rendered with a wrong "API Key" fallback
-// (which is what AuthScreen falls back to without an authType prop). When
-// Pass 0 reports auth_modes is empty or contains only 'none', server-side
-// redirect to the stream UI so the user never sees an "API Key needed" prompt
-// for an API that doesn't need one (api.met.no, cat-facts, etc.).
+// (which is what AuthScreen falls back to without an authType prop).
 function isUnauthenticatedSpec(authModes: unknown): boolean {
   if (!Array.isArray(authModes)) return false;
   const modes = authModes.filter((m): m is string => typeof m === 'string');
   if (modes.length === 0) return false; // empty == still detecting; don't skip prematurely
   return modes.every((m) => m === 'none');
+}
+
+// True when Pass 0 hasn't surfaced auth_modes yet (undefined OR empty array).
+// In that race window the AUTH screen has no signal to render — bouncing the
+// user back to /preview is safer than rendering AuthScreen with a guessed
+// fallback ('apikey' is what the canon component defaults to, which is wrong
+// for OAuth-only or unauth specs).
+function isAuthStillDetecting(authModes: unknown): boolean {
+  if (authModes === undefined || authModes === null) return true;
+  if (!Array.isArray(authModes)) return true;
+  return authModes.length === 0;
 }
 
 export default async function AuthPage({ params, searchParams }: Params): Promise<ReactElement> {
@@ -91,6 +99,16 @@ export default async function AuthPage({ params, searchParams }: Params): Promis
   const job = await fetchJobStatusServerSide(jobId, origin);
 
   const authModesRaw = job?.partial_result?.auth_modes;
+
+  // Race-window guard: user clicked "continue" on PREVIEW before Pass 0
+  // finished detecting auth (~10-15s). Bounce back to /preview so the user
+  // waits there instead of seeing a guessed "API Key" fallback that may not
+  // match the actual spec. The PREVIEW screen disables its own continue
+  // button until detection completes, but a direct URL navigation or a
+  // stale tab can still land here mid-detection.
+  if (isAuthStillDetecting(authModesRaw)) {
+    redirect(`/generate/${jobId}/preview`);
+  }
 
   // Skip the AUTH screen entirely when Pass 0 detected zero auth schemes.
   // Canon-correct flow for no-auth specs: paste -> review -> stream (skip

@@ -474,10 +474,16 @@ export default function Preview({
   // We do the skip both client-side (this button) and server-side (the
   // /auth route does redirect()) so the user never sees a wrong "API Key
   // needed" prompt for an unauthenticated upstream.
+  const authModesArr = Array.isArray(partial?.auth_modes) ? partial.auth_modes : null;
+
+  // Pass 0 takes ~10-15s after POST to populate auth_modes. Until then
+  // partial.auth_modes is undefined or []. If the user clicks "continue"
+  // during that window we don't know which downstream route to take
+  // (skip /auth vs render /auth). Block the button instead of guessing —
+  // shows a "detecting auth…" label until the engine answers.
+  const isAuthDetected = authModesArr !== null && authModesArr.length > 0;
   const isUnauthenticated =
-    Array.isArray(partial?.auth_modes) &&
-    partial.auth_modes.length > 0 &&
-    partial.auth_modes.every((m) => m === 'none');
+    isAuthDetected && (authModesArr as string[]).every((m) => m === 'none');
 
   // ─── Navigation handlers ───────────────────────────────────────────────────
   const onContinue = (): void => {
@@ -867,8 +873,26 @@ export default function Preview({
 
         <div style={{ height: 24 }} />
 
-        <Btn kind="primary" size="lg" full iconR="arrow-r" onClick={onContinue}>
-          {isUnauthenticated ? 'continue · generate' : 'continue · auth setup'}
+        {/* Block the continue button during the ~10-15s Pass 0 window when
+            auth_modes is still undefined/[] — without this gate the user can
+            click through to /auth before we know whether to skip it
+            (auth_modes=['none']) or render it ('apikey'/'oauth2'/etc).
+            Clicking too early lands on /auth with no detectedAuth hint and
+            AuthScreen falls back to a wrong "API Key" prompt for an
+            unauthenticated spec. Disabled-with-label > guessed route. */}
+        <Btn
+          kind="primary"
+          size="lg"
+          full
+          iconR="arrow-r"
+          onClick={onContinue}
+          disabled={!isAuthDetected}
+        >
+          {!isAuthDetected
+            ? 'detecting auth…'
+            : isUnauthenticated
+              ? 'continue · generate'
+              : 'continue · auth setup'}
         </Btn>
         <div className="mc-caption" style={{ textAlign: 'center', marginTop: 12 }}>
           you can always tune individual tools after generation.
