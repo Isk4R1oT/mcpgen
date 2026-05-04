@@ -82,39 +82,19 @@ async function authorizePlaygroundAccess(
   // Single round-trip — pull the join columns we need to make the decision.
   // LEFT JOIN because permanent (claimed) generations may not have an
   // anonymous_generations row anymore after row-level cleanup.
-  //
-  // Wrapped in try/catch because local-dev DBs may not have the Phase 09.1
-  // anon-flow migration applied yet (the `anonymous_generations` table is
-  // missing on a fresh Neon branch). Mirrors the `db_unavailable` fallback
-  // in jobs/anon-stream.ts:130 — surface a permissive decision so the
-  // playground works against an in-memory engine without a fully migrated
-  // DB. Production always has the migration applied so this branch is
-  // dev-only safety.
-  let row:
+  const r = await db.execute(sql`
+    SELECT
+      g.id                       AS gen_id,
+      ag.anon_session_id          AS anon_session_id,
+      ag.claimed_by_org_id        AS claimed_by_org_id
+    FROM generations g
+    LEFT JOIN anonymous_generations ag ON ag.generation_id = g.id
+    WHERE g.id = ${generationId}
+    LIMIT 1
+  `);
+  const row = r.rows[0] as
     | { gen_id: string; anon_session_id: string | null; claimed_by_org_id: string | null }
     | undefined;
-  try {
-    const r = await db.execute(sql`
-      SELECT
-        g.id                       AS gen_id,
-        ag.anon_session_id          AS anon_session_id,
-        ag.claimed_by_org_id        AS claimed_by_org_id
-      FROM generations g
-      LEFT JOIN anonymous_generations ag ON ag.generation_id = g.id
-      WHERE g.id = ${generationId}
-      LIMIT 1
-    `);
-    row = r.rows[0] as typeof row;
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn('playground auth DB lookup failed; treating as anon-allowed', {
-      generationId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    // Permissive decision — caller proceeds as anon (orgId=null), the
-    // engine still validates the generation's on-disk artifact path.
-    return { ok: true, orgId: jwtOrgId };
-  }
 
   if (!row) return { ok: false, status: 404, body: { error: 'not_found' } };
 
