@@ -44,7 +44,7 @@ import {
 
 import { Badge, Btn, Icon, SectionLabel, TopBar } from '@/components/ui';
 import { deriveServerNameFromSpecUrl } from '@/components/screens/canvas/canvas';
-import { useJob, useJobArtifact } from '@/lib/api/jobs';
+import { useJob } from '@/lib/api/jobs';
 import { runPlaygroundTool } from '@/lib/api/playground';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -116,43 +116,15 @@ interface HistoryRun {
   readonly savedAsTest: boolean;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Sample-prompts extraction from `useJobArtifact(jobId, 'sample-prompts')`.
-//
-// Engine writes this artifact post-Pass-5 with shape `{ prompts: [string] }`
-// or a bare array of strings (defensive). Until the artifact pass lands
-// (Day 2), the artifact is absent and the chip-row hides.
-// ────────────────────────────────────────────────────────────────────────────
-
-interface SamplePromptsArtifact {
-  readonly prompts?: ReadonlyArray<unknown>;
-}
-
-function extractSamplePrompts(raw: unknown): readonly string[] {
-  if (raw === null || raw === undefined) return [];
-  if (Array.isArray(raw)) {
-    return raw.filter((p): p is string => typeof p === 'string');
-  }
-  if (typeof raw === 'object') {
-    const list = (raw as SamplePromptsArtifact).prompts;
-    if (Array.isArray(list)) {
-      return list.filter((p): p is string => typeof p === 'string');
-    }
-  }
-  return [];
-}
 
 // ────────────────────────────────────────────────────────────────────────────
-// Tool-list extraction from `useJobArtifact(jobId, 'final-tools')`.
+// Tool-name extraction from `partial_result.final_tools` (BFF-enriched).
 // ────────────────────────────────────────────────────────────────────────────
-
-interface FinalToolsArtifact {
-  readonly final_tools?: ReadonlyArray<{ readonly name?: unknown }>;
-}
 
 function extractToolNames(raw: unknown): readonly string[] {
-  if (raw === null || typeof raw !== 'object') return [];
-  // Engine writes either `{ final_tools: [...] }` or a bare array.
+  if (raw === null || raw === undefined) return [];
+  // BFF surfaces `partial_result.final_tools` as a FinalTool[] array.
+  // Defensively support both the array shape and a wrapped `{final_tools:[]}`.
   if (Array.isArray(raw)) {
     const out: string[] = [];
     for (const t of raw) {
@@ -162,11 +134,14 @@ function extractToolNames(raw: unknown): readonly string[] {
     }
     return out;
   }
-  const obj = raw as FinalToolsArtifact;
-  if (Array.isArray(obj.final_tools)) {
+  if (typeof raw !== 'object') return [];
+  const wrapped = (raw as { final_tools?: unknown }).final_tools;
+  if (Array.isArray(wrapped)) {
     const out: string[] = [];
-    for (const t of obj.final_tools) {
-      if (typeof t?.name === 'string') out.push(t.name);
+    for (const t of wrapped) {
+      if (t !== null && typeof t === 'object' && typeof (t as { name?: unknown }).name === 'string') {
+        out.push((t as { name: string }).name);
+      }
     }
     return out;
   }
@@ -213,24 +188,27 @@ export default function Playground({
   const [savedToast, setSavedToast] = useState<string>('');
   const [selectedTool, setSelectedTool] = useState<string>(FALLBACK_TOOL);
 
-  // Tool catalog — engine artefact, populated post-Pass-1.
-  const artifactQuery = useJobArtifact(jobId, 'final-tools');
+  // Live job state (also feeds the breadcrumb name + structural metrics).
+  // BFF /api/v1/jobs/:id enriches partial_result with the engine's
+  // pass_5_output.tools (already a FinalTool[] shape) and a deterministic
+  // sample_prompts list derived from those tools' Pass-2 when_to_use
+  // descriptions — both are the source of truth for the playground UI.
+  const jobQuery = useJob(jobId);
+  const job = jobQuery.data?.ok === true ? jobQuery.data.data : null;
+  const partial = job?.partial_result ?? null;
+
   const toolNames = useMemo<readonly string[]>(() => {
-    const r = artifactQuery.data;
-    if (r === undefined || !r.ok) return [];
-    return extractToolNames(r.data);
-  }, [artifactQuery.data]);
+    return extractToolNames(partial?.final_tools);
+  }, [partial?.final_tools]);
 
   const visibleTools = toolNames.length > 0 ? toolNames : [FALLBACK_TOOL];
 
-  // Sample prompts — engine artifact, populated post-Pass-5 (Day 2).
-  // Until Day 2 the artifact returns 404 → empty list → chip-row hides.
-  const samplePromptsQuery = useJobArtifact(jobId, 'sample-prompts');
   const samplePrompts = useMemo<readonly string[]>(() => {
-    const r = samplePromptsQuery.data;
-    if (r === undefined || !r.ok) return [];
-    return extractSamplePrompts(r.data);
-  }, [samplePromptsQuery.data]);
+    const list = partial?.sample_prompts;
+    return Array.isArray(list)
+      ? list.filter((p): p is string => typeof p === 'string')
+      : [];
+  }, [partial?.sample_prompts]);
 
   // Auto-select first available tool once artefacts arrive.
   useEffect(() => {
@@ -400,12 +378,6 @@ export default function Playground({
     (r) => historyFilter === 'all' || r.savedAsTest,
   );
   const testCount = history.filter((r) => r.savedAsTest).length;
-
-  // Live job state — also feeds the breadcrumb server name + structural
-  // metrics card (endpoint_count, target_complexity).
-  const jobQuery = useJob(jobId);
-  const job = jobQuery.data?.ok === true ? jobQuery.data.data : null;
-  const partial = job?.partial_result ?? null;
 
   // Live session token totals — sum of real per-call in/out from `traces`.
   // No "+ 1022" canon overhead constant; no `* 3.9` naive multiplier; no

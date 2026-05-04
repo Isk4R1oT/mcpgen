@@ -53,6 +53,10 @@ export const JobStatusSchema = z.object({
       composite_candidates: z.array(z.unknown()).optional(),
       dropped_endpoints: z.array(z.unknown()).optional(),
       target_complexity: z.string().nullable().optional(),
+      // Deterministic sample prompts synthesized from Pass-2 descriptions
+      // (BFF /jobs/:id enriches partial_result). Drives the playground
+      // chip-row; absent on older generations → chip-row hides.
+      sample_prompts: z.array(z.string()).optional(),
     })
     .nullable()
     .optional(),

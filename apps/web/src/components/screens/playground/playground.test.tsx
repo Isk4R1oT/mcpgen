@@ -32,23 +32,32 @@ vi.mock('@/lib/api/playground', () => ({
   })),
 }));
 
-// Stub the artefact hook — varies `data` per artifact name. Tests can swap
-// in shapes for `final-tools` / `sample-prompts` independently. Default:
-// undefined (artifact not yet populated).
-const artifactByName = new Map<string, unknown>();
-const useJobArtifactSpy = vi.fn((_jobId: string, name: string) => ({
-  data: artifactByName.get(name),
-}));
-const useJobSpy = vi.fn(() => ({ data: undefined }));
+// Stub the useJob hook — tests populate `partial_result` to drive
+// `final_tools` and `sample_prompts` shapes independently.
+interface MockPartial {
+  final_tools?: ReadonlyArray<{ name?: string }>;
+  sample_prompts?: ReadonlyArray<string>;
+  endpoint_count?: number;
+  target_complexity?: string;
+}
+let mockPartial: MockPartial | null = null;
+function useJobMock(): { data: { ok: true; data: { partial_result: MockPartial | null } } } {
+  return {
+    data: {
+      ok: true as const,
+      data: { partial_result: mockPartial },
+    },
+  };
+}
 vi.mock('@/lib/api/jobs', () => ({
-  useJob: (...args: unknown[]) => useJobSpy(...(args as [])),
-  useJobArtifact: (jobId: string, name: string) => useJobArtifactSpy(jobId, name),
+  useJob: () => useJobMock(),
+  // useJobArtifact retained as a no-op so any stale imports don't crash.
+  useJobArtifact: () => ({ data: undefined }),
 }));
 
 afterEach(() => {
   cleanup();
-  artifactByName.clear();
-  useJobArtifactSpy.mockClear();
+  mockPartial = null;
 });
 
 function renderPlayground(props: { jobId?: string } = {}): ReturnType<typeof render> {
@@ -70,17 +79,14 @@ describe('<Playground>', () => {
     expect(select.options[0]?.value).toBe('list_charges');
   });
 
-  it('populates dropdown from useJobArtifact final-tools', async () => {
-    artifactByName.set('final-tools', {
-      ok: true,
-      data: {
-        final_tools: [
-          { name: 'search' },
-          { name: 'fetch' },
-          { name: 'list_objects' },
-        ],
-      },
-    });
+  it('populates dropdown from partial_result.final_tools', async () => {
+    mockPartial = {
+      final_tools: [
+        { name: 'search' },
+        { name: 'fetch' },
+        { name: 'list_objects' },
+      ],
+    };
 
     const { getByLabelText } = renderPlayground();
     const select = getByLabelText('tool') as HTMLSelectElement;
@@ -89,17 +95,15 @@ describe('<Playground>', () => {
     expect(values).toEqual(['search', 'fetch', 'list_objects']);
   });
 
-  it('hides the try-a-prompt chip-row when sample-prompts artifact is absent', () => {
+  it('hides the try-a-prompt chip-row when sample_prompts is absent', () => {
     const { queryByText } = renderPlayground();
-    // "try a prompt" SectionLabel should not render when artifact is empty.
     expect(queryByText(/try a prompt/i)).toBeNull();
   });
 
-  it('renders sample prompts as chips when artifact is populated', () => {
-    artifactByName.set('sample-prompts', {
-      ok: true,
-      data: { prompts: ['forecast for Oslo', 'list active stations'] },
-    });
+  it('renders sample prompts as chips when sample_prompts is populated', () => {
+    mockPartial = {
+      sample_prompts: ['forecast for Oslo', 'list active stations'],
+    };
 
     const { getByText } = renderPlayground();
     expect(getByText(/try a prompt/i)).not.toBeNull();
@@ -108,10 +112,7 @@ describe('<Playground>', () => {
   });
 
   it('does not render the canon naive-cost block (× 3.9 magic constant)', () => {
-    artifactByName.set('final-tools', {
-      ok: true,
-      data: { final_tools: [{ name: 'search' }] },
-    });
+    mockPartial = { final_tools: [{ name: 'search' }] };
 
     const { queryByText } = renderPlayground();
     expect(queryByText(/same on naive/i)).toBeNull();
@@ -120,10 +121,9 @@ describe('<Playground>', () => {
   });
 
   it('renders structural metrics card with tools-loaded count', () => {
-    artifactByName.set('final-tools', {
-      ok: true,
-      data: { final_tools: [{ name: 'search' }, { name: 'fetch' }] },
-    });
+    mockPartial = {
+      final_tools: [{ name: 'search' }, { name: 'fetch' }],
+    };
 
     const { getByText } = renderPlayground();
     expect(getByText(/server structure/i)).not.toBeNull();

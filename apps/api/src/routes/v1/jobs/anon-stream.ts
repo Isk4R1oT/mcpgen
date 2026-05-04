@@ -228,6 +228,29 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
   const finalTools = Array.isArray(artifacts.pass_5_output?.tools)
     ? artifacts.pass_5_output!.tools
     : [];
+
+  // Deterministic sample-prompt synthesis from real Pass-2 descriptions.
+  // We pick the first `when_to_use` clause of up to 4 tools — these are
+  // already user-facing usage scenarios authored per tool ("When fetching
+  // recent transactions for a customer", etc.) so they read naturally as
+  // chip-row prompts. Falls back to the empty list when descriptions are
+  // missing (older generations / failed runs); the UI hides the chip-row
+  // gracefully in that case.
+  const samplePrompts: string[] = [];
+  if (Array.isArray(finalTools)) {
+    for (const t of finalTools) {
+      if (samplePrompts.length >= 4) break;
+      if (t === null || typeof t !== 'object') continue;
+      const desc = (t as { description?: unknown }).description;
+      if (desc === null || typeof desc !== 'object') continue;
+      const whenList = (desc as { when_to_use?: unknown }).when_to_use;
+      if (!Array.isArray(whenList) || whenList.length === 0) continue;
+      const first = whenList[0];
+      if (typeof first === 'string' && first.trim().length > 0) {
+        samplePrompts.push(first.trim());
+      }
+    }
+  }
   const endpointCount = Array.isArray(artifacts.raw_ir?.endpoints)
     ? artifacts.raw_ir!.endpoints!.length
     : 0;
@@ -309,6 +332,7 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
         composite_candidates: compositeCandidates,
         dropped_endpoints: droppedEndpoints,
         target_complexity: targetComplexity,
+        sample_prompts: samplePrompts,
       },
     },
     200,
