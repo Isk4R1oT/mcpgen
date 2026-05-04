@@ -334,7 +334,112 @@ export async function signInWithPassword(email: string, password: string): Promi
   ) {
     redirectTo = (submitBody as { redirectTo: string }).redirectTo;
   }
+
+  // Step 5 — follow the OIDC redirect server-side (with the experience
+  // cookies still in jar) so we land on the /api/auth/logto/callback URL
+  // with `code` + `state`. We can't just hand the OIDC URL to the browser:
+  // the _logto interaction cookie was minted on the logto.app domain, our
+  // backend captured it, but cross-origin Set-Cookie from localhost:3000
+  // can't write to logto.app — so the browser would visit the OIDC URL
+  // without the cookie and Logto would 302 back to its own /sign-in page.
+  // Following server-side bypasses that entirely: we redeem the code via
+  // the SAME-origin callback URL (which @logto/next handleSignIn knows how
+  // to consume) and let the browser do a single hard-nav to it.
+  if (redirectTo !== null) {
+    const callbackUrl = await followOidcRedirectServerSide(redirectTo, jar);
+    if (callbackUrl !== null) {
+      redirectTo = callbackUrl;
+    }
+  }
+
   return { cookies: jar.setCookieHeaders, redirectTo };
+}
+
+// Walk Logto's OIDC redirect chain with the experience cookies. Returns
+// the final same-origin callback URL (e.g. http://localhost:3000/api/auth/
+// logto/callback?code=...&state=...) that the browser can visit to mint
+// the LOGTO_SESSION cookie via @logto/next. Returns null if the chain
+// terminates somewhere else (which would indicate a Logto config / SDK
+// drift issue).
+//
+// The chain typically goes:
+//   1. GET  /oidc/auth/<id>             → 303 → /consent?app_id=...
+//   2. POST /api/interaction/consent {} → 200 { redirectTo: /oidc/auth/<id> }
+//   3. GET  /oidc/auth/<id>             → 303 → http://localhost:3000/api/auth/logto/callback?code=...&state=...
+//
+// We auto-consent on step 2 because the canon flow has no consent screen
+// (app is first-party, isThirdParty=false) and skipping requires the
+// explicit POST per Logto's own /consent page logic.
+async function followOidcRedirectServerSide(
+  startUrl: string,
+  jar: RawCookieJar,
+): Promise<string | null> {
+  const baseUrl = (process.env['LOGTO_BASE_URL'] ?? 'http://localhost:3000').replace(/\/$/, '');
+  const logtoOrigin = (() => {
+    try {
+      return new URL(startUrl).origin;
+    } catch {
+      return '';
+    }
+  })();
+
+  let current = startUrl;
+  // Cap at 8 hops — normal flow is 3 (oidc → consent → oidc → callback).
+  for (let hop = 0; hop < 8; hop += 1) {
+    const res = await fetch(current, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: { Cookie: buildCookieHeader(jar) },
+    });
+    const hopJar = parseSetCookieHeaders(res);
+    Object.assign(jar.cookieValues, hopJar.cookieValues);
+    jar.setCookieHeaders.push(...hopJar.setCookieHeaders);
+
+    const status = res.status;
+    if (status >= 300 && status < 400) {
+      const loc = res.headers.get('location');
+      if (loc === null || loc.length === 0) return null;
+      const nextUrl = loc.startsWith('http') ? loc : new URL(loc, current).toString();
+      // Done — we crossed back to our origin's callback handler.
+      if (nextUrl.startsWith(`${baseUrl}/api/auth/logto/callback`)) {
+        return nextUrl;
+      }
+      // Logto routed us to its consent page. POST consent and replace
+      // `current` with the redirectTo from the consent response.
+      const nextPath = (() => {
+        try {
+          return new URL(nextUrl).pathname;
+        } catch {
+          return '';
+        }
+      })();
+      if (nextPath === '/consent') {
+        const consentRes = await fetch(`${logtoOrigin}/api/interaction/consent`, {
+          method: 'POST',
+          redirect: 'manual',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: buildCookieHeader(jar),
+          },
+          body: '{}',
+        });
+        const consentJar = parseSetCookieHeaders(consentRes);
+        Object.assign(jar.cookieValues, consentJar.cookieValues);
+        jar.setCookieHeaders.push(...consentJar.setCookieHeaders);
+        if (!consentRes.ok) return null;
+        const consentBody = (await readJsonBody(consentRes)) as { redirectTo?: unknown };
+        if (typeof consentBody.redirectTo !== 'string' || consentBody.redirectTo.length === 0) {
+          return null;
+        }
+        current = consentBody.redirectTo;
+        continue;
+      }
+      current = nextUrl;
+      continue;
+    }
+    return null;
+  }
+  return null;
 }
 
 // Build the OIDC redirect_uri the BFF / app expects. Mirrors the Traditional
