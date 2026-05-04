@@ -704,5 +704,11 @@
     "authFailVaultToast": "credential vault opening…",
     "authFailSchemeToast": "switching to oauth2 client_credentials",
     "authFailSkipToast": "skipping auth · read-only mode"
+  },
+  "bootstrap": {
+    "stepLabel": "STEP 00 · STARTING",
+    "creatingServer": "creating your server…",
+    "warmingEngine": "warming up the engine.",
+    "invalidUrl": "that does not look like a valid url"
   }
 }

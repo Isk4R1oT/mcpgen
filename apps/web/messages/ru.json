@@ -704,5 +704,11 @@
     "authFailVaultToast": "открываю хранилище credentials…",
     "authFailSchemeToast": "переключаюсь на oauth2 client_credentials",
     "authFailSkipToast": "авторизация пропущена · read-only режим"
+  },
+  "bootstrap": {
+    "stepLabel": "ШАГ 00 · ЗАПУСК",
+    "creatingServer": "создаём ваш сервер…",
+    "warmingEngine": "прогреваем движок.",
+    "invalidUrl": "это не похоже на валидный url"
   }
 }

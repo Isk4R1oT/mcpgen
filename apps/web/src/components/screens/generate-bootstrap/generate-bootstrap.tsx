@@ -15,6 +15,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, type ReactElement } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { submitGeneration } from '@/lib/api/generate';
 import { toast } from '@/lib/toast';
@@ -38,6 +39,7 @@ interface GenerateBootstrapProps {
 
 export function GenerateBootstrap({ specUrl }: GenerateBootstrapProps): ReactElement {
   const router = useRouter();
+  const t = useTranslations('bootstrap');
   const submittedRef = useRef(false);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function GenerateBootstrap({ specUrl }: GenerateBootstrapProps): ReactEle
     try {
       parsed = new URL(specUrl);
     } catch {
-      toast('that does not look like a valid url', { kind: 'error' });
+      toast(t('invalidUrl'), { kind: 'error' });
       router.replace('/');
       return;
     }
@@ -84,16 +86,16 @@ export function GenerateBootstrap({ specUrl }: GenerateBootstrapProps): ReactEle
       }}
     >
       <div className="mc-mono" style={{ opacity: 0.6, fontSize: 13 }}>
-        STEP 00 · STARTING
+        {t('stepLabel')}
       </div>
       <div
         className="mc-display-l"
         style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}
       >
-        creating your server…
+        {t('creatingServer')}
       </div>
       <div className="mc-mono" style={{ opacity: 0.5, fontSize: 13 }}>
-        warming up the engine.
+        {t('warmingEngine')}
       </div>
     </main>
   );
