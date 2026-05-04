@@ -247,20 +247,36 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
 
   // Pass 0 — collapse per-endpoint auth_requirements (D-21 list) into a
   // de-duped, ordered set of distinct schemes the user needs to wire up.
-  // Empty array when pass_0_output is absent (engine still streaming).
+  //
+  // We preserve the literal `'none'` scheme when every endpoint is
+  // unauthenticated (api.met.no, cat-facts) and fall back to
+  // `['none']` if pass_0_output is present but auth_requirements is
+  // empty. The frontend uses `auth_modes.length > 0` as the "Pass 0
+  // finished detecting" signal — returning `[]` here previously caused
+  // the REVIEW continue button to stick on "detecting auth…" even
+  // after the pipeline fully completed (partial-state branch correctly
+  // emits `['none']` via the engine's `_derive_auth_modes`; this
+  // branch was the inconsistent one).
   const authReqs = artifacts.pass_0_output?.auth_requirements;
-  const authSchemesSet = new Set<string>();
+  const realSchemes = new Set<string>();
+  let sawAnyRequirement = false;
   if (authReqs !== undefined && authReqs !== null && typeof authReqs === 'object') {
     for (const reqList of Object.values(authReqs)) {
       if (!Array.isArray(reqList)) continue;
       for (const req of reqList) {
-        if (req !== null && typeof req === 'object' && typeof req.scheme === 'string' && req.scheme !== 'none') {
-          authSchemesSet.add(req.scheme);
+        if (req !== null && typeof req === 'object' && typeof req.scheme === 'string') {
+          sawAnyRequirement = true;
+          if (req.scheme !== 'none') realSchemes.add(req.scheme);
         }
       }
     }
   }
-  const authModes: ReadonlyArray<string> = Array.from(authSchemesSet);
+  const authModes: ReadonlyArray<string> =
+    realSchemes.size > 0
+      ? Array.from(realSchemes)
+      : sawAnyRequirement || artifacts.pass_0_output !== undefined
+        ? ['none']
+        : [];
 
   // Pass 0 composite candidates (Pass 0 hints toward Pass 1 workflow tools).
   const compositeCandidates = Array.isArray(artifacts.pass_0_output?.composite_candidates)
