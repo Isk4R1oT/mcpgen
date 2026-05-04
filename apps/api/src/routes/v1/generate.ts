@@ -304,17 +304,19 @@ generateRoute.post('/', anonRateLimit, async (c) => {
         // only progresses when a consumer is reading SSE. The /preview
         // (review) screen polls /jobs/:id, not /stream, so without this
         // detached drain the pipeline never advances past Stage A and
-        // Pass 0 artifacts never land. We open the SSE channel and discard
-        // the body; the engine writes pass_*_output to its L1 cache as the
-        // pipeline advances, so subsequent /jobs/:id reads see real data
-        // even though we throw away the events here.
+        // Pass 0 artifacts never land.
         //
-        // The detached fetch is fire-and-forget — we don't await; if web
-        // navigates to /[jobId] (Stream screen) and opens its own SSE proxy,
-        // it'll see the same events because engine multicasts.
+        // We additionally PARSE each event and accumulate the
+        // partial_result fields into job-partial-state.ts so /preview
+        // and /auth can render real detected values (spec_name,
+        // auth_modes, endpoint_count, etc.) the moment Pass 0 emits its
+        // completion event — without waiting for the full pipeline +
+        // L1 artifact cache (which is only populated after Stage F).
         //
-        // Using c.executionCtx.waitUntil keeps the workerd runtime from
-        // discarding the in-flight fetch when this handler returns its 202.
+        // The detached fetch is fire-and-forget; if web navigates to
+        // /[jobId] (Stream screen) and opens its own SSE proxy, it'll
+        // see the same events because the engine multicasts.
+        const { ingestSseChunk } = await import('../../lib/job-partial-state.js');
         const drainEngineStream = async (): Promise<void> => {
           try {
             const stream = await fetch(
@@ -326,12 +328,24 @@ generateRoute.post('/', anonRateLimit, async (c) => {
             );
             const reader = stream.body?.getReader();
             if (reader === undefined) return;
-            // Pull until pipeline closes the stream (terminal: completed | failed).
-            // The reader buffers small chunks; we discard them.
+            const decoder = new TextDecoder();
+            // SSE events are delimited by `\n\n`. A chunk may split mid-
+            // event; we buffer the trailing partial-event text and feed
+            // complete events to ingestSseChunk on each delivery.
+            let buffer = '';
             for (;;) {
-              const { done } = await reader.read();
+              const { value, done } = await reader.read();
               if (done) break;
+              if (value === undefined) continue;
+              buffer += decoder.decode(value, { stream: true });
+              const lastBoundary = buffer.lastIndexOf('\n\n');
+              if (lastBoundary === -1) continue;
+              const complete = buffer.slice(0, lastBoundary + 2);
+              buffer = buffer.slice(lastBoundary + 2);
+              ingestSseChunk(jobId, complete);
             }
+            // Flush any trailing event after the stream closed.
+            if (buffer.trim().length > 0) ingestSseChunk(jobId, buffer);
           } catch (drainErr) {
             console.warn('engine SSE drain ended unexpectedly', {
               jobId,

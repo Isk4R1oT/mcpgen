@@ -167,13 +167,32 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
   ]);
 
   // Artifacts not yet populated → job is still streaming or evicted.
+  // BEFORE returning a null partial_result, check the in-memory SSE
+  // accumulator (lib/job-partial-state.ts). The drain in routes/v1/
+  // generate.ts streams engine events into that map as Pass 0/1
+  // emit, so /preview and /auth can render detected fields ~5-15s
+  // after POST instead of waiting for the full pipeline (~100s).
   if (artifactsRes.status !== 'fulfilled' || !artifactsRes.value.ok) {
+    const { getPartialState } = await import('../../../lib/job-partial-state.js');
+    const accum = getPartialState(jobId);
     return c.json(
       {
         status: 'streaming',
         job_id: jobId,
         owned_via_cookie: Boolean(anonSessionId),
-        partial_result: null,
+        partial_result: accum === null
+          ? null
+          : {
+              final_tools: [],
+              quality_report: null,
+              endpoint_count: accum.endpoint_count ?? null,
+              spec_name: accum.spec_name ?? null,
+              spec_format: accum.spec_format ?? null,
+              auth_modes: accum.auth_modes ?? [],
+              composite_candidates: accum.composite_candidates ?? [],
+              dropped_endpoints: accum.dropped_endpoints ?? [],
+              target_complexity: accum.target_complexity ?? null,
+            },
       },
       200,
     );
