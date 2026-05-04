@@ -15,8 +15,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { NextIntlClientProvider } from 'next-intl';
 
 import Playground from './playground';
+import enMessages from '../../../../messages/en.json';
 
 // Stub `next/navigation` so the screen renders without an App Router context.
 vi.mock('next/navigation', () => ({
@@ -77,9 +79,11 @@ afterEach(() => {
 function renderPlayground(props: { jobId?: string } = {}): ReturnType<typeof render> {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={qc}>
-      <Playground jobId={props.jobId ?? 'job-123'} />
-    </QueryClientProvider>,
+    <NextIntlClientProvider locale="en" messages={enMessages as Record<string, unknown>}>
+      <QueryClientProvider client={qc}>
+        <Playground jobId={props.jobId ?? 'job-123'} />
+      </QueryClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 

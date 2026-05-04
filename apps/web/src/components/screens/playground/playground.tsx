@@ -41,6 +41,7 @@ import {
   type FormEvent,
   type ReactElement,
 } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { Badge, Btn, Icon, SectionLabel, TopBar } from '@/components/ui';
 import { deriveServerNameFromSpecUrl } from '@/components/screens/canvas/canvas';
@@ -184,6 +185,7 @@ export default function Playground({
   onBack,
   onDeploy,
 }: PlaygroundProps): ReactElement {
+  const t = useTranslations('playground');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState<string>('');
   const [traces, setTraces] = useState<TraceRow[]>([]);
@@ -270,7 +272,7 @@ export default function Playground({
     // delay just made the UI feel slower than the engine actually is).
     setMessages((m) => [
       ...m,
-      { role: 'agent', text: 'thinking…', tool: selectedTool },
+      { role: 'agent', text: t('thinking'), tool: selectedTool },
     ]);
 
     // Pin the agent to a specific tool only when the user picked a real
@@ -322,8 +324,8 @@ export default function Playground({
     if (!result.ok) {
       const reason =
         result.error === 'flag_off_or_not_implemented'
-          ? 'tool execution is not yet available in this build.'
-          : `trace failed: ${result.error}`;
+          ? t('notAvailable')
+          : t('traceFailed', { error: result.error });
       setMessages((m) => {
         const copy = [...m];
         copy[copy.length - 1] = {
@@ -380,7 +382,7 @@ export default function Playground({
           tools: done.traces.map((t) => t.name),
           tk: totalTk,
           ms: done.total_lat_ms,
-          when: 'just now',
+          when: t('justNow'),
           savedAsTest: !!opts.test,
         } satisfies HistoryRun,
         ...h,
@@ -406,7 +408,7 @@ export default function Playground({
     // catalog so the regression-suite card picks up the new row even
     // though the in-card ★ remains a local optimistic marker.
     setHistory((h) => h.map((r) => (r.id === id ? { ...r, savedAsTest: true } : r)));
-    setSavedToast('saved as test');
+    setSavedToast(t('savedAsTestToast'));
     setTimeout(() => setSavedToast(''), 1800);
     void (async (): Promise<void> => {
       const refreshed = await listPlaygroundTests(jobId);
@@ -430,7 +432,7 @@ export default function Playground({
       const refreshed = await listPlaygroundTests(jobId);
       if (refreshed.ok) setSavedTests(refreshed.data.tests);
     } else {
-      setSavedToast(`suite failed: ${r.error}`);
+      setSavedToast(t('suiteFailed', { error: r.error }));
       setTimeout(() => setSavedToast(''), 2500);
     }
     setSuiteRunning(false);
@@ -471,7 +473,7 @@ export default function Playground({
     sample?.name !== undefined && sample.name !== ''
       ? sample.name
       : specNameFromJob ?? specNameFromUrl;
-  const crumb = `${derivedServerName}-mcp · playground`;
+  const crumb = t('crumb', { name: derivedServerName });
 
   return (
     <div className="mc-screen" style={{ minHeight: '100vh' }}>
@@ -481,10 +483,10 @@ export default function Playground({
         right={
           <>
             <Btn kind="ghost" size="sm" icon="arrow-l" onClick={onBack}>
-              back to canvas
+              {t('backToCanvas')}
             </Btn>
             <Btn kind="primary" size="sm" icon="cloud" onClick={onDeploy}>
-              deploy
+              {t('deploy')}
             </Btn>
           </>
         }
@@ -507,7 +509,7 @@ export default function Playground({
           }}
         >
           <div className="row-bw" style={{ marginBottom: 10 }}>
-            <span className="mc-caption-up">history</span>
+            <span className="mc-caption-up">{t('history')}</span>
             <span className="mc-mono muted" style={{ fontSize: 11 }}>
               {history.length}
             </span>
@@ -520,7 +522,7 @@ export default function Playground({
               onClick={() => setHistoryFilter('all')}
               style={{ height: 26, fontSize: 11 }}
             >
-              all · {history.length}
+              {t('allFilter', { count: history.length })}
             </button>
             <button
               type="button"
@@ -528,7 +530,7 @@ export default function Playground({
               onClick={() => setHistoryFilter('tests')}
               style={{ height: 26, fontSize: 11 }}
             >
-              tests · {testCount}
+              {t('testsFilter', { count: testCount })}
             </button>
           </div>
 
@@ -545,7 +547,7 @@ export default function Playground({
                   textAlign: 'center',
                 }}
               >
-                no saved tests yet. star a run below.
+                {t('noTestsYet')}
               </div>
             )}
             {filteredHistory.map((r) => {
@@ -582,7 +584,7 @@ export default function Playground({
                     </span>
                     {r.savedAsTest && (
                       <span
-                        title="saved as test"
+                        title={t('savedAsTestTitle')}
                         style={{
                           color: 'var(--primary)',
                           fontSize: 12,
@@ -611,9 +613,9 @@ export default function Playground({
                       }}
                       disabled={running}
                       style={{ height: 24, padding: '0 8px', fontSize: 11 }}
-                      title="replay"
+                      title={t('replay')}
                     >
-                      <Icon name="play" size={9} /> replay
+                      <Icon name="play" size={9} /> {t('replay')}
                     </button>
                     {!r.savedAsTest ? (
                       <button
@@ -624,9 +626,9 @@ export default function Playground({
                           saveAsTest(r.id);
                         }}
                         style={{ height: 24, padding: '0 8px', fontSize: 11 }}
-                        title="save as test"
+                        title={t('savedAsTestTitle')}
                       >
-                        ☆ save
+                        {t('save')}
                       </button>
                     ) : (
                       <span
@@ -637,7 +639,7 @@ export default function Playground({
                           alignSelf: 'center',
                         }}
                       >
-                        saved
+                        {t('savedLabel')}
                       </span>
                     )}
                   </div>
@@ -660,7 +662,7 @@ export default function Playground({
                 className="mc-caption-up"
                 style={{ marginBottom: 6, fontSize: 10 }}
               >
-                regression suite
+                {t('regressionSuite')}
               </div>
               <div
                 className="mc-mono"
@@ -671,8 +673,7 @@ export default function Playground({
                   color: 'var(--text-muted)',
                 }}
               >
-                run all {savedTests.length} tests on every spec change. fails block
-                auto-regenerate.
+                {t('suiteDesc', { count: savedTests.length })}
               </div>
               <button
                 type="button"
@@ -682,7 +683,7 @@ export default function Playground({
                 disabled={suiteRunning}
               >
                 <Icon name="play" size={9} />{' '}
-                {suiteRunning ? 'running…' : 'run suite'}
+                {suiteRunning ? t('running') : t('runSuite')}
               </button>
               {suiteResult !== null && (
                 <div style={{ marginTop: 10 }}>
@@ -690,7 +691,10 @@ export default function Playground({
                     className="mc-mono"
                     style={{ fontSize: 11, marginBottom: 6 }}
                   >
-                    {suiteResult.summary.passed}/{suiteResult.summary.total} passed
+                    {t('suiteSummary', {
+                      passed: suiteResult.summary.passed,
+                      total: suiteResult.summary.total,
+                    })}
                   </div>
                   {suiteResult.tests.map((t) => (
                     <div
@@ -740,7 +744,7 @@ export default function Playground({
         <div style={{ padding: 28, overflowY: 'auto' }}>
           <div className="row-bw" style={{ marginBottom: 18 }}>
             <div className="row" style={{ gap: 10 }}>
-              <span className="mc-caption-up">tool</span>
+              <span className="mc-caption-up">{t('toolLabel')}</span>
               <select
                 aria-label="tool"
                 className="mc-input mc-mono"
@@ -759,16 +763,18 @@ export default function Playground({
                   </option>
                 ))}
               </select>
-              <Badge kind="success">connected</Badge>
+              <Badge kind="success">{t('connected')}</Badge>
             </div>
             <div className="mc-caption">
-              streaming · runs on <strong>your</strong> tokens
+              {t.rich('streamingRunsOn', {
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </div>
           </div>
 
           {samplePrompts.length > 0 && (
             <>
-              <SectionLabel>try a prompt</SectionLabel>
+              <SectionLabel>{t('tryPrompt')}</SectionLabel>
               <div className="mc-chiprow" style={{ marginBottom: 24 }}>
                 {samplePrompts.map((p) => (
                   <button
@@ -787,7 +793,7 @@ export default function Playground({
 
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18 }}>
             <div className="row-bw" style={{ marginBottom: 12 }}>
-              <span className="mc-caption-up">conversation</span>
+              <span className="mc-caption-up">{t('conversation')}</span>
               {messages.length > 0 && activeRunId && (
                 <button
                   type="button"
@@ -795,7 +801,7 @@ export default function Playground({
                   onClick={() => saveAsTest(activeRunId)}
                   style={{ height: 24, padding: '0 8px', fontSize: 11 }}
                 >
-                  ☆ save this run as test
+                  {t('saveThisRun')}
                 </button>
               )}
             </div>
@@ -811,7 +817,7 @@ export default function Playground({
                   borderRadius: 'var(--radius)',
                 }}
               >
-                pick a prompt or type below to start.
+                {t('emptyChat')}
               </div>
             )}
 
@@ -872,7 +878,7 @@ export default function Playground({
             >
               <input
                 className="mc-input"
-                placeholder="type message…"
+                placeholder={t('typeMessage')}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={running}
@@ -883,7 +889,7 @@ export default function Playground({
                 onClick={() => void send(input)}
                 disabled={running || !input.trim()}
               >
-                send
+                {t('send')}
               </Btn>
             </form>
 
@@ -900,12 +906,12 @@ export default function Playground({
               }}
             >
               <span>
-                <Icon name="lock" size={11} /> using your{' '}
-                {sample?.id ?? 'lumen'} key · encrypted · deletes in{' '}
+                <Icon name="lock" size={11} />{' '}
+                {t('usingYourKey', { key: sample?.id ?? 'lumen' })}{' '}
                 <strong className="mc-mono">{fmtTtl()}</strong>
               </span>
               <span className="mc-link" style={{ fontSize: 11, opacity: 0.6 }}>
-                delete now
+                {t('deleteNow')}
               </span>
             </div>
           </div>
@@ -920,14 +926,14 @@ export default function Playground({
             overflowY: 'auto',
           }}
         >
-          <SectionLabel>live trace</SectionLabel>
+          <SectionLabel>{t('liveTrace')}</SectionLabel>
 
           <div className="mc-trace" style={{ marginBottom: 20 }}>
             <div
               className="row-bw"
               style={{ paddingBottom: 8, marginBottom: 8 }}
             >
-              <span className="muted">tools called</span>
+              <span className="muted">{t('toolsCalled')}</span>
               <span>
                 <CountUp value={traces.length} />
               </span>
@@ -941,7 +947,7 @@ export default function Playground({
                   padding: '12px 0',
                 }}
               >
-                nothing yet. send a prompt or replay from history.
+                {t('emptyTrace')}
               </div>
             )}
             {traces.map((tr, i) => (
@@ -970,33 +976,33 @@ export default function Playground({
               marginTop: 20,
             }}
           >
-            <SectionLabel>session totals</SectionLabel>
+            <SectionLabel>{t('sessionTotals')}</SectionLabel>
             <div className="mc-mono" style={{ marginBottom: 20 }}>
               <div className="row-bw" style={{ marginBottom: 4 }}>
-                <span className="muted">this run</span>
+                <span className="muted">{t('thisRun')}</span>
                 <span>
                   <CountUp value={totalNew} /> tk
                 </span>
               </div>
             </div>
 
-            <SectionLabel>server structure</SectionLabel>
+            <SectionLabel>{t('serverStructure')}</SectionLabel>
             <div className="mc-mono" style={{ fontSize: 12.5 }}>
               <div className="row-bw" style={{ marginBottom: 4 }}>
-                <span className="muted">tools loaded</span>
+                <span className="muted">{t('toolsLoaded')}</span>
                 <span>
                   {toolsLoaded > 0 ? toolsLoaded : <span className="muted">—</span>}
                 </span>
               </div>
               {endpointCount !== null && (
                 <div className="row-bw" style={{ marginBottom: 4 }}>
-                  <span className="muted">from endpoints</span>
+                  <span className="muted">{t('fromEndpoints')}</span>
                   <span>{endpointCount}</span>
                 </div>
               )}
               {targetComplexity !== null && (
                 <div className="row-bw" style={{ marginBottom: 4 }}>
-                  <span className="muted">mode</span>
+                  <span className="muted">{t('mode')}</span>
                   <span>{targetComplexity}</span>
                 </div>
               )}
