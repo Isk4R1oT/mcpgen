@@ -134,7 +134,7 @@
   "fl_dpa": "dpa",
   "builtIn": "сделано в берлине · париже · сан-франциско",
   "allSystems": "все системы в норме",
-  "welcomeTitle": "привет, kira.",
+  "welcomeTitle": "привет, {name}.",
   "welcomeSub": "пока нет ни одного сервера. давайте создадим первый — выберите способ:",
   "startPaste": "вставить спецификацию",
   "startPasteSub": "openapi, graphql, postman или url github-репо",

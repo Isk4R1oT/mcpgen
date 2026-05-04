@@ -134,7 +134,7 @@
   "fl_dpa": "dpa",
   "builtIn": "柏林 · 巴黎 · 旧金山 制造",
   "allSystems": "所有系统正常",
-  "welcomeTitle": "你好，kira。",
+  "welcomeTitle": "你好，{name}。",
   "welcomeSub": "还没有服务器。我们来创建第一个 — 选一种方式：",
   "startPaste": "粘贴 spec",
   "startPasteSub": "openapi、graphql、postman 或 github 仓库 url",

@@ -134,7 +134,7 @@
   "fl_dpa": "dpa",
   "builtIn": "gebaut in berlin · paris · sf",
   "allSystems": "alle systeme ok",
-  "welcomeTitle": "hallo, kira.",
+  "welcomeTitle": "hallo, {name}.",
   "welcomeSub": "noch keine server. lass uns den ersten machen — wähl einen weg:",
   "startPaste": "spec einfügen",
   "startPasteSub": "openapi, graphql, postman oder github-repo url",
