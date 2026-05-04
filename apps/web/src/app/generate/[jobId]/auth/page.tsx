@@ -19,6 +19,7 @@
 // AuthScreen.persistCapture) and is read at deploy time to wire the
 // tenant Worker — no server-side state needed for this step.
 
+import { redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 
 import { AuthScreen } from '@/components/screens/auth/auth';
@@ -65,6 +66,23 @@ function detectAuthType(authModes: unknown): 'apikey' | 'basic' | 'oauth' | 'hma
   return undefined;
 }
 
+// Per canon `claude-design-reference/canon/screen-auth.jsx` lines 3-33 the
+// AUTH_TYPES registry only defines apikey/basic/oauth/hmac — there is no
+// "none" entry by design. Per `docs/decisions/2026-05-03-auth-mode-none.md`
+// when auth_modes=['none'] the spec is unauthenticated and the generated
+// worker emits a no-op middleware. Together: the AUTH screen MUST be skipped
+// entirely for unauth specs, not rendered with a wrong "API Key" fallback
+// (which is what AuthScreen falls back to without an authType prop). When
+// Pass 0 reports auth_modes is empty or contains only 'none', server-side
+// redirect to the stream UI so the user never sees an "API Key needed" prompt
+// for an API that doesn't need one (api.met.no, cat-facts, etc.).
+function isUnauthenticatedSpec(authModes: unknown): boolean {
+  if (!Array.isArray(authModes)) return false;
+  const modes = authModes.filter((m): m is string => typeof m === 'string');
+  if (modes.length === 0) return false; // empty == still detecting; don't skip prematurely
+  return modes.every((m) => m === 'none');
+}
+
 export default async function AuthPage({ params, searchParams }: Params): Promise<ReactElement> {
   const { jobId } = await params;
   const sp = (await searchParams) ?? {};
@@ -72,11 +90,22 @@ export default async function AuthPage({ params, searchParams }: Params): Promis
     process.env['MCPGEN_PUBLIC_URL'] ?? `http://localhost:${process.env['PORT'] ?? '3000'}`;
   const job = await fetchJobStatusServerSide(jobId, origin);
 
+  const authModesRaw = job?.partial_result?.auth_modes;
+
+  // Skip the AUTH screen entirely when Pass 0 detected zero auth schemes.
+  // Canon-correct flow for no-auth specs: paste -> review -> stream (skip
+  // step 02 of 04, jump straight to step 03). `redirect()` throws so this
+  // never returns; the AuthScreen component below is unreachable on this
+  // branch.
+  if (isUnauthenticatedSpec(authModesRaw)) {
+    redirect(`/generate/${jobId}`);
+  }
+
   const specName =
     typeof job?.partial_result?.spec_name === 'string'
       ? (job.partial_result.spec_name as string)
       : undefined;
-  const detectedAuth = detectAuthType(job?.partial_result?.auth_modes);
+  const detectedAuth = detectAuthType(authModesRaw);
   const originalSpecUrl =
     typeof sp.spec_url === 'string' && sp.spec_url.length > 0 ? sp.spec_url : undefined;
 

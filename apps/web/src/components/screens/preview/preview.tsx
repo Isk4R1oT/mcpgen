@@ -468,12 +468,29 @@ export default function Preview({
     ? ((((naiveTokens as number) - (optTokens as number)) / 1000) * DOLLARS_PER_KTOKEN).toFixed(2)
     : null;
 
+  // Per canon `claude-design-reference/canon/screen-auth.jsx` the AUTH_TYPES
+  // registry has no "none" entry — when Pass 0 reports auth_modes=['none']
+  // (api.met.no, cat-facts, etc.) the AUTH screen must be skipped entirely.
+  // We do the skip both client-side (this button) and server-side (the
+  // /auth route does redirect()) so the user never sees a wrong "API Key
+  // needed" prompt for an unauthenticated upstream.
+  const isUnauthenticated =
+    Array.isArray(partial?.auth_modes) &&
+    partial.auth_modes.length > 0 &&
+    partial.auth_modes.every((m) => m === 'none');
+
   // ─── Navigation handlers ───────────────────────────────────────────────────
   const onContinue = (): void => {
     // Canon flow: REVIEW (this screen) -> AUTH -> STREAM -> CANVAS ->
     // QUALITY -> DEPLOY. The /auth screen lets the user pick credential
     // mode (pass-through vs stored) and confirms detected auth strategy.
+    // Unauthenticated specs skip /auth and jump straight to STREAM.
     if (jobId !== '') {
+      if (isUnauthenticated) {
+        router.push(`/generate/${encodeURIComponent(jobId)}`);
+        toast('no auth required - generating…');
+        return;
+      }
       router.push(`/generate/${encodeURIComponent(jobId)}/auth`);
       toast('continuing to auth setup…');
       return;
@@ -851,7 +868,7 @@ export default function Preview({
         <div style={{ height: 24 }} />
 
         <Btn kind="primary" size="lg" full iconR="arrow-r" onClick={onContinue}>
-          continue · auth setup
+          {isUnauthenticated ? 'continue · generate' : 'continue · auth setup'}
         </Btn>
         <div className="mc-caption" style={{ textAlign: 'center', marginTop: 12 }}>
           you can always tune individual tools after generation.
