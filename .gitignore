@@ -34,6 +34,9 @@ packages/ir/build/
 .env.*.local
 *.pem
 *.key
+# Wrangler dev secrets (CF Workers local) — never commit; .dev.vars.example is the template
+.dev.vars
+**/.dev.vars
 
 # OS
 .DS_Store
