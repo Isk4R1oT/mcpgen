@@ -21,6 +21,7 @@ import structlog
 from fastapi import FastAPI
 
 from mcpgen_engine.api import generate as generate_api
+from mcpgen_engine.api import playground as playground_api
 from mcpgen_engine.llm.warmup import (
     WarmupResult,
     start_keepwarm_task,
@@ -92,6 +93,14 @@ async def _engine_lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         _log.warning("engine.startup.llm_warmup_failed", error=repr(exc))
 
+    # Playground TTL janitor — sweeps idle wrangler-dev sandboxes every 60s
+    # so a forgotten session doesn't leak a Node + miniflare process for
+    # hours. Idempotent; safe to call from anywhere.
+    try:
+        playground_api.start_ttl_janitor()
+    except Exception as exc:
+        _log.warning("engine.startup.playground_janitor_failed", error=repr(exc))
+
     yield
 
     # Shutdown — cancel the keep-warm task cleanly.
@@ -99,6 +108,13 @@ async def _engine_lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await stop_keepwarm_task()
     except Exception as exc:
         _log.warning("engine.shutdown.llm_warmup_stop_failed", error=repr(exc))
+
+    # Tear down all live playground sandboxes so SIGTERM cascades fire
+    # before the engine process exits.
+    try:
+        await playground_api.stop_ttl_janitor()
+    except Exception as exc:
+        _log.warning("engine.shutdown.playground_teardown_failed", error=repr(exc))
 
 
 def create_app() -> FastAPI:
@@ -150,6 +166,10 @@ def create_app() -> FastAPI:
 
     # Phase 2: POST /api/v1/generate + GET /api/v1/generate/{job_id}/stream.
     app.include_router(generate_api.router)
+
+    # Phase 11 playground execution: POST /api/v1/playground/sessions +
+    # /sessions/{job_id}/invoke (SSE) + DELETE /sessions/{job_id}.
+    app.include_router(playground_api.router)
 
     return app
 
