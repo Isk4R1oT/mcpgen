@@ -653,7 +653,9 @@ async def run_pipeline(
     try:
         # Stage A — deterministic OpenAPI parse.
         yield _event(job_id=job_id, stage="A", status="started", partial_result=None, error=None)
-        raw_ir, spec_servers = await stage_a.run(spec_url=spec_url, spec_content=spec_content)
+        raw_ir, spec_servers, original_format = await stage_a.run(
+            spec_url=spec_url, spec_content=spec_content
+        )
 
         # Resolve a friendlier spec_title for Pass 3 smart-id slugification.
         info = getattr(raw_ir, "info", None)
@@ -695,6 +697,10 @@ async def run_pipeline(
                 status="completed",
                 partial_result={
                     "endpoint_count": str(len(raw_ir.endpoints)),
+                    "spec_format": _spec_format_value(raw_ir.spec_format),
+                    "spec_name": spec_title,
+                    # original_format isn't recoverable from the L1 cache; the
+                    # cached spec was already normalized when first written.
                     **cache_marker,
                 },
                 error=None,
@@ -716,6 +722,9 @@ async def run_pipeline(
                     "phase": "pass_0",
                     "tool_plan_count": str(len(pass_0_cached.tool_plans)),
                     "dropped_count": str(len(pass_0_cached.dropped_endpoints)),
+                    "dropped_endpoints": _serialize_dropped(pass_0_cached.dropped_endpoints),
+                    "auth_modes": _derive_auth_modes(pass_0_cached.auth_requirements),
+                    "target_complexity": _enum_value(pass_0_cached.target_complexity),
                     **cache_marker,
                 },
                 error=None,
@@ -892,7 +901,15 @@ async def run_pipeline(
             job_id=job_id,
             stage="A",
             status="completed",
-            partial_result={"endpoint_count": str(len(raw_ir.endpoints))},
+            partial_result={
+                "endpoint_count": str(len(raw_ir.endpoints)),
+                "spec_format": _spec_format_value(raw_ir.spec_format),
+                # `original_format` is None for native OpenAPI 3.x input. We
+                # surface it as a string only when normalization actually ran
+                # so the UI can label "DETECTED swagger-2.0 → converted".
+                **({"original_format": original_format} if original_format is not None else {}),
+                "spec_name": spec_title,
+            },
             error=None,
         )
 
@@ -913,6 +930,9 @@ async def run_pipeline(
                 "phase": "pass_0",
                 "tool_plan_count": str(len(pass_0_output.tool_plans)),
                 "dropped_count": str(len(pass_0_output.dropped_endpoints)),
+                "dropped_endpoints": _serialize_dropped(pass_0_output.dropped_endpoints),
+                "auth_modes": _derive_auth_modes(pass_0_output.auth_requirements),
+                "target_complexity": _enum_value(pass_0_output.target_complexity),
             },
             error=None,
         )
@@ -1230,6 +1250,68 @@ def reconstruct_from_l1(
 
 
 # ─────────────────────────── Internal helpers ──────────────────────────────
+
+
+def _spec_format_value(spec_format: object) -> str:
+    """Coerce ``RawIR.spec_format`` (Pydantic enum or string) to its wire value.
+
+    Phase 9 plan 09-A surfaces ``spec_format`` to the BFF + UI via the SSE
+    ``A:completed`` partial_result. The IR carries it as ``SpecFormat`` enum;
+    the BFF expects a flat string ("openapi-3.0" / "openapi-3.1").
+    """
+    value = getattr(spec_format, "value", None)
+    return value if isinstance(value, str) else str(spec_format)
+
+
+def _enum_value(enum_or_str: object) -> str:
+    """Same shape as ``_spec_format_value`` but for any Enum (target_complexity etc.)."""
+    value = getattr(enum_or_str, "value", None)
+    return value if isinstance(value, str) else str(enum_or_str)
+
+
+def _derive_auth_modes(
+    auth_requirements: dict[str, list[Any]],
+) -> list[str]:
+    """Collapse Pass 0's per-endpoint AuthRequirement1 list into the unique
+    set of upstream auth scheme types ("oauth2", "apikey", "http", "basic",
+    "bearer", etc.) for the SSE B:pass_0:completed partial_result.
+
+    Returns ``["none"]`` when the spec declares no security at all (api.met.no,
+    cat-facts) so the UI can render a definitive "no auth required" badge
+    instead of an ambiguous "—".
+    """
+    schemes: set[str] = set()
+    for requirements in auth_requirements.values():
+        for req in requirements:
+            scheme = getattr(req, "scheme", None)
+            if scheme is None:
+                continue
+            schemes.add(_enum_value(scheme))
+    if not schemes:
+        return ["none"]
+    return sorted(schemes)
+
+
+def _serialize_dropped(
+    dropped: list[Any],
+) -> list[dict[str, str]]:
+    """JSON-safe summary of Pass 0 ``dropped_endpoints`` for the SSE event.
+
+    Cap at the first 50 entries so the per-event payload stays bounded for
+    huge specs (Stripe drops hundreds of webhook + admin endpoints). The full
+    list lives in the L1 artifact cache; this is just enough for the REVIEW
+    screen's "endpoints not included" disclosure.
+    """
+    out: list[dict[str, str]] = []
+    for entry in dropped[:50]:
+        out.append(
+            {
+                "method": str(getattr(entry, "method", "")),
+                "path": str(getattr(entry, "path", "")),
+                "reason": _enum_value(getattr(entry, "reason", "")),
+            }
+        )
+    return out
 
 
 def _server_pagination_label(pass_5_output: Pass5Output) -> str:

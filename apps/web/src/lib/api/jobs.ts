@@ -45,6 +45,10 @@ export const JobStatusSchema = z.object({
       // Preview screen can render real data (no canon literals like
       // "lumen-payments" or "transactions(24)").
       spec_format: z.string().nullable().optional(),
+      // Pre-conversion format string when Stage A normalized a legacy spec
+      // ("swagger-2.0" / "swagger-1.x" / "postman-2.x"); null/absent for
+      // native OpenAPI 3.x input.
+      original_format: z.string().nullable().optional(),
       auth_modes: z.array(z.string()).optional(),
       composite_candidates: z.array(z.unknown()).optional(),
       dropped_endpoints: z.array(z.unknown()).optional(),

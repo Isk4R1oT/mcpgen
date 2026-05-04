@@ -166,28 +166,59 @@ function deriveCategories(tools: ReadonlyArray<FinalTool> | null): ReadonlyArray
 
 // Format the spec_format enum value for display in the 'detected' panel.
 // "openapi-3.0" → "OpenAPI 3.0"; falls back to "—" while pending.
-function formatSpecFormat(specFormat: string | null | undefined): string {
-  if (specFormat === null || specFormat === undefined || specFormat === '') return '—';
-  if (specFormat.startsWith('openapi-')) {
-    return `OpenAPI ${specFormat.slice('openapi-'.length)}`;
+// When `originalFormat` is set, the engine had to convert from a legacy
+// format — surface that as "Swagger 2.0 → OpenAPI 3.0" so the user sees
+// what we actually parsed without losing the post-conversion target.
+function formatSpecFormat(
+  specFormat: string | null | undefined,
+  originalFormat?: string | null,
+): string {
+  const target = (() => {
+    if (specFormat === null || specFormat === undefined || specFormat === '') return null;
+    if (specFormat.startsWith('openapi-')) {
+      return `OpenAPI ${specFormat.slice('openapi-'.length)}`;
+    }
+    if (specFormat === 'graphql') return 'GraphQL';
+    if (specFormat === 'postman') return 'Postman Collection';
+    return specFormat;
+  })();
+
+  if (target === null) return '—';
+
+  // Pre-conversion format: only render when the engine actually normalized
+  // ("swagger-2.0" / "swagger-1.x" / "postman-2.x"). Native OpenAPI 3.x input
+  // returns originalFormat=null — render just the target.
+  if (typeof originalFormat === 'string' && originalFormat.length > 0) {
+    const friendly = (() => {
+      if (originalFormat === 'swagger-2.0') return 'Swagger 2.0';
+      if (originalFormat === 'swagger-1.x') return 'Swagger 1.x';
+      if (originalFormat === 'postman-2.x') return 'Postman 2.x';
+      return originalFormat;
+    })();
+    return `${friendly} → ${target}`;
   }
-  if (specFormat === 'graphql') return 'GraphQL';
-  if (specFormat === 'postman') return 'Postman Collection';
-  return specFormat;
+
+  return target;
 }
 
 // Map raw IR auth_modes scheme strings into a single human-readable label
-// for the 'auth' field. Returns "—" while pending (empty list).
+// for the 'auth' field. Returns "—" while pending (empty list); "none" when
+// the spec genuinely declares no security so the UI can show "no auth required"
+// instead of an ambiguous dash.
 function formatAuthModes(authModes: ReadonlyArray<string> | undefined): string {
   if (authModes === undefined || authModes.length === 0) return '—';
-  const friendly = authModes.map((s) => {
-    if (s === 'apiKey') return 'api key';
-    if (s === 'oauth2') return 'oauth';
-    if (s === 'http_basic') return 'basic';
-    if (s === 'http_bearer') return 'bearer';
-    if (s === 'aws_signature') return 'aws sig';
-    return s;
-  });
+  if (authModes.length === 1 && authModes[0] === 'none') return 'no auth required';
+  const friendly = authModes
+    .filter((s) => s !== 'none')
+    .map((s) => {
+      if (s === 'apiKey') return 'api key';
+      if (s === 'oauth2') return 'oauth';
+      if (s === 'http_basic') return 'basic';
+      if (s === 'http_bearer') return 'bearer';
+      if (s === 'aws_signature') return 'aws sig';
+      return s;
+    });
+  if (friendly.length === 0) return 'no auth required';
   return friendly.join(' + ');
 }
 
@@ -408,7 +439,10 @@ export default function Preview({
 
   const includedCount = finalTools !== null ? finalTools.length : null;
 
-  const specFormatLabel = formatSpecFormat(partial?.spec_format ?? null);
+  const specFormatLabel = formatSpecFormat(
+    partial?.spec_format ?? null,
+    typeof partial?.original_format === 'string' ? partial.original_format : null,
+  );
   const authLabel = formatAuthModes(partial?.auth_modes);
 
   // ─── Token budget — real numbers when we have them, '—' otherwise ─────────

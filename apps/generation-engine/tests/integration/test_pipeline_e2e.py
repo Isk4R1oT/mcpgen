@@ -151,8 +151,8 @@ def _stub_passes_from_fixtures(
         *,
         spec_url: str | None,  # noqa: ARG001 — kwarg parity with real stage_a.run
         spec_content: str | None,  # noqa: ARG001 — kwarg parity with real stage_a.run
-    ) -> tuple[RawIR, list[dict[str, object]]]:
-        return raw_ir_fix, []
+    ) -> tuple[RawIR, list[dict[str, object]], str | None]:
+        return raw_ir_fix, [], None
 
     # Phase 4 D-33 — Pass 5 + Stage E run after Pass 4 in the canonical
     # pipeline. We stub them with deterministic shapes so the test stays

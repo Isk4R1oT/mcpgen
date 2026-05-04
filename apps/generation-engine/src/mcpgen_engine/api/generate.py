@@ -275,7 +275,7 @@ async def artifacts(job_id: str) -> dict[str, Any]:
             detail=f"unknown job: {job_id}",
         )
 
-    raw_ir, _ = await stage_a.run(
+    raw_ir, _, _ = await stage_a.run(
         spec_url=job["spec_url"],
         spec_content=job["spec_content"],
     )
@@ -442,7 +442,7 @@ async def output_file(job_id: str, relative_path: str) -> Response:
 
     # Re-derive spec_hash from the stored job parameters (Stage A is fully
     # deterministic so this is cheap on a warm filesystem cache).
-    raw_ir, _ = await stage_a.run(
+    raw_ir, _, _ = await stage_a.run(
         spec_url=job["spec_url"],
         spec_content=job["spec_content"],
     )

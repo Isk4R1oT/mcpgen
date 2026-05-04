@@ -32,7 +32,13 @@
 
 export interface JobPartialState {
   spec_name?: string;
+  /** Post-conversion format the engine actually parsed (always
+   *  "openapi-3.0" or "openapi-3.1"). */
   spec_format?: string;
+  /** Pre-conversion format ("swagger-2.0", "swagger-1.x", "postman-2.x")
+   *  when the engine had to normalize, undefined for native OpenAPI 3.x.
+   *  Surfaced so the REVIEW screen can show the user what they pasted. */
+  original_format?: string;
   auth_modes?: ReadonlyArray<string>;
   endpoint_count?: number;
   tool_plan_count?: number;
@@ -116,6 +122,9 @@ export function ingestSseChunk(jobId: string, text: string): void {
       }
       if (typeof pr['spec_format'] === 'string') {
         patch.spec_format = pr['spec_format'] as string;
+      }
+      if (typeof pr['original_format'] === 'string') {
+        patch.original_format = pr['original_format'] as string;
       }
       if (typeof pr['spec_name'] === 'string') {
         patch.spec_name = pr['spec_name'] as string;

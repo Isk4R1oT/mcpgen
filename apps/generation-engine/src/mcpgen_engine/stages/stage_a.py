@@ -93,8 +93,10 @@ class StageAError(ValueError):
 # ───────────────────────────── Public API ──────────────────────────────────
 
 
-async def run(spec_url: str | None, spec_content: str | None) -> tuple[RawIR, list[dict[str, Any]]]:
-    """Parse an OpenAPI 3.x spec into the canonical ``RawIR`` + spec servers.
+async def run(
+    spec_url: str | None, spec_content: str | None
+) -> tuple[RawIR, list[dict[str, Any]], str | None]:
+    """Parse an API spec into the canonical ``RawIR`` + spec servers + original format.
 
     Exactly one of ``spec_url`` or ``spec_content`` must be set. Both-set or
     both-None raises ``StageAError("INVALID_INPUT: ...")``.
@@ -102,14 +104,19 @@ async def run(spec_url: str | None, spec_content: str | None) -> tuple[RawIR, li
     The function is deterministic: identical input always produces a
     byte-identical ``RawIR.spec_hash``.
 
-    Returns a ``(raw_ir, servers)`` tuple. ``servers`` is the OpenAPI
-    ``servers[]`` array (each entry ``{"url": str, "description"?: str,
-    "variables"?: dict}``); empty list when the spec omits the field.
-    Carried alongside ``RawIR`` (rather than embedded in it — frozen IR
-    has no ``servers`` field) so Stage E can build a complete upstream
-    base URL: ``servers[0].url`` is often a relative path (e.g.
-    ``/api/v3`` for Petstore, ``/v1`` for Stripe) which must be appended
-    to the spec URL host.
+    Returns a ``(raw_ir, servers, original_format)`` tuple.
+
+    * ``servers`` is the OpenAPI ``servers[]`` array (each entry
+      ``{"url": str, "description"?: str, "variables"?: dict}``);
+      empty list when the spec omits the field. Carried alongside ``RawIR``
+      (rather than embedded in it — frozen IR has no ``servers`` field) so
+      Stage E can build a complete upstream base URL.
+    * ``original_format`` is the pre-conversion format string (e.g.
+      ``"swagger-2.0"``, ``"swagger-1.x"``, ``"postman-2.x"``) when the
+      spec was normalized, or ``None`` for native OpenAPI 3.x input.
+      Surfaced via the SSE ``A:completed`` partial_result so the BFF and
+      web UI can show the user what they actually pasted (the IR's
+      ``spec_format`` always reads ``openapi-3.x`` post-normalization).
     """
 
     if (spec_url is None) == (spec_content is None):
@@ -188,7 +195,7 @@ async def run(spec_url: str | None, spec_content: str | None) -> tuple[RawIR, li
         parse_duration_ms=(time.perf_counter_ns() - started_ns) // 1_000_000,
     )
 
-    return raw_ir, servers
+    return raw_ir, servers, original_format
 
 
 def _extract_servers(resolved: dict[str, Any]) -> list[dict[str, Any]]:

@@ -188,6 +188,9 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
               endpoint_count: accum.endpoint_count ?? null,
               spec_name: accum.spec_name ?? null,
               spec_format: accum.spec_format ?? null,
+              // Pre-conversion format ("swagger-2.0" / "swagger-1.x" /
+              // "postman-2.x") when Stage A normalized; null for native 3.x.
+              original_format: accum.original_format ?? null,
               auth_modes: accum.auth_modes ?? [],
               composite_candidates: accum.composite_candidates ?? [],
               dropped_endpoints: accum.dropped_endpoints ?? [],
