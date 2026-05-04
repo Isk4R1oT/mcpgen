@@ -120,7 +120,18 @@ services:
       - |
         set -e
         pnpm install --frozen-lockfile --prefer-offline
-        exec pnpm --filter @mcpgen/api exec wrangler dev --ip 0.0.0.0 --port 8787
+        # wrangler dev reads c.env from wrangler.toml [vars] + .dev.vars only;
+        # plain shell env vars are NOT auto-injected into c.env (only specific
+        # bindings like CLOUDFLARE_HYPERDRIVE_* are). We pass cross-service
+        # URLs via --var so the BFF reaches `engine:8000` / `flipt:8080`
+        # inside the docker network instead of the localhost values pinned
+        # in .dev.vars (which we keep host-friendly for the non-docker dev
+        # workflow).
+        exec pnpm --filter @mcpgen/api exec wrangler dev \
+          --ip 0.0.0.0 --port 8787 \
+          --var ENGINE_ENDPOINT:http://engine:8000 \
+          --var FLIPT_URL:http://flipt:8080 \
+          --var FLIPT_ENVIRONMENT:default
     depends_on:
       flipt:
         condition: service_healthy

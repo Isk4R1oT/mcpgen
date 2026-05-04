@@ -135,7 +135,7 @@ describe('<Canvas>', () => {
     });
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith(
-        '/generate/gen_01HJ12345678ABCDEFGHJKMNPQ',
+        '/generate/gen_01HJ12345678ABCDEFGHJKMNPQ/preview',
       );
     });
   });

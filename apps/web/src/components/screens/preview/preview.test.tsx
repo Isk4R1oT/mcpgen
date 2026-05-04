@@ -75,10 +75,10 @@ describe('<Preview>', () => {
     expect(pushMock).toHaveBeenCalledWith('/generate/job_xyz');
   });
 
-  it('navigates to /generate/[jobId]/quality on continue (review → quality → playground → deploy)', () => {
+  it('navigates to /generate/[jobId]/auth on continue (canon flow: review → auth → stream → canvas)', () => {
     renderWithQuery(<Preview jobId="job_xyz" originalSpecUrl="https://example.com/openapi.json" />);
     fireEvent.click(screen.getByText(/continue · auth setup/i));
-    expect(pushMock).toHaveBeenCalledWith('/generate/job_xyz/quality');
+    expect(pushMock).toHaveBeenCalledWith('/generate/job_xyz/auth');
   });
 
   it('renders no canon demo literals in the empty/loading state', () => {

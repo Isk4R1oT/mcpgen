@@ -176,6 +176,11 @@ export interface AuthScreenProps {
   /** Spec URL — round-tripped to /generate on continue/back so the canvas
    *  can re-trigger generation with the chosen auth config. */
   readonly specUrl?: string | undefined;
+  /** Job id — when provided, "continue · generate" routes to
+   *  `/generate/[jobId]` (stream) instead of re-triggering /generate. The
+   *  canon flow lands here AFTER the job is already kicked off (paste -> /preview
+   *  -> /auth -> /[jobId] stream). */
+  readonly jobId?: string | undefined;
   /** Optional click handlers. When provided, override the default router
    *  navigation. The route page leaves these undefined — the screen owns the
    *  default flow. */
@@ -186,6 +191,7 @@ export interface AuthScreenProps {
 export function AuthScreen({
   sample,
   specUrl,
+  jobId,
   onContinue,
   onBack,
 }: AuthScreenProps): JSX.Element {
@@ -256,14 +262,24 @@ export function AuthScreen({
       return;
     }
 
-    // Default flow: re-trigger generation with the chosen auth config.
+    // Canon flow: after the user picks credential mode, advance to the
+    // STREAM screen (engine has been running since the original POST). The
+    // chosen auth_mode/auth_type live in sessionStorage (persistCapture
+    // above) and are read at deploy time to wire the tenant Worker.
+    if (jobId !== undefined && jobId !== '') {
+      router.push(`/generate/${encodeURIComponent(jobId)}`);
+      return;
+    }
+
+    // Fallback flow (no jobId — direct /auth navigation): re-trigger
+    // generation with the chosen auth config from /generate.
     const params = new URLSearchParams();
     if (specUrl !== undefined && specUrl !== '') params.set('spec_url', specUrl);
     params.set('auth_mode', mode);
     params.set('auth_type', authType);
     const qs = params.toString();
     router.push(qs === '' ? '/generate' : `/generate?${qs}`);
-  }, [authType, mode, secret, scopes, specUrl, onContinue, router]);
+  }, [authType, mode, secret, scopes, specUrl, jobId, onContinue, router]);
 
   const goBack = useCallback((): void => {
     if (onBack !== undefined) {

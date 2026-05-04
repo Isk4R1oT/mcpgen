@@ -233,7 +233,10 @@ export function StreamLog({
     () =>
       onDone ??
       ((): void => {
-        router.push(`/generate/${encodeURIComponent(jobId)}/preview`);
+        // Canon flow: stream-done lands on the post-generation CANVAS
+        // (tools editor + refinement chat). The /preview (review) screen
+        // is a pre-generation step and is no longer the terminal target.
+        router.push(`/generate/${encodeURIComponent(jobId)}/canvas`);
       }),
     [onDone, router, jobId],
   );

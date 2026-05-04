@@ -76,20 +76,16 @@ COPY --from=zricethezav/gitleaks:v8.30.1 /usr/bin/gitleaks /usr/local/bin/gitlea
 
 COPY apps/generation-engine/src /app/src
 
-# Stage E (codegen) renders Jinja2 templates that live in
-# `packages/codegen-templates/templates/`. The host code resolves that path
-# via `Path(__file__).resolve().parents[6]` which works when the source tree
-# is /Users/igor/Projects/mcpgen/apps/generation-engine/src/...; under /app
-# the parents-walk overshoots root and raises IndexError. We copy the
-# templates into the image and pin them via MCPGEN_TEMPLATES_DIR so
-# template_loader.py uses the env-override branch.
-COPY packages/codegen-templates /pkgs/codegen-templates
-ENV MCPGEN_TEMPLATES_DIR=/pkgs/codegen-templates/templates
-
-# Stage F (validation, F1 openai_compliance check) walks up from the
-# source file looking for `packages/engine-fixtures/_canonical/`. Mirror the
-# repo layout under /app so the walk-up finds the fixtures at /app/packages/...
-COPY packages/engine-fixtures /app/packages/engine-fixtures
+# Stage E (codegen) and Stage F (validation) BOTH walk up from a source
+# file looking for sibling `packages/...` directories. Mirror the host repo
+# layout under /app so each walk-up succeeds:
+#   /app/packages/codegen-templates/   ← Stage E (validate.py + template_loader)
+#   /app/packages/engine-fixtures/     ← Stage F (f1_checks/openai_compliance)
+# We also keep MCPGEN_TEMPLATES_DIR set so template_loader.py short-circuits
+# the parents-walk in case the source layout shifts in a future refactor.
+COPY packages/codegen-templates /app/packages/codegen-templates
+COPY packages/engine-fixtures   /app/packages/engine-fixtures
+ENV MCPGEN_TEMPLATES_DIR=/app/packages/codegen-templates/templates
 
 WORKDIR /app
 EXPOSE 8000

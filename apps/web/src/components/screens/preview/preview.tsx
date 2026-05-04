@@ -436,12 +436,11 @@ export default function Preview({
 
   // ─── Navigation handlers ───────────────────────────────────────────────────
   const onContinue = (): void => {
-    // Pipeline order: review → quality → playground → deploy. The /quality
-    // screen owns its own "continue → playground" handler; /playground owns
-    // "continue → deploy". Skipping straight to /deploy would bypass the
-    // quality + playground steps.
+    // Canon flow: REVIEW (this screen) -> AUTH -> STREAM -> CANVAS ->
+    // QUALITY -> DEPLOY. The /auth screen lets the user pick credential
+    // mode (pass-through vs stored) and confirms detected auth strategy.
     if (jobId !== '') {
-      router.push(`/generate/${encodeURIComponent(jobId)}/quality`);
+      router.push(`/generate/${encodeURIComponent(jobId)}/auth`);
       toast('continuing to auth setup…');
       return;
     }

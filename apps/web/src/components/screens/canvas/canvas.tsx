@@ -278,7 +278,10 @@ export function Canvas({
         toast(result.error, { kind: 'error' });
         return;
       }
-      router.push(`/generate/${encodeURIComponent(result.data.job_id)}`);
+      // Canon flow: paste -> REVIEW (preview) -> AUTH -> STREAM -> CANVAS.
+      // After a job is created we land on /preview so the user can see the
+      // detected format/endpoints/auth before the heavy LLM passes finish.
+      router.push(`/generate/${encodeURIComponent(result.data.job_id)}/preview`);
     })();
   }, [router, specUrl]);
 
@@ -487,7 +490,10 @@ export function Canvas({
       toast('start a generation first', { kind: 'info' });
       return;
     }
-    router.push(`/generate/${encodeURIComponent(jobId)}/deploy`);
+    // Canon flow: canvas "review & deploy" goes to QUALITY first, not
+    // straight to deploy. The /quality screen owns "continue -> deploy"
+    // so quality scores can't be silently skipped.
+    router.push(`/generate/${encodeURIComponent(jobId)}/quality`);
   }, [router, jobId]);
   const cmdKHandler = onCmdK ?? onCmdKDefault;
   const playHandler = onPlay ?? onPlayDefault;
