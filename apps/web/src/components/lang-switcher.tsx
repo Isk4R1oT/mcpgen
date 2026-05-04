@@ -24,9 +24,9 @@
 'use client';
 
 import { useLocale } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useState, type ReactElement } from 'react';
 
-import { usePathname, useRouter } from '@/i18n/navigation';
 import { routing, type Locale } from '@/i18n/routing';
 
 interface LanguageMeta {
@@ -54,7 +54,6 @@ interface Props {
 
 export default function LangSwitcher({ size = 'sm' }: Props): ReactElement {
   const router = useRouter();
-  const pathname = usePathname();
   const activeLocale = useLocale() as Locale;
 
   const [open, setOpen] = useState<boolean>(false);
@@ -71,10 +70,21 @@ export default function LangSwitcher({ size = 'sm' }: Props): ReactElement {
   const handlePick = (next: Locale): void => {
     setOpen(false);
     if (next === activeLocale) return;
-    // Replace (not push) so language switching does not pollute back
-    // history — matches canon behaviour where setLang did an in-place
-    // re-render without a navigation event.
-    router.replace(pathname, { locale: next });
+    // routing.ts pins `localePrefix: 'never'` — URLs never carry a /ru/
+    // segment. The next-intl `router.replace(path, { locale })` helper
+    // still issues a navigation to /ru/<path> as a side-effect, which
+    // 404s under that policy. Set NEXT_LOCALE manually + refresh — this
+    // matches what the next-intl middleware reads on the next render.
+    // 1 year max-age so the choice survives sessions; SameSite=Lax so
+    // the cookie travels on top-level navigations (search, deep links).
+    const oneYear = 60 * 60 * 24 * 365;
+    document.cookie =
+      `NEXT_LOCALE=${encodeURIComponent(next)}; ` +
+      `Path=/; Max-Age=${oneYear}; SameSite=Lax`;
+    // router.refresh() re-runs the server components for the current
+    // route — picks up the new cookie via getLocale() in app/layout.tsx
+    // and re-renders the whole tree with the swapped messages dict.
+    router.refresh();
   };
 
   return (
