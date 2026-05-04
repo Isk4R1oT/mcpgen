@@ -29,7 +29,7 @@ import { DrawerHost } from '@/lib/drawer';
 import { evaluateBooleanFlag } from '@/lib/flags';
 import { Toaster } from '@/lib/toast';
 import { LogtoSessionProvider } from '@/providers/logto-session';
-import QueryProvider from '@/providers/query-client';
+import QueryProvider from '@/providers/query-provider';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const instrumentSerif = Instrument_Serif({
