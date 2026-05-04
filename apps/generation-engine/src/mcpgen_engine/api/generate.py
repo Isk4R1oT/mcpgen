@@ -64,6 +64,32 @@ _JOB_TABLE: dict[str, dict[str, Any]] = {}
 _log = structlog.get_logger(__name__)
 
 
+async def _resolve_spec_hash(job_id: str, job: dict[str, Any]) -> str:
+    """Return the cached spec_hash for a job, computing it once via Stage A.
+
+    The frontend polls /jobs/:id every 1.5s; the BFF in turn polls the engine
+    /artifacts and /quality-report endpoints. Each call previously re-ran
+    Stage A (deterministic — same hash every time) which now also re-runs
+    the spec-converter Node subprocess for legacy formats (~600-800ms per
+    call on Swagger 2.0). Caching the hash inside the job record cuts that
+    to a single Stage A run for the lifetime of the job.
+
+    Stage A is fully deterministic so the hash is stable; on cache miss we
+    re-run it and write back. Updates ``job["spec_hash"]`` in place.
+    """
+    cached_hash = job.get("spec_hash")
+    if isinstance(cached_hash, str) and cached_hash:
+        return cached_hash
+    raw_ir, _, _ = await stage_a.run(
+        spec_url=job["spec_url"],
+        spec_content=job["spec_content"],
+    )
+    spec_hash: str = str(raw_ir.spec_hash)
+    job["spec_hash"] = spec_hash
+    _log.info("api.spec_hash.cached", job_id=job_id, spec_hash_prefix=spec_hash[:16])
+    return spec_hash
+
+
 # ─────────────────────────── Request validation ────────────────────────────
 
 
@@ -202,6 +228,10 @@ async def generate(req: Request) -> dict[str, str]:
         "user_golden_tasks": user_golden_tasks,
         "status": "accepted",
         "quality_report": None,
+        # Lazy-cached spec_hash so /artifacts and /quality-report don't
+        # re-run Stage A (and the spec-converter Node subprocess for legacy
+        # formats) on every poll. Populated on first call.
+        "spec_hash": None,
     }
 
     _log.info(
@@ -275,11 +305,8 @@ async def artifacts(job_id: str) -> dict[str, Any]:
             detail=f"unknown job: {job_id}",
         )
 
-    raw_ir, _, _ = await stage_a.run(
-        spec_url=job["spec_url"],
-        spec_content=job["spec_content"],
-    )
-    cache_key = l1_key(raw_ir.spec_hash)
+    spec_hash = await _resolve_spec_hash(job_id, job)
+    cache_key = l1_key(spec_hash)
     cached = get_l1(cache_key)
     if cached is None:
         raise HTTPException(
@@ -341,9 +368,7 @@ async def quality_report(job_id: str) -> dict[str, Any]:
     if job_status not in _QR_TERMINAL_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"job {job_id} not yet at validation_complete " f"(current status: {job_status})"
-            ),
+            detail=(f"job {job_id} not yet at validation_complete (current status: {job_status})"),
         )
     qr = job.get("quality_report")
     if qr is None:
@@ -441,12 +466,10 @@ async def output_file(job_id: str, relative_path: str) -> Response:
         )
 
     # Re-derive spec_hash from the stored job parameters (Stage A is fully
-    # deterministic so this is cheap on a warm filesystem cache).
-    raw_ir, _, _ = await stage_a.run(
-        spec_url=job["spec_url"],
-        spec_content=job["spec_content"],
-    )
-    cache_key = l1_key(raw_ir.spec_hash)
+    # deterministic). Cached per-job after first call so polling endpoints
+    # don't re-run Stage A + spec-converter every 1.5s.
+    spec_hash = await _resolve_spec_hash(job_id, job)
+    cache_key = l1_key(spec_hash)
     cached = get_l1(cache_key)
     if cached is None:
         raise HTTPException(

@@ -27,7 +27,7 @@ export function {{ register_function_name }}(server: McpServer): void {
       description: {{ tool.description_text | tojson }},
       inputSchema: z.object({
         payload: z
-          .record(z.unknown())
+          .record(z.string(), z.unknown())
           .optional()
           .describe("Tool-specific request body / query parameters."),
       }).shape,

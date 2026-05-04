@@ -175,11 +175,21 @@ jobsAnonStreamRoute.get('/:id', async (c) => {
   if (artifactsRes.status !== 'fulfilled' || !artifactsRes.value.ok) {
     const { getPartialState } = await import('../../../lib/job-partial-state.js');
     const accum = getPartialState(jobId);
+    // SSE drain marks accum.terminal=true the moment a `failed` event lands;
+    // surface that as status='failed' so the frontend stops polling and shows
+    // the error instead of a perpetual streaming spinner. Without this, a
+    // pipeline crash (Stage E TS error etc.) leaves the UI stuck "analyzing
+    // tools…" forever and each poll hits engine /artifacts which re-runs
+    // Stage A — burning CPU + spamming logs.
+    const isTerminalFailure = accum?.terminal === true && accum.error_code !== undefined;
     return c.json(
       {
-        status: 'streaming',
+        status: isTerminalFailure ? 'failed' : 'streaming',
         job_id: jobId,
         owned_via_cookie: Boolean(anonSessionId),
+        error: isTerminalFailure
+          ? { code: accum.error_code ?? 'UNKNOWN', message: 'pipeline failed' }
+          : null,
         partial_result: accum === null
           ? null
           : {
