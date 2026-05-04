@@ -93,7 +93,14 @@ export async function POST(req: Request): Promise<NextResponse> {
   // 5. Sign the new user in so the response already carries the session.
   try {
     const result = await signInWithPassword(email, password);
-    const ok = NextResponse.json({ ok: true }, { status: 201 });
+    // Forward the OIDC redirectTo URL so the client can hard-nav to it
+    // and the @logto/next callback handler can mint LOGTO_SESSION. Without
+    // this hop the browser only has experience-flow cookies — middleware
+    // sees no session and bounces /playground back to /sign-in.
+    const ok = NextResponse.json(
+      { ok: true, redirect_to: result.redirectTo },
+      { status: 201 },
+    );
     return attachCookies(ok, result.cookies);
   } catch (err) {
     // User was created but auto-sign-in failed — surface a 200 response

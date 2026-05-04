@@ -99,10 +99,31 @@ interface ApiErrorBody {
   readonly error_message?: string;
 }
 
+// Finalize an embedded sign-in / sign-up by hard-navigating to the OIDC
+// `redirectTo` URL (which redeems the auth code via /api/auth/logto/callback
+// and mints LOGTO_SESSION) when present, or by soft-pushing to /dashboard
+// as a fallback. Hard nav (`window.location.href`) is required for the
+// OIDC URL because Next.js client-side router can't follow cross-origin
+// redirects to the Logto tenant. The callback handler ultimately lands on
+// `?redirect_to=...` (set by middleware) or /dashboard.
+function finalizeAuthRedirect(
+  redirectTo: string | null,
+  router: { push: (path: string) => void },
+): void {
+  if (typeof redirectTo === 'string' && redirectTo.length > 0) {
+    window.location.href = redirectTo;
+    return;
+  }
+  router.push('/dashboard');
+}
+
 async function postJson(
   path: string,
   body: Record<string, unknown>,
-): Promise<{ ok: true } | { ok: false; errorMessage: string }> {
+): Promise<
+  | { ok: true; redirectTo: string | null }
+  | { ok: false; errorMessage: string }
+> {
   let response: Response;
   try {
     response = await fetch(path, {
@@ -117,7 +138,22 @@ async function postJson(
   }
 
   if (response.ok) {
-    return { ok: true };
+    // The embedded sign-in / sign-up endpoints return the OIDC redirectTo
+    // URL the browser MUST navigate to in order for the @logto/next
+    // callback handler to mint LOGTO_SESSION. Without that hop the user
+    // has experience-flow cookies but no real session — middleware sees
+    // no session and bounces /playground back to /sign-in, leaving the
+    // user stuck on the sign-in page after a "successful" login.
+    let redirectTo: string | null = null;
+    try {
+      const parsed = (await response.json()) as { redirect_to?: unknown };
+      if (typeof parsed.redirect_to === 'string' && parsed.redirect_to.length > 0) {
+        redirectTo = parsed.redirect_to;
+      }
+    } catch {
+      // Body wasn't JSON or didn't include redirect_to — fall through with null.
+    }
+    return { ok: true, redirectTo };
   }
   let parsed: ApiErrorBody = {};
   try {
@@ -301,7 +337,7 @@ export default function AccountScreen({
           return;
         }
         toast(t('toastSignupOk'));
-        router.push('/dashboard');
+        finalizeAuthRedirect(result.redirectTo, router);
       })();
       return;
     }
@@ -327,7 +363,7 @@ export default function AccountScreen({
         return;
       }
       toast(t('toastSigninOk'));
-      router.push('/dashboard');
+      finalizeAuthRedirect(result.redirectTo, router);
     })();
   };
 

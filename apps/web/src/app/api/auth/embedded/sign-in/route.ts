@@ -68,7 +68,16 @@ export async function POST(req: Request): Promise<NextResponse> {
   // 3. Drive the Logto Experience API.
   try {
     const result = await signInWithPassword(email, password);
-    const ok = NextResponse.json({ ok: true }, { status: 200 });
+    // The OIDC `redirectTo` URL — when the browser visits it Logto redeems
+    // the code via /api/auth/logto/callback which sets LOGTO_SESSION.
+    // Without this round-trip the user has experience-flow cookies but
+    // NO real session cookie, so middleware bounces them back to /sign-in
+    // when they try to hit /playground or /dashboard. Pass the URL to the
+    // client so it can `window.location.href = redirect_to` to finalize.
+    const ok = NextResponse.json(
+      { ok: true, redirect_to: result.redirectTo },
+      { status: 200 },
+    );
     return attachCookies(ok, result.cookies);
   } catch (err) {
     if (err instanceof LogtoExperienceError && err.status === 401) {
