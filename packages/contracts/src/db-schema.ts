@@ -437,3 +437,72 @@ export const app_secrets = pgTable('app_secrets', {
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   rotates_at: timestamp('rotates_at', { withTimezone: true }),
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Playground (Phase 11 — playground execution MVP)
+//
+// `playground_runs` — one row per agent invocation in the playground UI.
+// History rail reads `WHERE generation_id = ? ORDER BY created_at DESC`.
+// `trace` is the full per-call list (ToolCall + tokens + latency + ok/error).
+// `org_id` scopes the row for tenant isolation; cascades on org delete.
+//
+// `playground_tests` — saved-as-test snapshot of a successful run. Carries
+// expected_tools (the actual tools the agent invoked at save time) so the
+// regression suite can diff the next run's tool sequence against it.
+// `last_failure` is a structured object surfaced as a friendly message in UI
+// (e.g. "expected list_objects, agent picked search — descriptions overlap").
+// ─────────────────────────────────────────────────────────────────────────────
+export const playground_runs = pgTable(
+  'playground_runs',
+  {
+    id: uuid('id').primaryKey(),
+    generation_id: uuid('generation_id')
+      .notNull()
+      .references(() => generations.id, { onDelete: 'cascade' }),
+    org_id: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    prompt: text('prompt').notNull(),
+    pinned_tool: text('pinned_tool'),
+    agent_reply: text('agent_reply'),
+    trace: jsonb('trace').notNull(),
+    total_in_tk: integer('total_in_tk').notNull().default(0),
+    total_out_tk: integer('total_out_tk').notNull().default(0),
+    total_lat_ms: integer('total_lat_ms').notNull().default(0),
+    status: text('status').notNull(), // 'ok' | 'failed'
+    failure_reason: text('failure_reason'),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    gen_idx: index('playground_runs_gen_idx').on(t.generation_id, t.created_at),
+    org_idx: index('playground_runs_org_idx').on(t.org_id, t.created_at),
+  }),
+);
+
+export const playground_tests = pgTable(
+  'playground_tests',
+  {
+    id: uuid('id').primaryKey(),
+    generation_id: uuid('generation_id')
+      .notNull()
+      .references(() => generations.id, { onDelete: 'cascade' }),
+    org_id: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    source_run_id: uuid('source_run_id').references(
+      (): AnyPgColumn => playground_runs.id,
+      { onDelete: 'set null' },
+    ),
+    name: text('name').notNull(),
+    prompt: text('prompt').notNull(),
+    expected_tools: jsonb('expected_tools').notNull(), // string[] of tool names
+    last_status: text('last_status'), // 'pass' | 'fail' | null
+    last_run_at: timestamp('last_run_at', { withTimezone: true }),
+    last_failure: jsonb('last_failure'), // { expected_tool, actual_tool, hint }
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    gen_idx: index('playground_tests_gen_idx').on(t.generation_id, t.created_at),
+    org_idx: index('playground_tests_org_idx').on(t.org_id, t.created_at),
+  }),
+);
