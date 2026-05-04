@@ -81,6 +81,18 @@ RUN cd /tmp/codegen-templates \
     && pnpm install --no-lockfile --ignore-workspace --prefer-offline \
     && ls node_modules | head -5
 
+# Pre-warm spec-converter/node_modules — the Python `stages/spec_normalizer`
+# module shells out to `convert.mjs` here when Stage A receives Swagger 2.0,
+# Swagger 1.x, or Postman Collection v2.x. Same standalone-install pattern as
+# codegen-templates above (the `private: true` flag is stripped to let pnpm
+# resolve the npm registry without a workspace).
+COPY apps/generation-engine/spec-converter/package.json /tmp/spec-converter/package.json
+COPY apps/generation-engine/spec-converter/convert.mjs  /tmp/spec-converter/convert.mjs
+RUN cd /tmp/spec-converter \
+    && node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json')); delete p.private; fs.writeFileSync('package.json', JSON.stringify(p, null, 2));" \
+    && pnpm install --no-lockfile --ignore-workspace --prefer-offline \
+    && ls node_modules | head -5
+
 
 FROM python:3.12-slim-bookworm AS runtime
 
@@ -117,6 +129,15 @@ ENV MCPGEN_TEMPLATES_DIR=/app/packages/codegen-templates/templates
 # Carry over the pre-warmed node_modules from the builder stage so Stage E
 # `tsc --noEmit` validation works without spawning pnpm at runtime.
 COPY --from=builder /tmp/codegen-templates/node_modules /app/packages/codegen-templates/node_modules
+
+# Carry over the spec-converter helper + its node_modules so Stage A's
+# spec_normalizer can shell out to `convert.mjs` for Swagger 2.0 / 1.x /
+# Postman input. MCPGEN_SPEC_CONVERTER_DIR pins the location so the helper
+# doesn't have to walk-up from the Python source path.
+COPY apps/generation-engine/spec-converter/package.json /app/spec-converter/package.json
+COPY apps/generation-engine/spec-converter/convert.mjs  /app/spec-converter/convert.mjs
+COPY --from=builder /tmp/spec-converter/node_modules /app/spec-converter/node_modules
+ENV MCPGEN_SPEC_CONVERTER_DIR=/app/spec-converter
 
 # Install Node.js (no pnpm needed at runtime — node_modules is pre-warmed)
 # so Stage E can run `npx tsc --noEmit` directly. Smaller install than the

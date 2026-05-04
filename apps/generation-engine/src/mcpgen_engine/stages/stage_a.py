@@ -1,10 +1,24 @@
-"""Stage A — Deterministic OpenAPI 3.x parser.
+"""Stage A — Deterministic spec parser with multi-format normalization.
 
-Fetches an OpenAPI 3.0.x or 3.1.x spec (URL or inline content), runs prance's
-ResolvingParser with circular-ref + size guards, validates against
-openapi-spec-validator, and produces a `RawIR` with deterministic `spec_hash`
-(sha256 over canonical-sorted JSON) plus a heuristic `dependency_graph`
-(D-15: response→request smart-ID-shape correlation).
+Accepts any of the following input formats (URL or inline content):
+  * OpenAPI 3.0.x / 3.1.x   — passes straight through to prance
+  * Swagger 2.0             — converted via spec-converter (swagger2openapi)
+  * Swagger 1.0 / 1.2       — converted via spec-converter (api-spec-converter)
+  * Postman Collection v2.x — converted via spec-converter (postman-to-openapi)
+
+Conversion happens BEFORE prance because prance's openapi-spec-validator
+backend rejects anything that's not OpenAPI 3.x. The normalized OpenAPI 3.0
+text then flows through the unchanged 3.x parser path. Format detection lives
+in `spec_normalizer.detect_input_format` and runs on the parsed JSON/YAML
+dict before resolution. The original (pre-conversion) format is recorded in
+the structured log entry but NOT in `RawIR.spec_format` — the IR is FROZEN
+per D-10 and only carries the post-conversion value (always `openapi-3.0` or
+`openapi-3.1`).
+
+Runs prance's ResolvingParser with circular-ref + size guards, validates
+against openapi-spec-validator, and produces a `RawIR` with deterministic
+`spec_hash` (sha256 over canonical-sorted JSON) plus a heuristic
+`dependency_graph` (D-15: response→request smart-ID-shape correlation).
 
 This module is **100% deterministic.** It MUST NOT import from
 `mcpgen_engine.llm.*`. The `test_no_duplicate_model_construction` AST gate
@@ -14,7 +28,9 @@ Stage A as the cache-key boundary (Plan 08 L1 cache key derives from
 
 Error codes (stable, user-facing):
 - ``SPEC_TOO_LARGE``        — raw >10MB or resolved >50MB
-- ``UNSUPPORTED_SPEC_FORMAT`` — non-OpenAPI 3.x input or malformed JSON/YAML
+- ``UNSUPPORTED_SPEC_FORMAT`` — unrecognized format (not OpenAPI/Swagger/Postman)
+                                or malformed JSON/YAML
+- ``SPEC_CONVERSION_FAILED`` — recognized non-3.x format but converter errored
 - ``CIRCULAR_REF``          — surfaced from prance ResolutionError after handler
 - ``INVALID_INPUT``         — both/neither of spec_url and spec_content provided
 - ``REMOTE_FETCH_FAILED``   — httpx error during URL fetch (network, redirect)
@@ -39,6 +55,14 @@ from mcpgen_ir.types import RawIR
 from prance import ResolvingParser
 from prance.util import resolver as prance_resolver
 from prance.util.url import ResolutionError as PranceResolutionError
+
+from .spec_normalizer import (
+    SpecConversionError,
+    convert_to_openapi_3,
+    detect_input_format,
+    is_native_openapi_3x,
+    needs_conversion,
+)
 
 # ───────────────────────── Hard limits (D-14) ──────────────────────────────
 
@@ -100,7 +124,35 @@ async def run(spec_url: str | None, spec_content: str | None) -> tuple[RawIR, li
 
     # Surface malformed JSON/YAML with a stable error code BEFORE prance gets
     # to wrap the same problem in a backend-specific exception.
-    _parse_spec_text(spec_text)
+    parsed_input = _parse_spec_text(spec_text)
+
+    # Normalize non-OpenAPI-3.x formats (Swagger 2.0, Swagger 1.x, Postman) to
+    # OpenAPI 3.0 BEFORE handing off to prance. The downstream pipeline only
+    # speaks OpenAPI 3.x; the spec-converter Node helper does the heavy lifting.
+    source_format = detect_input_format(parsed_input)
+    original_format: str | None = None
+    if not is_native_openapi_3x(source_format):
+        if not needs_conversion(source_format):
+            raise StageAError(
+                f"UNSUPPORTED_SPEC_FORMAT: cannot recognize this spec as OpenAPI 3.x, "
+                f"Swagger 2.0, Swagger 1.x, or Postman Collection v2.x "
+                f"(detected={source_format!r})"
+            )
+        original_format = source_format
+        try:
+            spec_text = await convert_to_openapi_3(spec_text, source_format)
+        except SpecConversionError as e:
+            raise StageAError(f"SPEC_CONVERSION_FAILED: {e}") from e
+        # Re-validate JSON-ness of converter output before prance. The
+        # converter MUST emit valid JSON; if it didn't, fail loud here.
+        _parse_spec_text(spec_text)
+        _enforce_raw_size(spec_text)
+        _log.info(
+            "stage_a.normalized",
+            original_format=original_format,
+            target_format="openapi-3.0",
+        )
+
     resolved = _resolve_refs(spec_text)
     _enforce_resolved_size(resolved)
 
@@ -128,6 +180,7 @@ async def run(spec_url: str | None, spec_content: str | None) -> tuple[RawIR, li
     _log.info(
         "stage_a.complete",
         spec_format=spec_format,
+        original_format=original_format,
         endpoint_count=len(endpoints),
         server_count=len(servers),
         spec_hash_prefix=spec_hash[:16],
@@ -268,24 +321,25 @@ def _enforce_resolved_size(resolved: dict[str, Any]) -> None:
 
 
 def _detect_spec_format(resolved: dict[str, Any]) -> str:
-    """Discriminate 3.0.x vs 3.1.x; reject Swagger 2.0 / non-OpenAPI (D-11)."""
-    if "swagger" in resolved:
-        raise StageAError(
-            "UNSUPPORTED_SPEC_FORMAT: Swagger 2.0 is not supported in MVP; "
-            "convert via swagger2openapi (https://www.npmjs.com/package/swagger2openapi)"
-        )
+    """Discriminate post-normalization OpenAPI 3.0.x vs 3.1.x.
 
+    Anything non-OpenAPI-3.x reaching this point is a converter bug — the
+    `spec_normalizer` runs upstream of `_resolve_refs` and converts known
+    legacy formats (Swagger 1.x/2.0, Postman 2.x) to OpenAPI 3.0 before
+    prance sees them.
+    """
     version = resolved.get("openapi", "")
     if not isinstance(version, str):
-        raise StageAError("UNSUPPORTED_SPEC_FORMAT: openapi version must be a string")
+        raise StageAError(
+            "UNSUPPORTED_SPEC_FORMAT: openapi version must be a string after normalization"
+        )
     if version.startswith("3.0"):
         return "openapi-3.0"
     if version.startswith("3.1"):
         return "openapi-3.1"
 
     raise StageAError(
-        f"UNSUPPORTED_SPEC_FORMAT: only OpenAPI 3.0.x/3.1.x supported (got {version!r}); "
-        "convert via swagger2openapi if Swagger 2.0"
+        f"UNSUPPORTED_SPEC_FORMAT: post-normalization spec is not OpenAPI 3.x (got {version!r})"
     )
 
 
