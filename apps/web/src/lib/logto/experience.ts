@@ -442,40 +442,35 @@ async function followOidcRedirectServerSide(
   return null;
 }
 
-// Build the OIDC redirect_uri the BFF / app expects. Mirrors the Traditional
-// Web app registration (LOGTO_APP_ID) which has only this URI registered.
-function buildLogtoRedirectUri(): string {
-  const baseUrl = process.env['LOGTO_BASE_URL'] ?? 'http://localhost:3000';
-  return `${baseUrl.replace(/\/$/, '')}/api/auth/logto/callback`;
-}
-
-// GET /oidc/auth with prompt=login, capture _logto cookie. Returns the
-// cookie values dict for use in subsequent /api/experience requests.
-async function bootstrapOidcInteraction(base: string): Promise<Record<string, string>> {
+// Drive @logto/next's `LogtoClient.handleSignIn()` so the SDK writes its own
+// state / code_verifier / redirect_uri cookies on the outgoing response,
+// then reuse the URL it generated to bootstrap our embedded /oidc/auth.
+// Without this step the @logto/next callback handler at
+// `/api/auth/logto/callback` rejects the inbound code with
+// `callback_uri_verification.redirect_uri_mismatched` because it has no
+// stored state to validate against.
+async function bootstrapOidcInteraction(_base: string): Promise<Record<string, string>> {
   const appId = process.env['LOGTO_APP_ID'] ?? '';
   if (appId.length === 0) {
     throw new LogtoConfigError('LOGTO_APP_ID');
   }
-  const redirectUri = buildLogtoRedirectUri();
-  // crypto.randomUUID() is available in Node 19+ and the Edge runtime.
-  const state = crypto.randomUUID();
-  const nonce = crypto.randomUUID();
-  const params = new URLSearchParams({
-    client_id: appId,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: 'openid profile email',
-    state,
-    nonce,
-    prompt: 'login',
-  });
-  const res = await fetch(`${base}/oidc/auth?${params.toString()}`, {
-    method: 'GET',
-    redirect: 'manual',
-  });
-  // Logto responds 303 + Location: /sign-in?... + Set-Cookie: _logto=...
-  // 200/204 also acceptable depending on tenant config; we only care about
-  // capturing the interaction cookie.
+  // Late import — the @logto/next SDK assumes the Next.js request context
+  // (cookies(), etc.) which is only available inside route handlers.
+  const [{ default: LogtoClient }, { logtoConfig, LOGTO_REDIRECT_URI }] = await Promise.all([
+    import('@logto/next/server-actions'),
+    import('./client.js'),
+  ]);
+  const client = new LogtoClient(logtoConfig);
+  // signIn() inside the SDK throws Next's redirect; handleSignIn returns
+  // the URL directly without redirecting.
+  const { url } = await client.handleSignIn({ redirectUri: LOGTO_REDIRECT_URI });
+
+  // The SDK builds a URL like
+  //   ${endpoint}/oidc/auth?client_id=...&redirect_uri=...&state=...&code_challenge=...&...
+  // We GET it server-side with redirect: manual so Logto allocates the
+  // _logto interaction cookie. The browser will reuse the SDK's stored
+  // state cookies later when handleSignInCallback validates the response.
+  const res = await fetch(url, { method: 'GET', redirect: 'manual' });
   if (res.status >= 400) {
     const body = await readJsonBody(res);
     throw mapExperienceError(res.status, body, 'oidc_auth_failed');
