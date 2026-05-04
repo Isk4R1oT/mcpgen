@@ -1,13 +1,16 @@
 // apps/web/src/components/screens/playground/playground.test.tsx
 //
-// Phase 1 / Agent A5 — Playground unit smoke.
-//
-// Verifies:
+// Playground unit smoke. Verifies the Day 0 cleanup state + the live-SSE
+// failure surface (Day 1):
 //   1. Tool dropdown renders fallback when artefacts haven't arrived.
 //   2. Tool dropdown populates from `useJobArtifact(jobId, 'final-tools')`.
-//   3. Sending a prompt while the run-tool stub is disabled (default OFF)
-//      renders canon's "trace failed" branch (the agent message body has
-//      `data-trace-failed="true"`).
+//   3. Sample-prompt chip-row hides when artifact absent; renders chips
+//      when populated.
+//   4. No naive-cost / "saved this session" leak from canon SEED.
+//   5. Server-structure card renders with tools-loaded count.
+//   6. Initial history is empty (no canon SEED rows leak).
+//   7. When `runPlaygroundTool` returns a network error (BFF unreachable),
+//      the canon "trace failed" branch renders the friendly message.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';

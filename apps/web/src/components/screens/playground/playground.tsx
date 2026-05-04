@@ -64,8 +64,6 @@ export interface PlaygroundProps {
   readonly specUrl?: string;
   readonly onBack?: () => void;
   readonly onDeploy?: () => void;
-  /** Override the default OFF playground-run flag (used by tests). */
-  readonly runToolEnabled?: boolean;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -185,8 +183,6 @@ interface ChatMessage {
   readonly tool?: string;
   readonly done?: boolean;
   readonly failed?: boolean;
-  readonly rows?: ReadonlyArray<{ amt: string; date: string }>;
-  readonly totalAmount?: string;
 }
 
 interface TraceRow {
@@ -205,7 +201,6 @@ export default function Playground({
   specUrl,
   onBack,
   onDeploy,
-  runToolEnabled = false,
 }: PlaygroundProps): ReactElement {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState<string>('');
@@ -263,30 +258,65 @@ export default function Playground({
     setInput('');
     setActiveRunId(null);
 
-    // Insert pending agent message.
-    setTimeout(() => {
-      setMessages((m) => [
-        ...m,
-        { role: 'agent', text: 'fetching…', tool: selectedTool },
-      ]);
-    }, 400);
+    // Insert pending agent message synchronously (no canon 400ms cosmetic
+    // delay — the live SSE will start updating it almost immediately, the
+    // delay just made the UI feel slower than the engine actually is).
+    setMessages((m) => [
+      ...m,
+      { role: 'agent', text: 'thinking…', tool: selectedTool },
+    ]);
 
-    // Real or stub invocation.
+    // Pin the agent to a specific tool only when the user picked a real
+    // one (not the FALLBACK_TOOL placeholder used while artifacts load).
+    const pinnedTool =
+      toolNames.includes(selectedTool) ? selectedTool : null;
+
+    // Live SSE invocation. Each `tool_call` event pushes a placeholder
+    // trace row that we update on the matching `tool_result` so the
+    // right-rail rail populates incrementally instead of jumping at done.
     const result = await runPlaygroundTool({
       jobId,
-      toolName: selectedTool,
       prompt: text,
+      pinnedTool,
+      onEvent: (evt) => {
+        if (evt.type === 'tool_call') {
+          setTraces((t) => [
+            ...t,
+            { n: t.length + 1, name: evt.name, in: 0, out: 0, lat: 0 },
+          ]);
+        } else if (evt.type === 'tool_result') {
+          setTraces((t) => {
+            // Update the most recent trace row matching the request_id-less
+            // ordering (we push rows in tool_call order; tool_result follows
+            // immediately because the engine awaits each call sequentially).
+            if (t.length === 0) return t;
+            const copy = [...t];
+            const last = copy[copy.length - 1]!;
+            copy[copy.length - 1] = { ...last, lat: evt.lat_ms };
+            return copy;
+          });
+        } else if (evt.type === 'agent_message') {
+          // Update the in-flight agent bubble text mid-loop so the user
+          // sees Sonnet's reasoning progress (Anthropic emits a text
+          // block per turn before tool_use blocks fire).
+          setMessages((m) => {
+            const copy = [...m];
+            const lastIdx = copy.length - 1;
+            const last = copy[lastIdx];
+            if (last !== undefined && last.role === 'agent' && last.done !== true) {
+              copy[lastIdx] = { ...last, text: evt.text };
+            }
+            return copy;
+          });
+        }
+      },
     });
 
-    if (!runToolEnabled || !result.ok) {
-      // FLAG OFF or stub returned `flag_off_or_not_implemented` / network err.
-      // Render canon's "trace failed" branch (per A5 brief).
+    if (!result.ok) {
       const reason =
-        result.ok === false
-          ? result.error === 'flag_off_or_not_implemented'
-            ? 'tool execution is not yet available in this build.'
-            : `trace failed: ${result.error}`
-          : 'tool execution disabled.';
+        result.error === 'flag_off_or_not_implemented'
+          ? 'tool execution is not yet available in this build.'
+          : `trace failed: ${result.error}`;
       setMessages((m) => {
         const copy = [...m];
         copy[copy.length - 1] = {
@@ -301,33 +331,48 @@ export default function Playground({
       return;
     }
 
-    // Real success path (post-flag-flip).
-    const { trace, text: replyText, rows, totalAmount } = result.data;
-    setTraces((t) => [
-      ...t,
-      { n: t.length + 1, name: trace.name, in: trace.in, out: trace.out, lat: trace.lat },
-    ]);
+    const done = result.data;
+    const failedRun = done.status !== 'ok';
+    const replyText =
+      done.failure_reason !== null && done.failure_reason !== undefined && done.failure_reason !== ''
+        ? done.failure_reason
+        : (done.agent_reply ?? '');
+
+    // Replace the in-flight trace stub with the canonical `traces` from
+    // the `done` payload — the engine has the exact in/out token counts
+    // per call which we couldn't compute incrementally.
+    setTraces(
+      done.traces.map((t) => ({
+        n: t.n,
+        name: t.name,
+        in: t.in ?? 0,
+        out: t.out ?? 0,
+        lat: t.lat,
+      })),
+    );
+
     setMessages((m) => {
       const copy = [...m];
       copy[copy.length - 1] = {
         role: 'agent',
         done: true,
+        ...(failedRun ? { failed: true } : {}),
         text: replyText,
-        ...(rows !== undefined ? { rows } : {}),
-        ...(totalAmount !== undefined ? { totalAmount } : {}),
       };
       return copy;
     });
+
     const newId = 'h' + Date.now();
+    const totalTk = done.total_in_tk + done.total_out_tk;
     setHistory((h) =>
       [
         {
           id: newId,
           label: text.length > 40 ? text.slice(0, 38) + '…' : text,
           prompt: text,
-          tools: [trace.name],
-          tk: trace.in + trace.out,
-          ms: trace.lat,
+          tools: done.traces.map((t) => t.name),
+          tk: totalTk,
+          ms: done.total_lat_ms,
           when: 'just now',
           savedAsTest: !!opts.test,
         } satisfies HistoryRun,
@@ -727,37 +772,7 @@ export default function Playground({
                         <Icon name="warn" size={12} /> {m.text}
                       </div>
                     ) : (
-                      <div>
-                        <div style={{ fontSize: 15, marginBottom: 8 }}>{m.text}</div>
-                        {m.rows !== undefined && (
-                          <div
-                            className="mc-mono"
-                            style={{
-                              fontSize: 13.5,
-                              lineHeight: 1.7,
-                              paddingLeft: 14,
-                              borderLeft: '2px solid var(--border)',
-                            }}
-                          >
-                            {m.rows.map((r) => (
-                              <div key={r.amt + r.date}>
-                                • {r.amt} <span className="muted">{r.date}</span>
-                              </div>
-                            ))}
-                            {m.totalAmount !== undefined && (
-                              <div
-                                style={{
-                                  marginTop: 6,
-                                  paddingTop: 6,
-                                  borderTop: '1px dashed var(--border)',
-                                }}
-                              >
-                                total: <strong>{m.totalAmount}</strong>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      <div style={{ fontSize: 15, whiteSpace: 'pre-wrap' }}>{m.text}</div>
                     )}
                   </div>
                 )}
