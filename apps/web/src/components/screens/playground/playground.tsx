@@ -1,26 +1,32 @@
 // apps/web/src/components/screens/playground/playground.tsx
 //
-// Phase 1 / Agent A5 — Playground screen.
+// Playground screen — sandbox for testing a generated MCP server before deploy.
 //
-// Source of truth: claude-design-reference/canon/screen-playground.jsx
-// (`Playground({ onBack, onDeploy, sample })`). Pixel-faithful rebuild against
-// the production primitive kit (`@/components/ui/*`) + typed BFF clients.
+// Day 0 (frontend cleanup, pre-execution-MVP):
+//   - Removed canon SEED_HISTORY (5 hardcoded Stripe-style runs) — initial
+//     history is empty until the playground BFF lands and real runs persist.
+//   - Removed canon SUGGESTED_PROMPTS (4 hardcoded Stripe prompts) — sample
+//     prompts now read from `useJobArtifact(jobId, 'sample-prompts')`,
+//     populated by the engine post-Pass-5 (Day 2). The chip-row hides
+//     gracefully when the artifact is absent.
+//   - Removed `totalNaive = totalNew * 3.9` magic-constant cost comparison
+//     and the "saved this session $X" banner. The whole differentiation
+//     thesis is honest token-economy via Six-Tool Pattern; faked savings
+//     undermine credibility. SESSION TOTALS now shows STRUCTURAL metrics
+//     (tools loaded · endpoints covered · target complexity) read from
+//     real job artifacts, plus the live `this run` token counter.
 //
-// Backend wiring (per A5 brief + SCREEN-BEHAVIORS-CATALOG § playground):
-//   - The `POST /api/v1/playground/:id/invoke` endpoint is MISSING (REQ-001).
-//     We use the disabled-stub `runPlaygroundTool()` from `@/lib/api/playground`
-//     gated behind `ui_playground_run_tool_perm` (default OFF). When the stub
-//     returns `flag_off_or_not_implemented`, we render canon's "trace failed"
-//     branch (an inline agent message + zero-state in the trace rail) instead
-//     of the canon fake-success path with `FAKE_TRANSACTIONS`.
-//   - Real tool list comes from `useJobArtifact(jobId, 'final-tools')` —
-//     populated by the engine after Pass 1. Until artefacts arrive, the
-//     dropdown shows canon's hard-coded fallback "list_charges".
-//   - Tool-name dropdown sits where canon's "agent" model dropdown lived — the
-//     BYOK model dropdown is gated behind `ui_playground_byok_perm` and is
-//     out of scope for A5.
+// Backend wiring (still stubbed for Day 0 — Day 1+ replaces this):
+//   - `runPlaygroundTool()` from `@/lib/api/playground` returns
+//     `flag_off_or_not_implemented` until the BFF `/api/v1/playground/:id/invoke`
+//     endpoint lands. When stubbed, the agent message renders canon's
+//     "trace failed" branch with a friendly "not yet available" message.
+//   - Real tool list — `useJobArtifact(jobId, 'final-tools')` (already wired).
+//   - Real sample prompts — `useJobArtifact(jobId, 'sample-prompts')`
+//     (Day 2 generates this artifact from Pass 5 LLM call cached with the
+//     generation; until then the chip-row is empty).
 //
-// State preserved verbatim from canon:
+// State preserved verbatim from canon (UX feel — chat-first, single screen):
 //   messages · input · traces · running · keyTtl · history · historyFilter ·
 //   activeRunId · savedToast.
 
@@ -98,15 +104,8 @@ function CountUp({ value, duration = 600 }: CountUpProps): ReactElement {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Canon-verbatim suggested prompts + seed history.
+// History run shape — populated from real BFF runs (Day 1+); empty until then.
 // ────────────────────────────────────────────────────────────────────────────
-
-const SUGGESTED_PROMPTS: readonly string[] = [
-  'show last 5 transactions',
-  'find account by email rio@example.com',
-  'refund charge ch_8a2f',
-  'list active plans',
-];
 
 interface HistoryRun {
   readonly id: string;
@@ -119,13 +118,31 @@ interface HistoryRun {
   readonly savedAsTest: boolean;
 }
 
-const SEED_HISTORY: readonly HistoryRun[] = [
-  { id: 'h1', label: 'list active plans',                  prompt: 'list active plans',                          tools: ['list_plans'],          tk: 412,  ms: 180, when: '2m ago',   savedAsTest: false },
-  { id: 'h2', label: 'find rio@example.com',               prompt: 'find account by email rio@example.com',     tools: ['find_customer'],       tk: 388,  ms: 220, when: '7m ago',   savedAsTest: true  },
-  { id: 'h3', label: 'order_lifecycle composite test',     prompt: 'create order for new customer kira@x.com',   tools: ['order_lifecycle'],     tk: 624,  ms: 410, when: '14m ago',  savedAsTest: true  },
-  { id: 'h4', label: 'refund w/ audit trail',              prompt: 'refund charge ch_8a2f and log it',          tools: ['refund_with_audit'],   tk: 506,  ms: 320, when: '22m ago',  savedAsTest: false },
-  { id: 'h5', label: 'last 10 transactions',               prompt: 'show last 10 transactions for customer ali', tools: ['list_charges'],        tk: 478,  ms: 260, when: '38m ago',  savedAsTest: false },
-];
+// ────────────────────────────────────────────────────────────────────────────
+// Sample-prompts extraction from `useJobArtifact(jobId, 'sample-prompts')`.
+//
+// Engine writes this artifact post-Pass-5 with shape `{ prompts: [string] }`
+// or a bare array of strings (defensive). Until the artifact pass lands
+// (Day 2), the artifact is absent and the chip-row hides.
+// ────────────────────────────────────────────────────────────────────────────
+
+interface SamplePromptsArtifact {
+  readonly prompts?: ReadonlyArray<unknown>;
+}
+
+function extractSamplePrompts(raw: unknown): readonly string[] {
+  if (raw === null || raw === undefined) return [];
+  if (Array.isArray(raw)) {
+    return raw.filter((p): p is string => typeof p === 'string');
+  }
+  if (typeof raw === 'object') {
+    const list = (raw as SamplePromptsArtifact).prompts;
+    if (Array.isArray(list)) {
+      return list.filter((p): p is string => typeof p === 'string');
+    }
+  }
+  return [];
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Tool-list extraction from `useJobArtifact(jobId, 'final-tools')`.
@@ -195,7 +212,7 @@ export default function Playground({
   const [traces, setTraces] = useState<TraceRow[]>([]);
   const [running, setRunning] = useState<boolean>(false);
   const [keyTtl, setKeyTtl] = useState<number>(47 * 60);
-  const [history, setHistory] = useState<readonly HistoryRun[]>(SEED_HISTORY);
+  const [history, setHistory] = useState<readonly HistoryRun[]>([]);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'tests'>('all');
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [savedToast, setSavedToast] = useState<string>('');
@@ -210,6 +227,15 @@ export default function Playground({
   }, [artifactQuery.data]);
 
   const visibleTools = toolNames.length > 0 ? toolNames : [FALLBACK_TOOL];
+
+  // Sample prompts — engine artifact, populated post-Pass-5 (Day 2).
+  // Until Day 2 the artifact returns 404 → empty list → chip-row hides.
+  const samplePromptsQuery = useJobArtifact(jobId, 'sample-prompts');
+  const samplePrompts = useMemo<readonly string[]>(() => {
+    const r = samplePromptsQuery.data;
+    if (r === undefined || !r.ok) return [];
+    return extractSamplePrompts(r.data);
+  }, [samplePromptsQuery.data]);
 
   // Auto-select first available tool once artefacts arrive.
   useEffect(() => {
@@ -330,18 +356,32 @@ export default function Playground({
   );
   const testCount = history.filter((r) => r.savedAsTest).length;
 
-  // Token-economy math (canon formula, kept verbatim).
-  const totalNew = traces.reduce((s, t) => s + t.in + t.out + 1022, 0);
-  const totalNaive = traces.length ? totalNew * 3.9 : 0;
-  const cost = ((totalNew / 1e6) * 15).toFixed(3);
-  const naiveCost = ((totalNaive / 1e6) * 15).toFixed(3);
+  // Live job state — also feeds the breadcrumb server name + structural
+  // metrics card (endpoint_count, target_complexity).
+  const jobQuery = useJob(jobId);
+  const job = jobQuery.data?.ok === true ? jobQuery.data.data : null;
+  const partial = job?.partial_result ?? null;
+
+  // Live session token totals — sum of real per-call in/out from `traces`.
+  // No "+ 1022" canon overhead constant; no `* 3.9` naive multiplier; no
+  // synthetic cost projection. Real numbers only — Day 1 BFF will populate
+  // these from actual Anthropic agent-loop usage.
+  const totalNew = traces.reduce((s, t) => s + t.in + t.out, 0);
+
+  // Structural metrics for the SESSION TOTALS card — read once from job
+  // artifacts (no fake savings claim, no magic constants).
+  const toolsLoaded = toolNames.length;
+  const endpointCount =
+    typeof partial?.endpoint_count === 'number' ? partial.endpoint_count : null;
+  const targetComplexity =
+    typeof partial?.target_complexity === 'string' &&
+    partial.target_complexity.length > 0
+      ? partial.target_complexity
+      : null;
 
   // Breadcrumb server name — same chain as canvas/preview screens.
   // Priority: explicit sample.name (server-side prop) → BFF
   // partial_result.spec_name → derived from spec URL → "mcp-server".
-  const jobQuery = useJob(jobId);
-  const job = jobQuery.data?.ok === true ? jobQuery.data.data : null;
-  const partial = job?.partial_result ?? null;
   const specNameFromJob =
     partial !== null && typeof partial.spec_name === 'string' && partial.spec_name !== ''
       ? partial.spec_name
@@ -597,20 +637,24 @@ export default function Playground({
             </div>
           </div>
 
-          <SectionLabel>try a prompt</SectionLabel>
-          <div className="mc-chiprow" style={{ marginBottom: 24 }}>
-            {SUGGESTED_PROMPTS.map((p) => (
-              <button
-                key={p}
-                type="button"
-                className="mc-chip"
-                onClick={() => void send(p)}
-                disabled={running}
-              >
-                ▸ {p}
-              </button>
-            ))}
-          </div>
+          {samplePrompts.length > 0 && (
+            <>
+              <SectionLabel>try a prompt</SectionLabel>
+              <div className="mc-chiprow" style={{ marginBottom: 24 }}>
+                {samplePrompts.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    className="mc-chip"
+                    onClick={() => void send(p)}
+                    disabled={running}
+                  >
+                    ▸ {p}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18 }}>
             <div className="row-bw" style={{ marginBottom: 12 }}>
@@ -828,59 +872,36 @@ export default function Playground({
             }}
           >
             <SectionLabel>session totals</SectionLabel>
-            <div className="mc-mono" style={{ marginBottom: 16 }}>
+            <div className="mc-mono" style={{ marginBottom: 20 }}>
               <div className="row-bw" style={{ marginBottom: 4 }}>
                 <span className="muted">this run</span>
                 <span>
                   <CountUp value={totalNew} /> tk
                 </span>
               </div>
-              <div className="row-bw">
-                <span className="muted">cost</span>
-                <span>${cost}</span>
-              </div>
-            </div>
-            <div
-              className="mc-mono"
-              style={{ marginBottom: 16, opacity: traces.length ? 1 : 0.4 }}
-            >
-              <div className="row-bw" style={{ marginBottom: 4 }}>
-                <span className="muted">same on naive</span>
-                <span>
-                  <CountUp value={Math.round(totalNaive)} /> tk
-                </span>
-              </div>
-              <div className="row-bw">
-                <span className="muted">would cost</span>
-                <span>${naiveCost}</span>
-              </div>
             </div>
 
-            {traces.length > 0 && (
-              <div
-                style={{
-                  padding: 14,
-                  background: 'var(--primary)',
-                  color: 'var(--primary-ink)',
-                  borderRadius: 'var(--radius)',
-                  border: '1px solid var(--border-sharp)',
-                }}
-              >
-                <div
-                  className="mc-caption-up"
-                  style={{ color: 'var(--primary-ink)', opacity: 0.7 }}
-                >
-                  saved this session
-                </div>
-                <div
-                  className="mc-mono"
-                  style={{ fontSize: 26, fontWeight: 500, marginTop: 4 }}
-                >
-                  ${(parseFloat(naiveCost) - parseFloat(cost)).toFixed(3)}{' '}
-                  <span style={{ fontSize: 14 }}>· ↓75%</span>
-                </div>
+            <SectionLabel>server structure</SectionLabel>
+            <div className="mc-mono" style={{ fontSize: 12.5 }}>
+              <div className="row-bw" style={{ marginBottom: 4 }}>
+                <span className="muted">tools loaded</span>
+                <span>
+                  {toolsLoaded > 0 ? toolsLoaded : <span className="muted">—</span>}
+                </span>
               </div>
-            )}
+              {endpointCount !== null && (
+                <div className="row-bw" style={{ marginBottom: 4 }}>
+                  <span className="muted">from endpoints</span>
+                  <span>{endpointCount}</span>
+                </div>
+              )}
+              {targetComplexity !== null && (
+                <div className="row-bw" style={{ marginBottom: 4 }}>
+                  <span className="muted">mode</span>
+                  <span>{targetComplexity}</span>
+                </div>
+              )}
+            </div>
           </div>
         </aside>
       </div>

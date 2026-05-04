@@ -29,17 +29,23 @@ vi.mock('@/lib/api/playground', () => ({
   })),
 }));
 
-// Stub the artefact hook — vary `data` per test via `mockReturnValue`.
-const useJobArtifactSpy = vi.fn();
+// Stub the artefact hook — varies `data` per artifact name. Tests can swap
+// in shapes for `final-tools` / `sample-prompts` independently. Default:
+// undefined (artifact not yet populated).
+const artifactByName = new Map<string, unknown>();
+const useJobArtifactSpy = vi.fn((_jobId: string, name: string) => ({
+  data: artifactByName.get(name),
+}));
 const useJobSpy = vi.fn(() => ({ data: undefined }));
 vi.mock('@/lib/api/jobs', () => ({
   useJob: (...args: unknown[]) => useJobSpy(...(args as [])),
-  useJobArtifact: (...args: unknown[]) => useJobArtifactSpy(...args),
+  useJobArtifact: (jobId: string, name: string) => useJobArtifactSpy(jobId, name),
 }));
 
 afterEach(() => {
   cleanup();
-  useJobArtifactSpy.mockReset();
+  artifactByName.clear();
+  useJobArtifactSpy.mockClear();
 });
 
 function renderPlayground(props: { jobId?: string } = {}): ReturnType<typeof render> {
@@ -53,27 +59,23 @@ function renderPlayground(props: { jobId?: string } = {}): ReturnType<typeof ren
 
 describe('<Playground>', () => {
   it('renders tool dropdown with fallback when no artefacts available', () => {
-    useJobArtifactSpy.mockReturnValue({ data: undefined });
-
     const { getByLabelText } = renderPlayground();
     const select = getByLabelText('tool') as HTMLSelectElement;
     expect(select).not.toBeNull();
-    // Canon fallback tool name from playground.tsx.
+    // Fallback tool name from playground.tsx (FALLBACK_TOOL).
     expect(select.options.length).toBeGreaterThanOrEqual(1);
     expect(select.options[0]?.value).toBe('list_charges');
   });
 
   it('populates dropdown from useJobArtifact final-tools', async () => {
-    useJobArtifactSpy.mockReturnValue({
+    artifactByName.set('final-tools', {
+      ok: true,
       data: {
-        ok: true,
-        data: {
-          final_tools: [
-            { name: 'search' },
-            { name: 'fetch' },
-            { name: 'list_objects' },
-          ],
-        },
+        final_tools: [
+          { name: 'search' },
+          { name: 'fetch' },
+          { name: 'list_objects' },
+        ],
       },
     });
 
@@ -84,9 +86,57 @@ describe('<Playground>', () => {
     expect(values).toEqual(['search', 'fetch', 'list_objects']);
   });
 
-  it('renders the canon "trace failed" branch when run-tool stub is disabled', async () => {
-    useJobArtifactSpy.mockReturnValue({ data: undefined });
+  it('hides the try-a-prompt chip-row when sample-prompts artifact is absent', () => {
+    const { queryByText } = renderPlayground();
+    // "try a prompt" SectionLabel should not render when artifact is empty.
+    expect(queryByText(/try a prompt/i)).toBeNull();
+  });
 
+  it('renders sample prompts as chips when artifact is populated', () => {
+    artifactByName.set('sample-prompts', {
+      ok: true,
+      data: { prompts: ['forecast for Oslo', 'list active stations'] },
+    });
+
+    const { getByText } = renderPlayground();
+    expect(getByText(/try a prompt/i)).not.toBeNull();
+    expect(getByText('▸ forecast for Oslo')).not.toBeNull();
+    expect(getByText('▸ list active stations')).not.toBeNull();
+  });
+
+  it('does not render the canon naive-cost block (× 3.9 magic constant)', () => {
+    artifactByName.set('final-tools', {
+      ok: true,
+      data: { final_tools: [{ name: 'search' }] },
+    });
+
+    const { queryByText } = renderPlayground();
+    expect(queryByText(/same on naive/i)).toBeNull();
+    expect(queryByText(/saved this session/i)).toBeNull();
+    expect(queryByText(/would cost/i)).toBeNull();
+  });
+
+  it('renders structural metrics card with tools-loaded count', () => {
+    artifactByName.set('final-tools', {
+      ok: true,
+      data: { final_tools: [{ name: 'search' }, { name: 'fetch' }] },
+    });
+
+    const { getByText } = renderPlayground();
+    expect(getByText(/server structure/i)).not.toBeNull();
+    expect(getByText(/tools loaded/i)).not.toBeNull();
+  });
+
+  it('starts with empty history (no SEED_HISTORY canon fixture)', () => {
+    const { queryByText } = renderPlayground();
+    // None of the canon SEED rows should leak into a fresh playground.
+    expect(queryByText(/list active plans/i)).toBeNull();
+    expect(queryByText(/find rio@example.com/i)).toBeNull();
+    expect(queryByText(/order_lifecycle/i)).toBeNull();
+    expect(queryByText(/refund w\/ audit trail/i)).toBeNull();
+  });
+
+  it('renders the canon "trace failed" branch when run-tool stub is disabled', async () => {
     const { container, getByPlaceholderText, getByRole } = renderPlayground();
     const input = getByPlaceholderText('type message…') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'test prompt' } });
