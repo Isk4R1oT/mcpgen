@@ -299,6 +299,53 @@ generateRoute.post('/', anonRateLimit, async (c) => {
           status: engineResp.status,
           body: errBody.slice(0, 200),
         });
+      } else {
+        // CRITICAL: engine pipeline runs INSIDE the /stream generator — it
+        // only progresses when a consumer is reading SSE. The /preview
+        // (review) screen polls /jobs/:id, not /stream, so without this
+        // detached drain the pipeline never advances past Stage A and
+        // Pass 0 artifacts never land. We open the SSE channel and discard
+        // the body; the engine writes pass_*_output to its L1 cache as the
+        // pipeline advances, so subsequent /jobs/:id reads see real data
+        // even though we throw away the events here.
+        //
+        // The detached fetch is fire-and-forget — we don't await; if web
+        // navigates to /[jobId] (Stream screen) and opens its own SSE proxy,
+        // it'll see the same events because engine multicasts.
+        //
+        // Using c.executionCtx.waitUntil keeps the workerd runtime from
+        // discarding the in-flight fetch when this handler returns its 202.
+        const drainEngineStream = async (): Promise<void> => {
+          try {
+            const stream = await fetch(
+              `${engineEndpoint}/api/v1/generate/${encodeURIComponent(jobId)}/stream`,
+              {
+                method: 'GET',
+                headers: { Accept: 'text/event-stream' },
+              },
+            );
+            const reader = stream.body?.getReader();
+            if (reader === undefined) return;
+            // Pull until pipeline closes the stream (terminal: completed | failed).
+            // The reader buffers small chunks; we discard them.
+            for (;;) {
+              const { done } = await reader.read();
+              if (done) break;
+            }
+          } catch (drainErr) {
+            console.warn('engine SSE drain ended unexpectedly', {
+              jobId,
+              error: drainErr instanceof Error ? drainErr.message : String(drainErr),
+            });
+          }
+        };
+        const exec = (c.executionCtx as unknown as { waitUntil?: (p: Promise<unknown>) => void } | undefined);
+        if (typeof exec?.waitUntil === 'function') {
+          exec.waitUntil(drainEngineStream());
+        } else {
+          // Test / non-Workers runtime — kick off without waitUntil.
+          void drainEngineStream();
+        }
       }
     } catch (err) {
       console.warn('engine fetch threw; SSE stream will surface error', {

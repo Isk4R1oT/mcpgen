@@ -25,13 +25,28 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     PYTHONUNBUFFERED=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv (Astral's Python project manager).
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
     && cp /root/.local/bin/uv /usr/local/bin/uv \
     && uv --version
+
+# Install Node.js + pnpm — Stage E (codegen) runs `tsc --noEmit` against
+# the rendered TypeScript bundle and the engine helper
+# `ensure_codegen_node_modules()` shells out to `pnpm install` to populate
+# `packages/codegen-templates/node_modules`. Without these tools the
+# pipeline crashes at Stage E with STAGE_E_FAILED and the L1 artifact
+# cache never gets written, so BFF /jobs/:id returns
+# `partial_result: null` even for fully-completed Pass 0-5 LLM stages.
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && corepack enable \
+    && corepack prepare pnpm@10.30.2 --activate \
+    && node --version && pnpm --version
 
 WORKDIR /app
 
@@ -53,6 +68,18 @@ COPY apps/generation-engine/tests ./tests
 RUN sed -i 's|path = "\.\./\.\./packages/ir"|path = "/pkgs/ir"|' pyproject.toml \
     && sed -i 's|"\.\./\.\./packages/ir"|"/pkgs/ir"|g' uv.lock \
     && uv sync --frozen --no-dev
+
+# Pre-warm packages/codegen-templates/node_modules in the BUILDER so the
+# runtime stage doesn't have to run `pnpm install` on first generation.
+# Bypass the workspace by stripping the workspace reference from the
+# package.json and using a standalone install — codegen-templates' deps
+# are all public registry packages (TS toolchain + CF types), so this is
+# self-contained.
+COPY packages/codegen-templates/package.json /tmp/codegen-templates/package.json
+RUN cd /tmp/codegen-templates \
+    && node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json')); delete p.private; fs.writeFileSync('package.json', JSON.stringify(p, null, 2));" \
+    && pnpm install --no-lockfile --ignore-workspace --prefer-offline \
+    && ls node_modules | head -5
 
 
 FROM python:3.12-slim-bookworm AS runtime
@@ -86,6 +113,20 @@ COPY apps/generation-engine/src /app/src
 COPY packages/codegen-templates /app/packages/codegen-templates
 COPY packages/engine-fixtures   /app/packages/engine-fixtures
 ENV MCPGEN_TEMPLATES_DIR=/app/packages/codegen-templates/templates
+
+# Carry over the pre-warmed node_modules from the builder stage so Stage E
+# `tsc --noEmit` validation works without spawning pnpm at runtime.
+COPY --from=builder /tmp/codegen-templates/node_modules /app/packages/codegen-templates/node_modules
+
+# Install Node.js (no pnpm needed at runtime — node_modules is pre-warmed)
+# so Stage E can run `npx tsc --noEmit` directly. Smaller install than the
+# full builder toolchain.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && node --version
 
 WORKDIR /app
 EXPOSE 8000
