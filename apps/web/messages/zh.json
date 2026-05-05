@@ -13,6 +13,7 @@
   "heroLine3End": "。",
   "heroSub": "默认 token 优化。开源 CLI 加托管云。绝不允许简单的 1:1 转换。",
   "placeholder": "粘贴 OpenAPI / GraphQL / Postman URL...",
+  "urlInvalid": "please paste a full URL — must start with http:// or https://",
   "makeIt": "生成",
   "orDrop": "或拖放文件 · 粘贴 curl 示例 · 输入 github 仓库 URL",
   "tryWith": "试用样例",
@@ -666,7 +667,7 @@
   "stream": {
     "crumb": "generating {name}-mcp",
     "cancel": "cancel",
-    "stepProgress": "step {current} of {total} · {percent}%",
+    "stepProgress": "stage {current} of {total} · {percent}%",
     "statusStreaming": "streaming…",
     "statusCompleted": "completed",
     "statusFailed": "failed",

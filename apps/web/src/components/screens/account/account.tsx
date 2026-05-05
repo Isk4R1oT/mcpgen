@@ -96,6 +96,11 @@ type SsoProvider = 'google' | 'github' | 'microsoft' | 'saml';
 // ────────────────────────────────────────────────────────────────────────────
 
 interface ApiErrorBody {
+  /** Stable machine-readable code (e.g. `invalid_credentials`,
+   *  `email_already_exists`). The client maps it to a localized string
+   *  via the `account.errors.<code>` translation namespace; falls back
+   *  to `error_message` when no mapping exists. */
+  readonly error?: string;
   readonly error_message?: string;
 }
 
@@ -117,12 +122,43 @@ function finalizeAuthRedirect(
   router.push('/dashboard');
 }
 
+interface PostJsonError {
+  /** Localized human-readable text suitable for direct rendering. */
+  readonly errorMessage: string;
+  /** Optional stable error code from the server (when JSON body provided). */
+  readonly errorCode?: string;
+}
+
+// BUG-015 fix — map server error codes (stable, English-keyed) to the
+// active locale via the next-intl `account.errors.*` namespace. Falls
+// back to the raw server message when the code is unknown so we never
+// drop information silently.
+//
+// Server-side codes shipped today (from
+// apps/web/src/app/api/auth/embedded/_shared.ts + experience.ts):
+//   invalid_credentials  · email_already_exists  · invalid_body
+//   route_disabled       · signup_disabled       · forgot_password_disabled
+//   magic_link_disabled
+function localizeErrorCode(
+  t: (key: string) => string,
+  code: string | undefined,
+  fallback: string,
+): string {
+  if (code === undefined || code.length === 0) return fallback;
+  const key = `errors.${code}`;
+  const localized = t(key);
+  // next-intl returns the key path verbatim when missing — treat that as
+  // "no translation available" and use the server-provided English text.
+  if (localized === key || localized.endsWith(`.${code}`)) return fallback;
+  return localized;
+}
+
 async function postJson(
   path: string,
   body: Record<string, unknown>,
 ): Promise<
   | { ok: true; redirectTo: string | null }
-  | { ok: false; errorMessage: string }
+  | ({ ok: false } & PostJsonError)
 > {
   let response: Response;
   try {
@@ -165,7 +201,10 @@ async function postJson(
     typeof parsed.error_message === 'string' && parsed.error_message.length > 0
       ? parsed.error_message
       : `request failed (status ${response.status})`;
-  return { ok: false, errorMessage };
+  const errorCode = typeof parsed.error === 'string' ? parsed.error : undefined;
+  return errorCode !== undefined
+    ? { ok: false, errorMessage, errorCode }
+    : { ok: false, errorMessage };
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -273,7 +312,7 @@ export default function AccountScreen({
         });
         setBusy(false);
         if (!result.ok) {
-          setErr(result.errorMessage);
+          setErr(localizeErrorCode(t, result.errorCode, result.errorMessage));
           return;
         }
         setMagicSent(true);
@@ -294,7 +333,7 @@ export default function AccountScreen({
         });
         setBusy(false);
         if (!result.ok) {
-          setErr(result.errorMessage);
+          setErr(localizeErrorCode(t, result.errorCode, result.errorMessage));
           return;
         }
         setResetSent(true);
@@ -333,7 +372,7 @@ export default function AccountScreen({
         const result = await postJson('/api/auth/embedded/sign-up', body);
         setBusy(false);
         if (!result.ok) {
-          setErr(result.errorMessage);
+          setErr(localizeErrorCode(t, result.errorCode, result.errorMessage));
           return;
         }
         toast(t('toastSignupOk'));
@@ -359,7 +398,12 @@ export default function AccountScreen({
       });
       setBusy(false);
       if (!result.ok) {
-        setErr(result.errorMessage);
+        // BUG-015 fix — map the stable server error code to a localized
+        // string so RU users see "неверный email или пароль" instead of
+        // the hardcoded English "incorrect email or password" coming from
+        // apps/web/src/lib/logto/experience.ts. Falls back to the raw
+        // server message for codes we haven't translated yet.
+        setErr(localizeErrorCode(t, result.errorCode, result.errorMessage));
         return;
       }
       toast(t('toastSigninOk'));

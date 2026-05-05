@@ -13,6 +13,7 @@
   "heroLine3End": ".",
   "heroSub": "оптимизация токенов по умолчанию. open-source CLI и managed-облако. никаких наивных 1:1 преобразований.",
   "placeholder": "вставьте URL спецификации OpenAPI / GraphQL / Postman...",
+  "urlInvalid": "вставьте полный URL — должен начинаться с http:// или https://",
   "makeIt": "сгенерировать",
   "orDrop": "или перетащите файл · вставьте curl-примеры · введите URL github-репозитория",
   "tryWith": "попробовать с",
@@ -227,6 +228,15 @@
     "errPwEmpty": "введите пароль",
     "errPwWeak": "пароль слишком слабый",
     "errTerms": "необходимо принять условия",
+    "errors": {
+      "invalid_credentials": "неверный email или пароль",
+      "email_already_exists": "аккаунт с таким email уже существует",
+      "invalid_body": "введённые данные не приняты — проверьте форму и попробуйте ещё раз",
+      "route_disabled": "этот способ входа сейчас отключён — попробуйте другой",
+      "signup_disabled": "регистрация временно приостановлена",
+      "forgot_password_disabled": "восстановление пароля сейчас отключено",
+      "magic_link_disabled": "вход по magic-link сейчас отключён"
+    },
     "toastSigninOk": "с возвращением",
     "toastSignupOk": "аккаунт создан · добро пожаловать",
     "toastMagicSent": "magic-ссылка отправлена на {email}",
@@ -666,7 +676,7 @@
   "stream": {
     "crumb": "генерируется {name}-mcp",
     "cancel": "отменить",
-    "stepProgress": "шаг {current} из {total} · {percent}%",
+    "stepProgress": "стадия {current} из {total} · {percent}%",
     "statusStreaming": "стриминг…",
     "statusCompleted": "готово",
     "statusFailed": "ошибка",

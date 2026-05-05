@@ -13,6 +13,7 @@
   "heroLine3End": ".",
   "heroSub": "token-optimized by default. open-source CLI plus managed cloud. no naive 1:1 conversions allowed.",
   "placeholder": "paste OpenAPI / GraphQL / Postman URL...",
+  "urlInvalid": "please paste a full URL — must start with http:// or https://",
   "makeIt": "make it",
   "orDrop": "or drop file · paste curl examples · enter github repo URL",
   "tryWith": "try with",
@@ -227,6 +228,15 @@
     "errPwEmpty": "enter your password",
     "errPwWeak": "password is too weak",
     "errTerms": "you must accept the terms to continue",
+    "errors": {
+      "invalid_credentials": "incorrect email or password",
+      "email_already_exists": "an account with this email already exists",
+      "invalid_body": "your input was rejected — please check the form and try again",
+      "route_disabled": "this method is currently disabled — try another way to sign in",
+      "signup_disabled": "self-serve sign-up is paused right now",
+      "forgot_password_disabled": "password reset is currently disabled",
+      "magic_link_disabled": "magic-link sign-in is currently disabled"
+    },
     "toastSigninOk": "welcome back",
     "toastSignupOk": "account created · welcome",
     "toastMagicSent": "magic link sent to {email}",
@@ -666,7 +676,7 @@
   "stream": {
     "crumb": "generating {name}-mcp",
     "cancel": "cancel",
-    "stepProgress": "step {current} of {total} · {percent}%",
+    "stepProgress": "stage {current} of {total} · {percent}%",
     "statusStreaming": "streaming…",
     "statusCompleted": "completed",
     "statusFailed": "failed",

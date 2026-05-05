@@ -35,6 +35,10 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 const instrumentSerif = Instrument_Serif({
   subsets: ['latin'],
   weight: '400',
+  // BUG-014 — display headings use `font-style: italic` so we explicitly
+  // request both styles. Without this, the browser synthesizes italic by
+  // skewing the regular face, which looks worse than the real italic file.
+  style: ['normal', 'italic'],
   variable: '--font-instrument-serif',
   display: 'swap',
 });

@@ -111,6 +111,7 @@ export function useJob(
   opts?: UseJobOpts,
 ): UseQueryResult<Result<JobStatus>, Error> {
   const enabled = (opts?.enabled ?? true) && Boolean(jobId);
+  const interval = opts?.refetchIntervalMs ?? false;
   return useQuery<Result<JobStatus>, Error>({
     queryKey: ['job', jobId],
     queryFn: () => {
@@ -124,7 +125,23 @@ export function useJob(
       return fetchJob(jobId);
     },
     enabled,
-    refetchInterval: opts?.refetchIntervalMs ?? false,
+    // BUG-012 fix — stop polling once the job reaches a terminal status.
+    // The prior config polled forever after `completed` (observed 150+
+    // requests in <2 min on the canvas screen), which would translate to
+    // a non-trivial cost in production. TanStack Query treats a function
+    // returning `false` as "stop polling" while still letting the cache
+    // serve the latest snapshot.
+    refetchInterval: (query) => {
+      if (interval === false) return false;
+      const data = query.state.data;
+      if (data !== undefined && data.ok) {
+        const s = data.data.status;
+        if (s === 'completed' || s === 'failed' || s === 'cancelled') {
+          return false;
+        }
+      }
+      return interval;
+    },
     staleTime: 10_000,
   });
 }

@@ -271,13 +271,32 @@ export default function Landing({
     void import('@/lib/api/warmup').then((m) => m.fireWarmup());
   }, []);
 
+  // BUG-011 fix — invalid URL on landing used to be silently swallowed
+  // (the button click did nothing, no inline feedback). Validate via the
+  // URL constructor and surface a typed inline error so the user knows
+  // what to fix. Empty input still routes to /generate which renders its
+  // own paste-a-spec entry — the empty path is intentional.
+  const [urlError, setUrlError] = useState<string | null>(null);
+
   const onMakeIt = (): void => {
     const trimmed = urlText.trim();
-    const target =
-      trimmed.length > 0
-        ? `/generate?spec_url=${encodeURIComponent(trimmed)}`
-        : '/generate';
-    router.push(target);
+    if (trimmed.length === 0) {
+      router.push('/generate');
+      return;
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      setUrlError(t('urlInvalid'));
+      return;
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      setUrlError(t('urlInvalid'));
+      return;
+    }
+    setUrlError(null);
+    router.push(`/generate?spec_url=${encodeURIComponent(trimmed)}`);
   };
 
   const onMarketplace = (): void => router.push('/marketplace');
@@ -393,14 +412,34 @@ export default function Landing({
               className="mc-input mc-mono"
               placeholder={t('placeholder')}
               value={urlText}
-              onChange={(e): void => setUrlText(e.target.value)}
+              onChange={(e): void => {
+                setUrlText(e.target.value);
+                if (urlError !== null) setUrlError(null);
+              }}
               autoFocus
+              type="url"
+              aria-invalid={urlError !== null}
+              aria-describedby={urlError !== null ? 'mc-url-error' : undefined}
             />
           </div>
           <Btn kind="primary" size="lg" iconR="arrow-r" onClick={onMakeIt}>
             {t('makeIt')}
           </Btn>
         </form>
+        {urlError !== null ? (
+          <div
+            id="mc-url-error"
+            className="mc-mono"
+            role="alert"
+            style={{
+              marginBottom: 14,
+              fontSize: 12.5,
+              color: 'var(--danger, #c0392b)',
+            }}
+          >
+            {urlError}
+          </div>
+        ) : null}
         <div className="mc-caption" style={{ marginBottom: 28 }}>
           {t('orDrop')}
         </div>

@@ -13,6 +13,7 @@
   "heroLine3End": ".",
   "heroSub": "optimisé en tokens par défaut. CLI open-source plus cloud managé. pas de conversions 1:1 naïves.",
   "placeholder": "collez une URL OpenAPI / GraphQL / Postman...",
+  "urlInvalid": "please paste a full URL — must start with http:// or https://",
   "makeIt": "générer",
   "orDrop": "ou déposez un fichier · collez des exemples curl · entrez une URL github",
   "tryWith": "essayer avec",
@@ -666,7 +667,7 @@
   "stream": {
     "crumb": "generating {name}-mcp",
     "cancel": "cancel",
-    "stepProgress": "step {current} of {total} · {percent}%",
+    "stepProgress": "stage {current} of {total} · {percent}%",
     "statusStreaming": "streaming…",
     "statusCompleted": "completed",
     "statusFailed": "failed",

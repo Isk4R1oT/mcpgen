@@ -381,12 +381,13 @@ body {
   white-space: nowrap;
 }
 
-/* Fonts loaded via Google + custom */
-@font-face {
-  font-family: 'PP Editorial New';
-  src: url('https://cdn.jsdelivr.net/gh/oblique-fonts/editorial-italic@main/EditorialNew-Italic.woff2') format('woff2');
-  font-style: italic; font-weight: 400; font-display: swap;
-}
+/* BUG-014 fix — the prior @font-face for "PP Editorial New" pointed at a
+   jsdelivr URL that 404s; the request was reproducing on every page load
+   and (in dev) blocked Playwright's font-load wait. Removed because
+   PP Editorial New is a commercial face we don't ship — the design chain
+   (`--font-serif`) already falls through to Instrument Serif (loaded via
+   next/font/google in app/layout.tsx) and finally Georgia, which renders
+   the italic display headings correctly without any 404s. */
 
 /* ── Auth screen ── */
 .mc-mode {
