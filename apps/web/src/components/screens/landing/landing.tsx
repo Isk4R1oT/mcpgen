@@ -239,7 +239,19 @@ function FooterCol({ title, items }: FooterColProps): ReactElement {
 // Public component.
 // ────────────────────────────────────────────────────────────────────────────
 
-export default function Landing(): ReactElement {
+interface LandingProps {
+  /** When false, hide the "marketplace" link in the topbar (route is
+   *  flag-gated and would 404 — fix for QA BUG-008). Default true so
+   *  test fixtures and stories don't need to know about flags. */
+  readonly marketplaceEnabled?: boolean;
+  /** Same idea for the "docs" link (currently shares onMarketplace). */
+  readonly docsEnabled?: boolean;
+}
+
+export default function Landing({
+  marketplaceEnabled = true,
+  docsEnabled = true,
+}: LandingProps = {}): ReactElement {
   const t = useTranslations();
   const router = useRouter();
 
@@ -307,20 +319,24 @@ export default function Landing(): ReactElement {
       <TopBar
         right={
           <>
-            <a
-              className="mc-link mc-mono"
-              style={{ fontSize: 12, cursor: 'pointer' }}
-              onClick={onMarketplace}
-            >
-              {t('marketplace')}
-            </a>
-            <a
-              className="mc-link mc-mono"
-              style={{ fontSize: 12, cursor: 'pointer' }}
-              onClick={onMarketplace}
-            >
-              {t('docs')}
-            </a>
+            {marketplaceEnabled ? (
+              <a
+                className="mc-link mc-mono"
+                style={{ fontSize: 12, cursor: 'pointer' }}
+                onClick={onMarketplace}
+              >
+                {t('marketplace')}
+              </a>
+            ) : null}
+            {docsEnabled ? (
+              <a
+                className="mc-link mc-mono"
+                style={{ fontSize: 12, cursor: 'pointer' }}
+                onClick={onMarketplace}
+              >
+                {t('docs')}
+              </a>
+            ) : null}
             <a
               className="mc-link mc-mono"
               style={{ fontSize: 12, cursor: 'pointer' }}

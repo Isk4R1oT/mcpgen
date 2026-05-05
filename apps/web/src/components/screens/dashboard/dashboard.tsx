@@ -182,7 +182,8 @@ export function Dashboard({
   onBack,
   onPlay,
 }: DashboardProps): ReactElement {
-  const { data: deploymentsResult } = useDeployments();
+  const deploymentsQuery = useDeployments();
+  const { data: deploymentsResult } = deploymentsQuery;
   const { data: driftResult } = useDriftEvents(deploymentId);
 
   const deployment = useMemo<Deployment | undefined>(() => {
@@ -193,6 +194,53 @@ export function Dashboard({
       (d) => d.deployment_id === deploymentId,
     );
   }, [deploymentsResult, deploymentId]);
+
+  // BUG-007 fix — when the deployments query has settled and there's no
+  // matching row for the URL `:id`, render an explicit empty state. The
+  // prior code fell through to `deriveSample(undefined)` which returned
+  // the canon "lumen-payments" fixture, producing identical "12 840
+  // calls / $63 saved / sk_live_••••8421" chrome on every signed-in
+  // user's `/dashboard/<anything>` URL even when they had zero
+  // deployments. Distinguishing pending vs. settled lets us keep the
+  // canon shell during the hydration window so the layout doesn't flash.
+  const deploymentsSettled = deploymentsQuery.isFetched;
+  if (deploymentsSettled && deployment === undefined) {
+    return (
+      <main
+        className="mc-page"
+        style={{
+          minHeight: '60vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 16,
+        }}
+      >
+        <div className="mc-mono" style={{ opacity: 0.6, fontSize: 13 }}>
+          dashboard
+        </div>
+        <div
+          className="mc-display-l"
+          style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}
+        >
+          deployment not found
+        </div>
+        <div className="mc-mono" style={{ opacity: 0.6, fontSize: 12, textAlign: 'center', maxWidth: 520 }}>
+          this dashboard URL doesn&apos;t match any of your deployed servers.
+          generate a new server from the landing page or pick one from the list.
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+          <a className="mc-btn mc-btn-ghost mc-btn-sm" href="/dashboard">
+            ← my deployments
+          </a>
+          <a className="mc-btn mc-btn-primary mc-btn-sm" href="/">
+            generate new
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   const sample = deriveSample(deployment);
   const breadcrumbName = `${sample.name}-mcp`;
