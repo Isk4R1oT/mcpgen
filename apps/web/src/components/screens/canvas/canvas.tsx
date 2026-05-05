@@ -75,7 +75,31 @@ function adaptTool(raw: unknown): CanvasTool | null {
   const name = typeof r['name'] === 'string' ? r['name'] : null;
   if (name === null || name === '') return null;
 
-  const description = typeof r['description'] === 'string' ? r['description'] : '';
+  // Pass 2 emits `description` as a structured ToolDescription object
+  // (`{purpose, when_to_use, limitations, parameter_overview, ...}`) per
+  // packages/ir/src/types.ts:43. Use `purpose` as the canonical summary
+  // shown in the canvas detail panel. The legacy `string` shape is kept
+  // as a backward-compat fallback for any older payloads in cache.
+  const rawDesc = r['description'];
+  let description = '';
+  if (typeof rawDesc === 'string') {
+    description = rawDesc;
+  } else if (rawDesc !== null && typeof rawDesc === 'object') {
+    const dobj = rawDesc as Record<string, unknown>;
+    const purpose = typeof dobj['purpose'] === 'string' ? dobj['purpose'] : '';
+    if (purpose !== '') {
+      description = purpose;
+    } else {
+      // Fallback chain: parameter_overview → first when_to_use bullet.
+      const overview =
+        typeof dobj['parameter_overview'] === 'string' ? dobj['parameter_overview'] : '';
+      const wtuRaw = dobj['when_to_use'];
+      const firstWtu =
+        Array.isArray(wtuRaw) && typeof wtuRaw[0] === 'string' ? (wtuRaw[0] as string) : '';
+      description = overview !== '' ? overview : firstWtu;
+    }
+  }
+
   const isWorkflow = r['type'] === 'workflow';
   const sourceEndpoints = Array.isArray(r['source_endpoints'])
     ? (r['source_endpoints'] as unknown[]).filter((s): s is string => typeof s === 'string')
@@ -95,21 +119,40 @@ function adaptTool(raw: unknown): CanvasTool | null {
     },
   );
 
-  // Token estimates — engine may surface `tk`/`raw_tk`/`tokens`/`raw_tokens`;
-  // until pass 5 emits these we conservatively return 0 and let the badge
-  // collapse to a single number (no fake savings %).
-  const tk =
+  // Token estimate — Pass 5 doesn't emit a per-tool token field, so we
+  // approximate from the serialized inputSchema + outputSchema + description
+  // (≈4 chars per token, OpenAI/Anthropic rule of thumb). Until the engine
+  // surfaces a real measurement, this gives a useful "Show, don't tell"
+  // signal per CLAUDE.md §10 instead of always rendering "— tk".
+  // Real fields take precedence if a future pass starts emitting them.
+  const explicitTk =
     typeof r['tk'] === 'number'
       ? (r['tk'] as number)
       : typeof r['tokens'] === 'number'
         ? (r['tokens'] as number)
-        : 0;
-  const rawTk =
+        : null;
+  const explicitRawTk =
     typeof r['raw_tk'] === 'number'
       ? (r['raw_tk'] as number)
       : typeof r['raw_tokens'] === 'number'
         ? (r['raw_tokens'] as number)
-        : 0;
+        : null;
+  const estimatedTk = (() => {
+    try {
+      const serialized = JSON.stringify({
+        name,
+        description: rawDesc,
+        inputSchema: schema ?? {},
+        outputSchema: r['outputSchema'] ?? r['output_schema'] ?? {},
+        annotations: r['annotations'] ?? {},
+      });
+      return Math.max(1, Math.ceil(serialized.length / 4));
+    } catch {
+      return 0;
+    }
+  })();
+  const tk = explicitTk ?? estimatedTk;
+  const rawTk = explicitRawTk ?? 0;
 
   // Category bucket — default "tools"; known engine tags map to friendlier
   // canon labels.

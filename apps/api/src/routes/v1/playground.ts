@@ -68,6 +68,36 @@ interface PgAuthRefused {
   body: { error: string; reason?: string };
 }
 
+// Two identifier formats coexist for a `generations` row's lifecycle (see
+// `apps/api/src/routes/v1/generate.ts:222-232` — pre-existing schema drift
+// flagged for a Phase-6/8 retro):
+//   1. `gen_<26-char-ULID>` — minted by `generate.ts` for cache-MISS anon
+//      flows. The placeholder INSERT into `generations` (which has a `uuid`
+//      `id` column) FAILS the uuid cast and is silently caught — these
+//      job ids therefore have NO `generations` row and NO
+//      `anonymous_generations` row. Engine identifies them via its
+//      in-memory `_JOB_TABLE` + on-disk artifact dir. Ownership for these
+//      is implicit: knowledge of the unguessable `gen_<ULID>` is the
+//      capability (matches the engine-only authz model used by
+//      jobs/anon-stream.ts when DB is unavailable).
+//   2. UUID — used after a cache-HIT replay (line 233) AND for fully
+//      claimed/authed flows that go through Phase 8 paths. These rows
+//      DO exist in `generations` and may have an `anonymous_generations`
+//      join row carrying the cookie / claimed_by_org_id.
+//
+// Format-driven dispatch: ULID-format ids skip the DB join entirely
+// (the join would fail the uuid cast and 500). UUID-format ids run the
+// canonical ownership check. This is NOT a permissive fallback — it's
+// explicit recognition of the two-identity architecture documented in
+// generate.ts.
+//
+// The principled long-term fix is to migrate `generations.id` from
+// `uuid` to `text` (and ripple to all 8 FK columns) so a single string
+// identity carries through. Tracked as the "Phase-6/8 retro" referenced
+// in generate.ts:231.
+const GEN_ID_ULID_REGEX = /^gen_[0-9A-HJKMNP-TV-Z]{26}$/;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function authorizePlaygroundAccess(
   c: import('hono').Context<{
     Bindings: PlaygroundBindings;
@@ -77,6 +107,21 @@ async function authorizePlaygroundAccess(
 ): Promise<PgAuthAuthorized | PgAuthRefused> {
   const auth = (c.var as { auth?: AuthContext }).auth;
   const jwtOrgId = auth?.organizationId ?? null;
+
+  if (GEN_ID_ULID_REGEX.test(generationId)) {
+    // ULID-format: no DB row by design. Engine handles auth via artifact
+    // existence check on its side (404 if the on-disk `generated/<job_id>/`
+    // dir is missing). Persistence is unavailable for these — `persistRun`
+    // and the test endpoints short-circuit when `orgId` is null.
+    return { ok: true, orgId: jwtOrgId };
+  }
+
+  if (!UUID_REGEX.test(generationId)) {
+    // Neither format — clearly invalid input. 404 (not 400) to keep the
+    // shape consistent with the canonical not-found response.
+    return { ok: false, status: 404, body: { error: 'not_found' } };
+  }
+
   const anonSessionId = readAnonSession(c);
 
   // Single round-trip — pull the join columns we need to make the decision.
@@ -89,7 +134,7 @@ async function authorizePlaygroundAccess(
       ag.claimed_by_org_id        AS claimed_by_org_id
     FROM generations g
     LEFT JOIN anonymous_generations ag ON ag.generation_id = g.id
-    WHERE g.id = ${generationId}
+    WHERE g.id = ${generationId}::uuid
     LIMIT 1
   `);
   const row = r.rows[0] as
@@ -323,11 +368,17 @@ playgroundRoute.post(
       }
 
       // Best-effort persistence — never fail the SSE response on DB error.
-      // Anonymous callers (no org_id) skip persistence; their playground
-      // history is session-only by design (playground_runs.org_id is NOT
-      // NULL — anon flow can still test the agent loop, just without a
-      // persistent history rail across page reloads).
-      if (donePayload !== null && auth.orgId !== null) {
+      // Skipped when:
+      //   - donePayload missing (engine never sent a `done` frame),
+      //   - org_id absent (anon callers — playground_runs.org_id is NOT NULL),
+      //   - generationId is ULID-format (FK column is uuid; the INSERT would
+      //     fail the same uuid-cast that breaks the auth path — see
+      //     authorizePlaygroundAccess for the format-drift rationale).
+      if (
+        donePayload !== null &&
+        auth.orgId !== null &&
+        UUID_REGEX.test(generationId)
+      ) {
         await persistRun({
           generationId,
           orgId: auth.orgId,
@@ -346,9 +397,13 @@ playgroundRoute.get('/:generationId/runs', async (c) => {
   const generationId = c.req.param('generationId');
   const auth = await authorizePlaygroundAccess(c, generationId);
   if (!auth.ok) return c.json(auth.body, auth.status);
-  // Anonymous callers don't persist runs (org_id required) — return an
-  // empty list rather than 401 so the UI degrades gracefully.
-  if (auth.orgId === null) return c.json({ runs: [] });
+  // Empty list when persistence is unavailable: anon callers (no org_id) OR
+  // ULID-format job ids (FK column is uuid — see auth path comment). UI
+  // degrades to a hidden history rail, which is the documented behaviour
+  // for anon flows anyway.
+  if (auth.orgId === null || !UUID_REGEX.test(generationId)) {
+    return c.json({ runs: [] });
+  }
 
   const rows = await db
     .select({
@@ -463,9 +518,11 @@ playgroundRoute.post(
     const generationId = c.req.param('generationId');
     const auth = await authorizePlaygroundAccess(c, generationId);
     if (!auth.ok) return c.json(auth.body, auth.status);
-    if (auth.orgId === null) {
-      // Anonymous callers can't persist tests (org_id NOT NULL) — saving a
-      // test requires sign-in to attach the row to an org.
+    if (auth.orgId === null || !UUID_REGEX.test(generationId)) {
+      // Anonymous callers can't persist tests (playground_tests.org_id is
+      // NOT NULL). ULID-format job ids also can't persist (uuid FK column).
+      // Both surface as 401 with a hint to sign in / regenerate from a
+      // claimed-org context.
       return c.json(
         { error: 'unauthorized', reason: 'sign_in_to_save_tests' },
         401,
@@ -527,9 +584,12 @@ playgroundRoute.get('/:generationId/tests', async (c) => {
   const generationId = c.req.param('generationId');
   const auth = await authorizePlaygroundAccess(c, generationId);
   if (!auth.ok) return c.json(auth.body, auth.status);
-  // Anonymous callers don't have persisted tests — return an empty list
-  // so the UI degrades gracefully (chip-row hides, suite stays disabled).
-  if (auth.orgId === null) return c.json({ tests: [] });
+  // No persisted tests available for anon callers OR ULID-format ids
+  // (see auth path comment). Empty list so chip-row hides and suite
+  // stays disabled.
+  if (auth.orgId === null || !UUID_REGEX.test(generationId)) {
+    return c.json({ tests: [] });
+  }
 
   const rows = await db
     .select({
@@ -560,7 +620,7 @@ playgroundRoute.delete('/:generationId/tests/:testId', async (c) => {
   const generationId = c.req.param('generationId');
   const auth = await authorizePlaygroundAccess(c, generationId);
   if (!auth.ok) return c.json(auth.body, auth.status);
-  if (auth.orgId === null) {
+  if (auth.orgId === null || !UUID_REGEX.test(generationId)) {
     return c.json({ error: 'unauthorized', reason: 'sign_in_to_manage_tests' }, 401);
   }
   const testId = c.req.param('testId');
