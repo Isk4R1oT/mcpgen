@@ -20,7 +20,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { ALL_FIXTURES } from '@mcpgen/engine-fixtures';
 
-import { getBffUrl, getFrontendMode } from '@/lib/fixture-mode';
+import { proxyToBff } from '@/lib/api/bff-proxy';
+import { getFrontendMode } from '@/lib/fixture-mode';
 
 export const runtime = 'nodejs';
 
@@ -57,31 +58,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ deployments: FIXTURE_DEPLOYMENTS });
   }
 
-  // Live mode — proxy to BFF with Logto session cookie forwarded.
-  const upstreamUrl = `${getBffUrl()}/deployments`;
-  const headers: Record<string, string> = {};
-  const cookieHeader = req.headers.get('cookie');
-  if (cookieHeader !== null) headers.Cookie = cookieHeader;
-
-  let upstreamRes: Response;
-  try {
-    upstreamRes = await fetch(upstreamUrl, { headers });
-  } catch (e: unknown) {
-    return NextResponse.json(
-      {
-        error: 'bff_unreachable',
-        upstream_url: upstreamUrl,
-        message: e instanceof Error ? e.message : String(e),
-      },
-      { status: 502 },
-    );
-  }
-
-  const text = await upstreamRes.text();
-  return new Response(text, {
-    status: upstreamRes.status,
-    headers: {
-      'Content-Type': upstreamRes.headers.get('Content-Type') ?? 'application/json',
-    },
-  });
+  // Live mode — bridge the Logto session to a Bearer token and proxy
+  // to the BFF (BUG-006 fix). `proxyToBff` keeps the cookie forwarded so
+  // anon-flow callers without a Logto session still pass through.
+  return proxyToBff(req, { pathSuffix: 'deployments' });
 }

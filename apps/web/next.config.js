@@ -23,21 +23,21 @@ import createNextIntlPlugin from 'next-intl/plugin';
 // and to useTranslations() in client components.
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
-// POST-09.1 patch: dev-mode rewrites proxy /api/v1/* → BFF on :8787.
-// Without this, browser fetch('/api/v1/...') from useGenerationSSE +
-// submitGeneration hits Next.js dev server (3002) which 404s, breaking the
-// live SSE stream. /api/auth/* stays on Next.js (Logto server actions).
-// Production uses Vercel + Cloudflare path routing at the edge, so this
-// rewrite is dev-affinity-only.
+// BUG-006 fix (2026-05-05): the prior `beforeFiles` rewrite that forwarded
+// `/api/v1/*` directly to the BFF on :8787 has been REMOVED. It bypassed
+// the Next.js App Router file-based handlers entirely — even authed
+// endpoints with explicit `apps/web/src/app/api/v1/.../route.ts` files
+// never executed — so every browser-side fetch reached the BFF without
+// `Authorization: Bearer <jwt>` and got 401 missing_bearer.
 //
-// MCPGEN_BFF_URL may be set with OR without the trailing `/api/v1` segment
-// (different consumers in apps/web/src/lib/* expect different shapes). The
-// rewrite re-appends `/api/v1/:path*`, so we must strip a trailing `/api/v1`
-// from the env value to avoid producing `…/api/v1/api/v1/generate` — which
-// the BFF treats as "unknown route" and routes into the auth-protected
-// catch-all, returning 401. (Reported by E2E-FINDINGS-agent-b.)
-const RAW_BFF_URL = process.env.MCPGEN_BFF_URL || 'http://localhost:8787';
-const BFF_PROXY_TARGET = RAW_BFF_URL.replace(/\/api\/v1\/?$/, '');
+// Replacement: a catch-all `apps/web/src/app/api/v1/[...path]/route.ts`
+// that runs `proxyToBff` (which bridges the encrypted Logto session cookie
+// to a Bearer token via `@logto/next/server-actions.getAccessToken`).
+// Explicit handlers for `/api/v1/generate`, `/api/v1/deployments`,
+// `/api/v1/jobs/[jobId]/*` etc. retain their own business logic
+// (idempotency-key validation, fixture mode, SSE streaming) and continue
+// to win precedence over the catch-all per Next.js routing rules
+// (explicit static > dynamic > catch-all).
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -51,16 +51,6 @@ const nextConfig = {
   // restores immediate chunk delivery; production gzip belongs at the CDN
   // edge (Vercel handles it for non-SSE routes automatically).
   compress: false,
-  async rewrites() {
-    return {
-      beforeFiles: [
-        {
-          source: '/api/v1/:path*',
-          destination: `${BFF_PROXY_TARGET}/api/v1/:path*`,
-        },
-      ],
-    };
-  },
   // Workspace deps consumed by apps/web at runtime (Pattern 1 + Pattern 5):
   //   @mcpgen/contracts → HTTP contract Zod schemas + idempotency constants
   //   @mcpgen/ir        → FinalTool / QualityReport schemas (Plan 07-04 preview)
