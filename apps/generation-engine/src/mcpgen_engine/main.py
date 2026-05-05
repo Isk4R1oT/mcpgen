@@ -81,17 +81,27 @@ async def _engine_lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # re-fires every 4 minutes (under the 5-min provider TTL) so an idle
     # engine doesn't lose the cache. Failure here NEVER blocks startup —
     # warmup is a latency optimization, not a correctness requirement.
-    try:
-        # Background-task: don't block the lifespan startup. The first
-        # user request may still hit a partially-cold cache if it lands
-        # within ~10s of boot, but that's acceptable vs. delaying engine
-        # readiness by the warmup duration (~5-15s for 6 parallel calls).
-        # Task ref is intentionally not stored - lifespan-scoped
-        # fire-and-forget; keep-warm loop owns the long-lived task.
-        asyncio.create_task(warmup_all(), name="llm-warmup-initial")  # noqa: RUF006
-        start_keepwarm_task()
-    except Exception as exc:
-        _log.warning("engine.startup.llm_warmup_failed", error=repr(exc))
+    #
+    # Gated by MCPGEN_LLM_WARMUP_ENABLED: enabled by default to preserve
+    # prod latency-optimization semantics, but set to "0" in
+    # docker-compose.dev.yml so a forgotten local stack doesn't burn
+    # ~$0.37/day on warmup pings. Generation requests still warm the
+    # cache on first use; only the periodic keepwarm pings are skipped.
+    warmup_enabled = os.environ.get("MCPGEN_LLM_WARMUP_ENABLED", "1") == "1"
+    if warmup_enabled:
+        try:
+            # Background-task: don't block the lifespan startup. The first
+            # user request may still hit a partially-cold cache if it lands
+            # within ~10s of boot, but that's acceptable vs. delaying engine
+            # readiness by the warmup duration (~5-15s for 6 parallel calls).
+            # Task ref is intentionally not stored - lifespan-scoped
+            # fire-and-forget; keep-warm loop owns the long-lived task.
+            asyncio.create_task(warmup_all(), name="llm-warmup-initial")  # noqa: RUF006
+            start_keepwarm_task()
+        except Exception as exc:
+            _log.warning("engine.startup.llm_warmup_failed", error=repr(exc))
+    else:
+        _log.info("engine.startup.llm_warmup_skipped", reason="MCPGEN_LLM_WARMUP_ENABLED=0")
 
     # Playground TTL janitor — sweeps idle wrangler-dev sandboxes every 60s
     # so a forgotten session doesn't leak a Node + miniflare process for
