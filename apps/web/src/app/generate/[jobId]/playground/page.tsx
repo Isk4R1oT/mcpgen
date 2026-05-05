@@ -3,9 +3,15 @@
 // Playground route. Server Component shell that renders the production
 // Playground client (`@/components/screens/playground`).
 //
-// Auth: this route is matched by `PROTECTED_PATTERNS` in `lib/route-gate.ts`,
-// so middleware redirects anonymous users to Logto sign-in BEFORE this page
-// runs. We therefore don't need to assert auth here.
+// Auth: as of BUG-003 fix this route is INTENTIONALLY anon-allowed. The
+// UX flow doc (`docs/mcpgen-ux-flow.md` §3 Screen 4) designates the
+// playground as the trust-building moment for anonymous users; gating it
+// behind sign-in directly contradicted that promise. The playground BFF
+// (`apps/api/src/routes/v1/playground.ts`) handles anon-cookie ownership
+// for ULID-format job ids and skips persistence when org_id is null —
+// anon users can drive the agent loop, just without a persistent history.
+// Sign-in is still required for save-as-test (POST /:id/tests) which
+// returns 401 with a sign-in hint.
 //
 // SSR prefetch: we fetch the job status JSON to extract `spec_name` for the
 // breadcrumb. Tool list is fetched client-side via `useJobArtifact`.

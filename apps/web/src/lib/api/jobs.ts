@@ -157,11 +157,19 @@ export function useJob(
   });
 }
 
+interface UseJobArtifactOpts {
+  /** When false, skip the network fetch entirely. Useful when an upstream
+   *  source already contains the same payload (e.g. job-status's
+   *  `partial_result.final_tools` mirrors the `final-tools` artifact). */
+  enabled?: boolean;
+}
+
 export function useJobArtifact(
   jobId: string | null | undefined,
   name: string | null | undefined,
+  opts?: UseJobArtifactOpts,
 ): UseQueryResult<Result<unknown>, Error> {
-  const enabled = Boolean(jobId) && Boolean(name);
+  const enabled = Boolean(jobId) && Boolean(name) && (opts?.enabled ?? true);
   return useQuery<Result<unknown>, Error>({
     queryKey: ['job-artifact', jobId, name],
     queryFn: () => {

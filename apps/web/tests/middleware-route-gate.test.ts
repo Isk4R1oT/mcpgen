@@ -24,8 +24,12 @@ describe('middleware-route-gate (Plan 09.1-07)', () => {
     expect(isProtectedPath('/generate/x')).toBe(false);
   });
 
-  it('test 2: GET /generate/x/playground is gated', () => {
-    expect(isProtectedPath('/generate/x/playground')).toBe(true);
+  it('test 2: GET /generate/x/playground is anon-allowed (BUG-003 fix)', () => {
+    // Per docs/mcpgen-ux-flow.md §3 Screen 4 the playground is the
+    // trust-building moment for anonymous users — the prior gate
+    // contradicted that. Anon users now drive the agent loop with no
+    // persistence; save-as-test still requires sign-in.
+    expect(isProtectedPath('/generate/x/playground')).toBe(false);
   });
 
   it('test 3: GET /generate/x/deploy is anon-allowed (ephemeral path)', () => {
@@ -41,12 +45,11 @@ describe('middleware-route-gate (Plan 09.1-07)', () => {
     expect(isProtectedPath('/dashboard/usage')).toBe(true);
   });
 
-  it('test 6: GET /generate/x/playground SHOULD be gated for the auth check (path-only test)', () => {
-    // The auth-aware part of the middleware (Logto session lookup) is exercised
-    // by integration / E2E tests in plan 09.1-11. Here we pin the contract that
-    // playground IS in the protected set — meaning the middleware function
-    // WILL be invoked for that path and WILL redirect on missing session.
-    expect(isProtectedPath('/generate/x/playground')).toBe(true);
+  it('test 6: GET /generate/x/playground stays out of the auth gate (BUG-003 fix)', () => {
+    // The auth-aware part of the middleware no longer fires on this path —
+    // anon users render the playground with engine-only mode. Save-as-test
+    // and other persistence endpoints still 401 without a Logto session.
+    expect(isProtectedPath('/generate/x/playground')).toBe(false);
   });
 
   it('test 7: anon-allowed routes from CONTEXT D-10 are not protected', () => {
@@ -62,11 +65,11 @@ describe('middleware-route-gate (Plan 09.1-07)', () => {
     expect(isProtectedPath('/generate/abc/download/zip')).toBe(true);
   });
 
-  it('test 9: PROTECTED_PATTERNS list is non-empty and contains /playground regex', () => {
+  it('test 9: PROTECTED_PATTERNS list is non-empty and does NOT match /playground (BUG-003 fix)', () => {
     expect(PROTECTED_PATTERNS.length).toBeGreaterThan(0);
     const playgroundRe = PROTECTED_PATTERNS.find((re) =>
       re.test('/generate/job-1/playground'),
     );
-    expect(playgroundRe).toBeDefined();
+    expect(playgroundRe).toBeUndefined();
   });
 });

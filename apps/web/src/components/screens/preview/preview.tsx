@@ -330,7 +330,19 @@ export default function Preview({
   const job = jobQuery.data?.ok === true ? jobQuery.data.data : null;
   const partial = job?.partial_result ?? null;
 
-  const artifactQuery = useJobArtifact(jobId, 'final-tools');
+  // BUG-002 fix — only fall back to the gated `/artifacts/final-tools`
+  // endpoint when the BFF's `partial_result.final_tools` is empty. The
+  // job-status endpoint already inlines the same payload (see
+  // apps/api/src/routes/v1/jobs/anon-stream.ts where it merges the engine
+  // event accumulator into the response), and it accepts anon-cookie
+  // ownership while the artifact endpoint requires JWT auth — calling
+  // both produced a noisy 401 in the network tab on every anon preview.
+  const partialFinalTools = partial?.final_tools;
+  const partialHasFinalTools =
+    Array.isArray(partialFinalTools) && partialFinalTools.length > 0;
+  const artifactQuery = useJobArtifact(jobId, 'final-tools', {
+    enabled: !partialHasFinalTools,
+  });
   const artifact = artifactQuery.data;
   const finalToolsFromArtifact: ReadonlyArray<FinalTool> | null = useMemo(() => {
     if (artifact !== undefined && artifact.ok && Array.isArray(artifact.data)) {
