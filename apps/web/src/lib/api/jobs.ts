@@ -34,6 +34,17 @@ export const JobStatusSchema = z.object({
   status: z.string(),
   owned_via_cookie: z.boolean().optional(),
   last_known_event_id: z.string().nullable().optional(),
+  // BUG-010 fix — when status is 'failed' the BFF surfaces the engine
+  // error so the UI can render a real message instead of leaving the
+  // user on a perpetual loading spinner. See
+  // apps/api/src/routes/v1/jobs/anon-stream.ts:184 for the producer.
+  error: z
+    .object({
+      code: z.string(),
+      message: z.string(),
+    })
+    .nullable()
+    .optional(),
   // Engine-shaped partial result. Loose by design — Phase 5+ adds fields.
   partial_result: z
     .object({

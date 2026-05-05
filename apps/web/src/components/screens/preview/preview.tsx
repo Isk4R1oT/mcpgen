@@ -530,6 +530,78 @@ export default function Preview({
   const firstCompositeSteps =
     showCompositeBanner ? compositeCandidates[0]!.steps.slice(0, 3) : [];
 
+  // BUG-010 fix — when the BFF reports `status=failed` (Stage A bombed,
+  // pipeline crashed, etc.) render a real error screen instead of leaving
+  // the user on a perpetual "analyzing tools…" spinner. The error code +
+  // message come from apps/api/src/routes/v1/jobs/anon-stream.ts:184
+  // which surfaces the engine's terminal failure event.
+  if (job?.status === 'failed') {
+    const errCode = job.error?.code ?? 'UNKNOWN';
+    const errMessage = job.error?.message ?? 'pipeline failed';
+    const friendlyHint =
+      errCode === 'STAGE_A_FAILED'
+        ? 'this URL didn\'t parse as an OpenAPI / GraphQL / Postman spec — double-check the link or paste a different one.'
+        : errCode === 'BUDGET_EXCEEDED'
+          ? 'generation cost would exceed the per-spec cap — try a smaller spec or sign in for the higher Pro budget.'
+          : 'something went wrong on our side — try again, or paste a different spec.';
+    return (
+      <div className="mc-screen mc-grain" style={{ minHeight: '100vh' }}>
+        <TopBar
+          crumb={breadcrumb}
+          onLogo={onBack}
+          right={
+            <Btn kind="ghost" size="sm" onClick={onBack}>
+              ← back
+            </Btn>
+          }
+        />
+        <main
+          style={{
+            maxWidth: 720,
+            margin: '0 auto',
+            padding: '64px 28px 64px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            gap: 18,
+          }}
+        >
+          <div className="mc-caption-up" style={{ color: 'var(--danger, #c0392b)' }}>
+            generation failed
+          </div>
+          <div
+            className="mc-display-l"
+            style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}
+          >
+            we couldn&apos;t finish this one.
+          </div>
+          <div className="mc-mono" style={{ fontSize: 13, opacity: 0.85, maxWidth: 560 }}>
+            {friendlyHint}
+          </div>
+          <div
+            className="mc-mono"
+            style={{
+              fontSize: 11.5,
+              opacity: 0.55,
+              padding: '6px 10px',
+              border: '1px solid var(--border)',
+              borderRadius: 4,
+              marginTop: 4,
+            }}
+          >
+            {errCode} · {errMessage}
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <Btn kind="primary" size="md" onClick={onBack}>
+              try a different spec
+            </Btn>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="mc-screen mc-grain" style={{ minHeight: '100vh' }}>
       <TopBar
